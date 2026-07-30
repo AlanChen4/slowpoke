@@ -1,0 +1,17 @@
+{
+  "description": "Run repository quality checks before Codex finishes a turn.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/stop-hook.sh\" --hook",
+            "timeout": 120,
+            "statusMessage": "Running lint and formatting checks"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error"
+  },
+  "plugins": ["oxc", "typescript", "unicorn", "react", "jsx-a11y", "nextjs"],
+  "jsPlugins": ["./scripts/lint-rules/shadcn.mjs"],
+  "rules": {
+    "react/react-compiler": "error",
+    "slowpoke/prefer-shadcn-components": [
+      "error",
+      {
+        "button": {
+          "component": "Button",
+          "importPath": "@/components/ui/button"
+        },
+        "input": {
+          "component": "Input",
+          "importPath": "@/components/ui/input"
+        },
+        "label": {
+          "component": "Label",
+          "importPath": "@/components/ui/label"
+        },
+        "hr": {
+          "component": "Separator",
+          "importPath": "@/components/ui/separator"
+        },
+        "fieldset": {
+          "component": "FieldSet",
+          "importPath": "@/components/ui/field"
+        },
+        "legend": {
+          "component": "FieldLegend",
+          "importPath": "@/components/ui/field"
+        }
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/components/ui/**/*.{js,jsx,ts,tsx}"],
+      "rules": {
+        "slowpoke/prefer-shadcn-components": "off"
+      }
+    }
+  ]
+}

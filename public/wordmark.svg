@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1922 470"
+     role="img"
+     aria-labelledby="title description">
+  <title id="title">Slowpoke modular wordmark</title>
+  <desc id="description">
+    The word Slowpoke rendered in black modular lettering with two offset outline echoes on a transparent background.
+  </desc>
+
+  <defs>
+    <pattern id="brick-fill"
+             width="30"
+             height="60"
+             patternUnits="userSpaceOnUse">
+      <rect width="30" height="60" fill="#0a0a0a"/>
+      <path d="M0.5 0.5H29.5V59.5H0.5Z"
+            fill="none"
+            stroke="#343434"
+            stroke-width="1"
+            opacity="0.58"/>
+    </pattern>
+
+    <filter id="exterior-outline"
+            x="-12%"
+            y="-12%"
+            width="140%"
+            height="140%"
+            color-interpolation-filters="sRGB">
+      <feMorphology in="SourceAlpha"
+                    operator="dilate"
+                    radius="2.5"
+                    result="expanded"/>
+      <feComposite in="expanded"
+                   in2="SourceAlpha"
+                   operator="out"
+                   result="ring"/>
+      <feFlood flood-color="#0a0a0a" result="outline-color"/>
+      <feComposite in="outline-color"
+                   in2="ring"
+                   operator="in"/>
+    </filter>
+
+    <g id="glyph-s"><path d="M0 0H180V60H0Z M0 60H60V120H0Z M0 120H180V180H0Z M120 180H180V240H120Z M0 240H180V300H0Z"/></g>
+    <g id="glyph-l"><path d="M0 0H60V60H0Z M0 60H60V120H0Z M0 120H60V180H0Z M0 180H60V240H0Z M0 240H180V300H0Z"/></g>
+    <g id="glyph-o"><path d="M30 0H150V60H30Z M0 60H60V120H0Z M120 60H180V120H120Z M0 120H60V180H0Z M120 120H180V180H120Z M0 180H60V240H0Z M120 180H180V240H120Z M30 240H150V300H30Z"/></g>
+    <g id="glyph-w"><path d="M0 0H60V60H0Z M180 0H240V60H180Z M0 60H60V120H0Z M180 60H240V120H180Z M0 120H60V180H0Z M180 120H240V180H180Z M0 180H60V240H0Z M90 180H150V240H90Z M180 180H240V240H180Z M30 240H90V300H30Z M150 240H210V300H150Z"/></g>
+    <g id="glyph-p"><path d="M0 0H150V60H0Z M0 60H60V120H0Z M120 60H180V120H120Z M0 120H150V180H0Z M0 180H60V240H0Z M0 240H60V300H0Z"/></g>
+    <g id="glyph-k"><path d="M0 0H60V60H0Z M120 0H180V60H120Z M0 60H60V120H0Z M90 60H150V120H90Z M0 120H120V180H0Z M0 180H60V240H0Z M90 180H150V240H90Z M0 240H60V300H0Z M120 240H180V300H120Z"/></g>
+    <g id="glyph-e"><path d="M0 0H180V60H0Z M0 60H60V120H0Z M0 120H150V180H0Z M0 180H60V240H0Z M0 240H180V300H0Z"/></g>
+  </defs>
+
+  <g transform="translate(22 22)"
+     filter="url(#exterior-outline)"
+     opacity="0.98">
+    <use href="#glyph-s" transform="translate(60 80)"/>
+    <use href="#glyph-l" transform="translate(280 80)"/>
+    <use href="#glyph-o" transform="translate(500 80)"/>
+    <use href="#glyph-w" transform="translate(720 80)"/>
+    <use href="#glyph-p" transform="translate(1000 80)"/>
+    <use href="#glyph-o" transform="translate(1220 80)"/>
+    <use href="#glyph-k" transform="translate(1440 80)"/>
+    <use href="#glyph-e" transform="translate(1660 80)"/>
+  </g>
+
+  <g transform="translate(12 12)"
+     filter="url(#exterior-outline)"
+     opacity="0.98">
+    <use href="#glyph-s" transform="translate(60 80)"/>
+    <use href="#glyph-l" transform="translate(280 80)"/>
+    <use href="#glyph-o" transform="translate(500 80)"/>
+    <use href="#glyph-w" transform="translate(720 80)"/>
+    <use href="#glyph-p" transform="translate(1000 80)"/>
+    <use href="#glyph-o" transform="translate(1220 80)"/>
+    <use href="#glyph-k" transform="translate(1440 80)"/>
+    <use href="#glyph-e" transform="translate(1660 80)"/>
+  </g>
+
+  <g fill="url(#brick-fill)">
+    <use href="#glyph-s" transform="translate(60 80)"/>
+    <use href="#glyph-l" transform="translate(280 80)"/>
+    <use href="#glyph-o" transform="translate(500 80)"/>
+    <use href="#glyph-w" transform="translate(720 80)"/>
+    <use href="#glyph-p" transform="translate(1000 80)"/>
+    <use href="#glyph-o" transform="translate(1220 80)"/>
+    <use href="#glyph-k" transform="translate(1440 80)"/>
+    <use href="#glyph-e" transform="translate(1660 80)"/>
+  </g>
+</svg>
