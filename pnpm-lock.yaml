@@ -7,6 +7,18 @@ settings:
 importers:
 
   .:
+    devDependencies:
+      oxfmt:
+        specifier: ^0.61.0
+        version: 0.61.0
+      oxlint:
+        specifier: ^1.76.0
+        version: 1.76.0
+      supabase:
+        specifier: ^2.110.0
+        version: 2.110.0
+
+  apps/web:
     dependencies:
       '@base-ui/react':
         specifier: ^1.6.0
@@ -14,6 +26,9 @@ importers:
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@slowpoke/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
       '@supabase/ssr':
         specifier: ^0.12.4
         version: 0.12.4(@supabase/supabase-js@2.111.0)
@@ -60,18 +75,15 @@ importers:
       babel-plugin-react-compiler:
         specifier: 1.0.0
         version: 1.0.0
-      oxfmt:
-        specifier: ^0.61.0
-        version: 0.61.0
-      oxlint:
-        specifier: ^1.76.0
-        version: 1.76.0
-      supabase:
-        specifier: ^2.110.0
-        version: 2.110.0
       tailwindcss:
         specifier: ^4
         version: 4.3.3
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  packages/telemetry:
+    devDependencies:
       typescript:
         specifier: ^5
         version: 5.9.3

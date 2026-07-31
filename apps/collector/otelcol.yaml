@@ -1,0 +1,62 @@
+extensions:
+  basicauth/server:
+    htpasswd:
+      inline: ${env:SLOWPOKE_OTLP_HTPASSWD}
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        auth:
+          authenticator: basicauth/server
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+  resource/auth:
+    attributes:
+      - key: slowpoke.installation.id
+        action: upsert
+        from_context: auth.username
+  batch:
+    timeout: 5s
+    send_batch_size: 64
+    send_batch_max_size: 128
+
+exporters:
+  otlp_http/slowpoke:
+    endpoint: ${env:SLOWPOKE_INGEST_URL}
+    encoding: json
+    compression: gzip
+    headers:
+      authorization: Bearer ${env:SLOWPOKE_INGEST_TOKEN}
+    sending_queue:
+      enabled: true
+      num_consumers: 2
+      queue_size: 1000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 30s
+      max_elapsed_time: 5m
+
+service:
+  extensions: [basicauth/server, health_check]
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/auth, batch]
+      exporters: [otlp_http/slowpoke]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/auth, batch]
+      exporters: [otlp_http/slowpoke]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/auth, batch]
+      exporters: [otlp_http/slowpoke]
