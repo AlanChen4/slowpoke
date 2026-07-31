@@ -1,0 +1,21 @@
+name: Caveman metadata
+
+on:
+  pull_request:
+    types: [edited, opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate commits and PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the pull request
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Caveman metadata
+        run: node scripts/check-caveman-metadata.mjs event "$GITHUB_EVENT_PATH"

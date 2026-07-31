@@ -28,7 +28,14 @@ Run all repository checks with:
 pnpm typecheck
 pnpm lint
 pnpm format:check
+pnpm test:metadata
 pnpm build
 ```
+
+`pnpm install` configures the tracked `.githooks/commit-msg` hook. The same
+Caveman metadata validator checks every commit plus the pull request title and
+description in GitHub Actions. Configure the `Validate commits and PR` check as
+required in the protected-branch ruleset to prevent nonconforming PRs from
+merging.
 
 When deploying the web application to Vercel, configure the project root directory as `apps/web`. Keep installs at the workspace level so the web app can resolve `packages/telemetry` through the committed pnpm lockfile.

@@ -4,10 +4,13 @@
   "private": true,
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "prepare": "bash scripts/install-git-hooks.sh",
     "dev": "pnpm --filter @slowpoke/web dev",
     "build": "pnpm --filter @slowpoke/web build",
+    "check:metadata": "node scripts/check-caveman-metadata.mjs",
     "generate:wordmark": "pnpm --filter @slowpoke/web generate:wordmark",
     "start": "pnpm --filter @slowpoke/web start",
+    "test:metadata": "node --test scripts/check-caveman-metadata.test.mjs",
     "typecheck": "pnpm --recursive typecheck",
     "lint": "oxlint --deny-warnings apps/web/src apps/web/scripts packages/telemetry/src scripts apps/web/next.config.ts apps/web/postcss.config.mjs",
     "lint:fix": "oxlint --fix apps/web/src apps/web/scripts packages/telemetry/src scripts apps/web/next.config.ts apps/web/postcss.config.mjs",

@@ -1,15 +1,15 @@
 ---
 name: caveman-commit
 description: >
-  Ultra-compressed commit message generator. Cuts noise from commit messages while preserving
-  intent and reasoning. Conventional Commits format. Subject ≤50 chars, body only when "why"
-  isn't obvious. Use when user says "write a commit", "commit message", "generate commit",
-  "/commit", or invokes /caveman-commit. Auto-triggers when staging changes.
+  Generate and review ultra-compressed commit messages, pull request titles, and pull request
+  descriptions while preserving intent and reasoning. Use for staging, committing, pushing,
+  publishing, yeet workflows, or creating or updating a PR, including requests for a commit
+  message, PR title, or PR body.
 ---
 
-Write commit messages terse and exact. Conventional Commits format. No fluff. Why over what.
+Write Git metadata terse and exact. No fluff. Why over what.
 
-## Rules
+## Commit rules
 
 **Subject line:**
 - `<type>(<scope>): <imperative summary>` — `<scope>` optional
@@ -25,6 +25,18 @@ Write commit messages terse and exact. Conventional Commits format. No fluff. Wh
 - Wrap at 72 chars
 - Bullets `-` not `*`
 - Reference issues/PRs at end: `Closes #42`, `Refs #17`
+
+## Pull request rules
+
+**Title:**
+- Follow the commit subject rules and describe the full diff
+
+**Description:**
+- Require `## Summary`, `## Why`, and `## Validation` sections
+- Limit Summary to one to three user- or operator-focused bullets
+- Add `## Impact` only when rollout, compatibility, or operational consequences need attention
+- Explain motivation in Why; do not repeat the Summary
+- List the checks actually run in Validation
 
 **What NEVER goes in:**
 - "This commit does X", "I", "we", "now", "currently" — the diff says what
@@ -60,6 +72,13 @@ Diff: breaking API change
 
 Always include body for: breaking changes, security fixes, data migrations, anything reverting a prior commit. Never compress these into subject-only — future debuggers need the context.
 
+## Validation
+
+When `scripts/check-caveman-metadata.mjs` exists, treat it as the executable
+contract. Fix rejected metadata rather than bypassing the validator.
+
 ## Boundaries
 
-Only generates the commit message. Does not run `git commit`, does not stage files, does not amend. Output the message as a code block ready to paste. "stop caveman-commit" or "normal mode": revert to verbose commit style.
+Only generates or reviews Git metadata. Does not stage, commit, push, or mutate
+pull requests. Output requested metadata ready to paste. "stop caveman-commit"
+or "normal mode" reverts to verbose Git metadata.
