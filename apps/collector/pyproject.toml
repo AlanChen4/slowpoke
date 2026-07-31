@@ -1,0 +1,21 @@
+[project]
+name = "slowpoke-collector"
+version = "0.1.0"
+description = "Slowpoke's OpenTelemetry gateway on Modal"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = ["modal==1.5.2"]
+
+[dependency-groups]
+dev = ["opentelemetry-proto==1.37.0", "pytest==8.4.2"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+markers = [
+  "e2e: requires authenticated Modal, Codex, and Claude CLIs",
+  "modal_e2e: requires authenticated Modal CLI",
+]
+testpaths = ["tests"]
+
+[tool.uv]
+package = false

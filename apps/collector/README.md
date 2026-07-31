@@ -27,10 +27,62 @@ Do not place raw passwords or ingestion credentials in this repository.
 From this directory:
 
 ```sh
-python -m pip install -r requirements.txt
-modal deploy modal_app.py
+uv sync --locked
+uv run modal deploy modal_app.py
 ```
 
 The Collector scales to zero and keeps an active container around for ten minutes after its last request. Native harness exporters should use a request timeout long enough to tolerate a cold start.
 
 The sending queue is intentionally in-memory for the MVP. Pending telemetry can be lost when a container is replaced; add a persistent queue before treating delivery as compliance-grade.
+
+## Develop
+
+Start the same Modal Server definition as an ephemeral development app:
+
+```sh
+uv sync --locked
+uv run modal serve modal_app.py
+```
+
+`modal serve` creates a temporary public URL and stops the app when the command
+exits. It does not create or update a deployment.
+
+## Test
+
+Run the offline tests:
+
+```sh
+uv run pytest
+```
+
+Verify all three OTLP pipelines through an ephemeral Modal collector and sink
+using synthetic records:
+
+```sh
+SLOWPOKE_RUN_MODAL_E2E=1 uv run pytest -m modal_e2e
+```
+
+Run one real Codex CLI turn and one real Claude CLI turn through that same
+ephemeral collector:
+
+```sh
+SLOWPOKE_RUN_CLI_E2E=1 uv run pytest -m e2e
+```
+
+The CLI test requires authenticated `modal`, `codex`, and `claude` commands. It
+submits two fixed prompts that contain no repository data, opts both CLIs into
+prompt logging, and asserts that logs, metrics, and traces reach the test sink
+with the authenticated installation ID. The sink is in-memory, is exposed only
+for the test's lifetime, and rejects collector requests without its ephemeral
+bearer token.
+
+The test-only Modal app passes temporary values from the local process into
+`modal serve`. It registers the shared collector definition with an ephemeral
+secret; the production app can only register that definition with the named
+`slowpoke-collector` Modal secret.
+
+Configuration follows the current
+[Claude Code monitoring](https://code.claude.com/docs/en/monitoring-usage),
+[Codex monitoring](https://developers.openai.com/codex/security#monitoring-and-telemetry),
+and [Modal development server](https://modal.com/docs/guide/webhooks#developing-with-modal-serve)
+documentation.
