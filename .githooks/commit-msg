@@ -4,4 +4,4 @@ set -euo pipefail
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 
-exec node "$PROJECT_ROOT/scripts/check-caveman-metadata.mjs" commit "$1"
+exec node "$PROJECT_ROOT/scripts/check-metadata.mjs" commit "$1"

@@ -1,4 +1,4 @@
-name: Caveman metadata
+name: Git metadata
 
 on:
   pull_request:
@@ -17,5 +17,5 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate Caveman metadata
-        run: node scripts/check-caveman-metadata.mjs event "$GITHUB_EVENT_PATH"
+      - name: Validate metadata
+        run: node scripts/check-metadata.mjs event "$GITHUB_EVENT_PATH"

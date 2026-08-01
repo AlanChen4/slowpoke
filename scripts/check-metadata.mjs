@@ -215,11 +215,11 @@ function validateRange(base, head) {
 
 function report(errors) {
   if (errors.length === 0) {
-    console.log("Caveman metadata valid");
+    console.log("Metadata valid");
     return;
   }
 
-  console.error("Caveman metadata rejected:");
+  console.error("Metadata rejected:");
   for (const error of errors) {
     console.error(`- ${error}`);
   }
@@ -228,10 +228,10 @@ function report(errors) {
 
 function usage() {
   console.error(`Usage:
-  check-caveman-metadata.mjs commit <message-file>
-  check-caveman-metadata.mjs pr <title> <body-file>
-  check-caveman-metadata.mjs range <base-sha> <head-sha>
-  check-caveman-metadata.mjs event <github-event-file>`);
+  check-metadata.mjs commit <message-file>
+  check-metadata.mjs pr <title> <body-file>
+  check-metadata.mjs range <base-sha> <head-sha>
+  check-metadata.mjs event <github-event-file>`);
   process.exitCode = 2;
 }
 

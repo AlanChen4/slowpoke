@@ -32,8 +32,8 @@ pnpm test:metadata
 pnpm build
 ```
 
-`pnpm install` configures the tracked `.githooks/commit-msg` hook. The same
-Caveman metadata validator checks every commit plus the pull request title and
+`pnpm install` configures the tracked `.githooks/commit-msg` hook. The Caveman
+PR workflow checks every commit plus the pull request title and
 description in GitHub Actions. Configure the `Validate commits and PR` check as
 required in the protected-branch ruleset to prevent nonconforming PRs from
 merging.

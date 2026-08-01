@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateCommitMessage, validatePullRequest } from "./check-caveman-metadata.mjs";
+import { validateCommitMessage, validatePullRequest } from "./check-metadata.mjs";
 
 const VALID_PR_BODY = `## Summary
 
@@ -17,7 +17,7 @@ Consistent history makes changes easier to scan and review.
 `;
 
 test("accepts a terse conventional commit", () => {
-  assert.deepEqual(validateCommitMessage("chore(git): enforce caveman metadata\n"), []);
+  assert.deepEqual(validateCommitMessage("chore(git): enforce metadata checks\n"), []);
 });
 
 test("rejects non-conventional and non-imperative subjects", () => {
@@ -36,14 +36,11 @@ test("requires context for breaking commits", () => {
 });
 
 test("accepts a concise pull request", () => {
-  assert.deepEqual(validatePullRequest("chore(git): enforce caveman metadata", VALID_PR_BODY), []);
+  assert.deepEqual(validatePullRequest("chore(git): enforce metadata checks", VALID_PR_BODY), []);
 });
 
 test("requires structured pull request descriptions", () => {
-  const errors = validatePullRequest(
-    "chore(git): enforce caveman metadata",
-    "A short description.",
-  );
+  const errors = validatePullRequest("chore(git): enforce metadata checks", "A short description.");
 
   assert.ok(errors.some((error) => error.includes("## Summary")));
   assert.ok(errors.some((error) => error.includes("## Why")));
@@ -57,7 +54,7 @@ test("limits pull request summaries to three bullets", () => {
   );
 
   assert.ok(
-    validatePullRequest("chore(git): enforce caveman metadata", body).some((error) =>
+    validatePullRequest("chore(git): enforce metadata checks", body).some((error) =>
       error.includes("one to three"),
     ),
   );
