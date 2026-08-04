@@ -24,8 +24,8 @@
     "start": "pnpm --filter @slowpoke/web start",
     "test:metadata": "node --test scripts/check-metadata.test.mjs",
     "typecheck": "pnpm --recursive typecheck && pnpm backend:typecheck",
-    "lint": "oxlint --deny-warnings apps/web/src apps/web/scripts packages/telemetry/src scripts apps/web/next.config.ts apps/web/postcss.config.mjs && pnpm backend:lint",
-    "lint:fix": "oxlint --fix apps/web/src apps/web/scripts packages/telemetry/src scripts apps/web/next.config.ts apps/web/postcss.config.mjs",
+    "lint": "oxlint --deny-warnings apps/web/src apps/web/scripts scripts apps/web/next.config.ts apps/web/postcss.config.mjs && pnpm backend:lint",
+    "lint:fix": "oxlint --fix apps/web/src apps/web/scripts scripts apps/web/next.config.ts apps/web/postcss.config.mjs",
     "format": "oxfmt",
     "format:check": "oxfmt --check && pnpm backend:format:check"
   },

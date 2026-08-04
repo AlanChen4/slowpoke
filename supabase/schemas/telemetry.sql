@@ -75,8 +75,6 @@ create table public.prompt_events (
   actor_email text,
   prompt_text text not null,
   is_redacted boolean not null default false,
-  attributes jsonb not null default '{}'::jsonb,
-  resource_attributes jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   foreign key (installation_id, organization_id)
     references public.installations (id, organization_id) on delete cascade,

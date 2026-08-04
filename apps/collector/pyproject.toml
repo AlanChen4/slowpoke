@@ -11,10 +11,7 @@ dev = ["opentelemetry-proto==1.37.0", "pytest==8.4.2"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
-markers = [
-  "e2e: requires authenticated Modal, Codex, and Claude CLIs",
-  "modal_e2e: requires authenticated Modal CLI",
-]
+markers = ["modal_e2e: requires authenticated Modal CLI"]
 testpaths = ["tests"]
 
 [tool.uv]

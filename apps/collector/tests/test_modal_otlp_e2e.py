@@ -9,7 +9,6 @@ import secrets
 import shutil
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 import urllib.error
@@ -33,8 +32,6 @@ MODAL_URL_PATTERN = re.compile(
     r"https://[a-zA-Z0-9.-]+\.modal\.(?:direct|host|run)"
 )
 ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
-CODEX_PROMPT = "Reply with exactly SLOWPOKE_CODEX_OTLP_OK. Do not use tools."
-CLAUDE_PROMPT = "Reply with exactly SLOWPOKE_CLAUDE_OTLP_OK. Do not use tools."
 INSTALLATION_ID = "slowpoke-e2e"
 INSTALLATION_PASSWORD = "slowpoke-e2e-password"
 SIGNAL_REQUEST_TYPES = {
@@ -166,114 +163,6 @@ def _post_otlp(
         assert response.status == 200
 
 
-def _run_cli(
-    label: str,
-    command: list[str],
-    *,
-    environment: dict[str, str] | None = None,
-):
-    process_environment = os.environ.copy()
-    if environment:
-        process_environment.update(environment)
-
-    with tempfile.TemporaryDirectory(prefix=f"slowpoke-{label}-") as directory:
-        result = subprocess.run(
-            command,
-            cwd=directory,
-            env=process_environment,
-            capture_output=True,
-            text=True,
-            timeout=180,
-            check=False,
-        )
-    if result.returncode != 0:
-        output = "\n".join((result.stdout, result.stderr)).strip()
-        pytest.fail(f"{label} CLI exited {result.returncode}:\n{output[-4000:]}")
-    return result
-
-
-def _codex_exporter(signal: str, collector_url: str, authorization: str) -> str:
-    endpoint = f"{collector_url}/v1/{signal}"
-    return (
-        '{ otlp-http = { endpoint = "'
-        f'{endpoint}", protocol = "binary", '
-        f'headers = {{ authorization = "{authorization}" }}'
-        " } }"
-    )
-
-
-def _run_codex(collector_url: str, authorization: str):
-    codex = shutil.which("codex")
-    if codex is None:
-        pytest.fail("codex CLI is not installed")
-
-    return _run_cli(
-        "codex",
-        [
-            codex,
-            "exec",
-            "--ephemeral",
-            "--ignore-user-config",
-            "--ignore-rules",
-            "--skip-git-repo-check",
-            "--strict-config",
-            "--sandbox",
-            "read-only",
-            "-c",
-            'approval_policy="never"',
-            "-c",
-            'otel.environment="test"',
-            "-c",
-            "otel.log_user_prompt=true",
-            "-c",
-            f"otel.exporter={_codex_exporter('logs', collector_url, authorization)}",
-            "-c",
-            "otel.metrics_exporter="
-            f"{_codex_exporter('metrics', collector_url, authorization)}",
-            "-c",
-            "otel.trace_exporter="
-            f"{_codex_exporter('traces', collector_url, authorization)}",
-            CODEX_PROMPT,
-        ],
-    )
-
-
-def _run_claude(collector_url: str, authorization: str):
-    claude = shutil.which("claude")
-    if claude is None:
-        pytest.fail("claude CLI is not installed")
-
-    return _run_cli(
-        "claude",
-        [
-            claude,
-            "--safe-mode",
-            "--print",
-            "--no-session-persistence",
-            "--tools",
-            "",
-            "--output-format",
-            "text",
-            CLAUDE_PROMPT,
-        ],
-        environment={
-            "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
-            "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA": "1",
-            "OTEL_LOGS_EXPORTER": "otlp",
-            "OTEL_METRICS_EXPORTER": "otlp",
-            "OTEL_TRACES_EXPORTER": "otlp",
-            "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
-            "OTEL_EXPORTER_OTLP_ENDPOINT": collector_url,
-            "OTEL_EXPORTER_OTLP_HEADERS": f"Authorization={authorization}",
-            "OTEL_LOG_USER_PROMPTS": "1",
-            "OTEL_LOG_ASSISTANT_RESPONSES": "0",
-            "OTEL_LOGS_EXPORT_INTERVAL": "1000",
-            "OTEL_METRIC_EXPORT_INTERVAL": "1000",
-            "OTEL_TRACES_EXPORT_INTERVAL": "1000",
-        },
-    )
-
-
 def _decode_capture(capture: dict[str, object]):
     signal = str(capture["signal"])
     body = base64.b64decode(str(capture["body"]))
@@ -301,69 +190,6 @@ def _resource_attributes(request) -> list[dict[str, object]]:
             attributes[attribute.key] = json_format.MessageToDict(attribute.value)
         resources.append(attributes)
     return resources
-
-
-def _wait_for_cli_telemetry(
-    sink_url: str,
-    diagnostics: str,
-) -> tuple[list[dict], str]:
-    deadline = time.monotonic() + 30
-    latest_captures: list[dict] = []
-    latest_text = ""
-
-    while time.monotonic() < deadline:
-        payload = _http_json(f"{sink_url}/captures")
-        latest_captures = list(payload["captures"])
-        decoded = [_decode_capture(capture) for capture in latest_captures]
-        latest_text = json.dumps(
-            [json_format.MessageToDict(request) for request in decoded],
-            sort_keys=True,
-        )
-        signals = {str(capture["signal"]) for capture in latest_captures}
-        if (
-            CODEX_PROMPT in latest_text
-            and CLAUDE_PROMPT in latest_text
-            and signals == {"logs", "metrics", "traces"}
-        ):
-            return latest_captures, latest_text
-        time.sleep(1)
-
-        raise AssertionError(
-            "timed out waiting for both CLI prompts and all OTLP signals; "
-            f"captures={len(latest_captures)}, data={latest_text[-4000:]}\n"
-            f"{diagnostics[-8000:]}"
-        )
-
-
-def _require_cli_authentication():
-    codex = shutil.which("codex")
-    claude = shutil.which("claude")
-    if codex is None or claude is None:
-        pytest.fail("both codex and claude CLIs must be installed")
-
-    codex_status = subprocess.run(
-        [codex, "login", "status"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    if codex_status.returncode != 0:
-        pytest.fail("codex CLI must be authenticated")
-
-    claude_status = subprocess.run(
-        [claude, "auth", "status"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    try:
-        claude_auth = json.loads(claude_status.stdout)
-    except json.JSONDecodeError:
-        claude_auth = {}
-    if claude_status.returncode != 0 or not claude_auth.get("loggedIn"):
-        pytest.fail("claude CLI must be authenticated")
 
 
 def _test_credentials() -> tuple[str, str, str]:
@@ -419,17 +245,6 @@ def _synthetic_requests():
     span.span_id = b"\x02" * 8
     span.name = "slowpoke.synthetic.span"
     return {"logs": logs, "metrics": metrics, "traces": traces}
-
-
-def test_codex_exporter_uses_signal_endpoint_and_basic_auth():
-    exporter = _codex_exporter(
-        "logs",
-        "https://collector.example",
-        "Basic example",
-    )
-    assert 'endpoint = "https://collector.example/v1/logs"' in exporter
-    assert 'authorization = "Basic example"' in exporter
-    assert 'protocol = "binary"' in exporter
 
 
 def test_decode_gzipped_otlp_json_capture():
@@ -498,47 +313,6 @@ def test_modal_collector_forwards_all_otlp_signals():
                 f"captures={len(latest_captures)}, data={latest_text[-4000:]}"
             )
 
-        resources = [
-            attributes
-            for request in decoded
-            for attributes in _resource_attributes(request)
-        ]
-        assert resources
-        assert all(
-            attributes["slowpoke.installation.id"]["stringValue"]
-            == INSTALLATION_ID
-            for attributes in resources
-        )
-    finally:
-        collector_server.stop()
-        sink_server.stop()
-
-
-@pytest.mark.e2e
-def test_real_codex_and_claude_export_through_modal_collector():
-    if os.environ.get("SLOWPOKE_RUN_CLI_E2E") != "1":
-        pytest.skip("set SLOWPOKE_RUN_CLI_E2E=1 to run authenticated CLI test")
-
-    _require_cli_authentication()
-
-    ingest_token, htpasswd, authorization = _test_credentials()
-    sink_server, collector_server = _start_test_servers(ingest_token, htpasswd)
-    try:
-        _warm_collector(collector_server.url, authorization)
-        codex_result = _run_codex(collector_server.url, authorization)
-        claude_result = _run_claude(collector_server.url, authorization)
-        diagnostics = "\n".join(
-            (
-                f"codex stdout:\n{codex_result.stdout}",
-                f"codex stderr:\n{codex_result.stderr}",
-                f"claude stdout:\n{claude_result.stdout}",
-                f"claude stderr:\n{claude_result.stderr}",
-                "collector serve output:\n" + "".join(collector_server.lines[-80:]),
-            )
-        )
-
-        captures, _ = _wait_for_cli_telemetry(sink_server.url, diagnostics)
-        decoded = [_decode_capture(capture) for capture in captures]
         resources = [
             attributes
             for request in decoded

@@ -10,7 +10,7 @@ from slowpoke_backend.domain import Installation
 from slowpoke_backend.errors import RepositoryError
 from slowpoke_backend.settings import Settings
 
-from .helpers import FakeRepository, resource_group
+from .helpers import FakeRepository, attribute, resource_group
 
 TOKEN = "test-ingest-token"
 SETTINGS = Settings(
@@ -66,7 +66,7 @@ def test_accepts_gzipped_otlp_json() -> None:
 
     assert response.status_code == 200
     assert response.json() == {}
-    assert repository.resolve_calls == [{"known"}]
+    assert repository.resolve_calls == ["known"]
     assert len(repository.persist_calls) == 1
 
 
@@ -119,21 +119,38 @@ def test_rejects_structurally_invalid_otlp() -> None:
     assert unstamped_resource.status_code == 400
 
 
-def test_validates_all_installations_before_writing() -> None:
-    repository = FakeRepository({"known": Installation(1, 10, "known")})
-    payload = {"resourceLogs": [resource_group("known"), resource_group("unknown")]}
+def test_persists_known_groups_before_retrying_unknown_installation() -> None:
+    repository = FakeRepository(
+        {
+            "known-a": Installation(1, 10, "known-a"),
+            "known-c": Installation(2, 20, "known-c"),
+        }
+    )
+    payload = {
+        "resourceLogs": [
+            {
+                "resource": {
+                    "attributes": [attribute("slowpoke.installation.id", collector_id)]
+                }
+            }
+            for collector_id in ("known-a", "unknown", "known-c")
+        ]
+    }
 
     response = _post(_client(repository), payload)
 
     assert response.status_code == 503
     assert response.headers["retry-after"] == "30"
-    assert repository.resolve_calls == [{"known", "unknown"}]
-    assert repository.persist_calls == []
+    assert repository.resolve_calls == ["known-a", "unknown", "known-c"]
+    assert [item.installation_id for item in repository.persist_calls] == [
+        "known-a",
+        "known-c",
+    ]
 
 
 def test_database_failure_is_retryable() -> None:
     class FailingRepository(FakeRepository):
-        def resolve_installations(self, collector_ids: set[str]):
+        def resolve_installation(self, collector_id: str):
             raise RepositoryError("database unavailable")
 
     response = _post(

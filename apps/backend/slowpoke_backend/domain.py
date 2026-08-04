@@ -27,8 +27,6 @@ class Prompt:
     actor_email: str | None
     prompt_text: str
     is_redacted: bool
-    attributes: dict[str, object]
-    resource_attributes: dict[str, object]
 
 
 @dataclass(frozen=True, slots=True)

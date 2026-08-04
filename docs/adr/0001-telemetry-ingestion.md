@@ -15,20 +15,24 @@ RLS-readable prompt model for the frontend.
 ## Decision
 
 The backend partitions each export by the stamped installation ID before
-persistence. It resolves every ID first; an unknown or revoked installation
-returns retryable `503` and writes nothing.
+persistence. It processes each partition independently. Known installations are
+stored even when another partition has an unknown or revoked installation. The
+backend then returns retryable `503`, so the collector retries the full export
+and existing rows deduplicate.
 
 Every partition is stored as canonical OTLP JSON in `telemetry_batches`.
 `prompt_events` is derived only from `codex.user_prompt` and
 `claude_code.user_prompt` log records. Metrics and traces stay raw. A SHA-256 of
 the canonical tenant partition deduplicates batches by installation and signal;
-the batch plus log-record ordinal deduplicates prompts.
+the batch plus log-record ordinal deduplicates prompts. Prompt rows contain only
+queryable product fields; complete OTLP attributes remain in the raw batch for
+later reprocessing.
 
 All public tables use RLS and explicit grants. Authenticated organization admins
 may select their organization's prompt events. Installations and raw batches
 have no frontend grants. The backend alone receives the Supabase secret key.
 
-The framework-neutral ingestion service is exposed through a FastAPI app
+The framework-neutral ingestion function is exposed through a FastAPI app
 factory. Uvicorn uses that factory locally; a thin Modal ASGI wrapper uses the
 same factory remotely with zero warm containers.
 
@@ -36,12 +40,13 @@ same factory remotely with zero warm containers.
 
 - Raw telemetry can be reprocessed when extraction rules change.
 - Mixed-tenant exports cannot create cross-organization rows.
+- Unknown installations do not block valid tenant partitions.
 - Collector retries are safe after ambiguous failures.
 - Raw storage grows without bound until a retention policy is added.
 - The local Supabase stack, local FastAPI process, and real collector container
   test database behavior without calling Modal.
-- The existing ephemeral Modal collector tests remain the deployment boundary
-  test.
+- Ephemeral Modal tests use synthetic OTLP to verify collector packaging and
+  routing without repeating real harness calls.
 
 Hosted Supabase provisioning, remote migrations, production Modal deployment,
 retention, and frontend queries are deferred.

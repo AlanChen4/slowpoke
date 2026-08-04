@@ -62,19 +62,10 @@ using synthetic records:
 SLOWPOKE_RUN_MODAL_E2E=1 uv run pytest -m modal_e2e
 ```
 
-Run one real Codex CLI turn and one real Claude CLI turn through that same
-ephemeral collector:
-
-```sh
-SLOWPOKE_RUN_CLI_E2E=1 uv run pytest -m e2e
-```
-
-The CLI test requires authenticated `modal`, `codex`, and `claude` commands. It
-submits two fixed prompts that contain no repository data, opts both CLIs into
-prompt logging, and asserts that logs, metrics, and traces reach the test sink
-with the authenticated installation ID. The sink is in-memory, is exposed only
-for the test's lifetime, and rejects collector requests without its ephemeral
-bearer token.
+Real Codex and Claude behavior is covered once by the local backend E2E. Modal
+tests cover only collector packaging, authentication, stamping, and routing.
+The sink is in-memory, is exposed only for the test's lifetime, and rejects
+collector requests without its ephemeral bearer token.
 
 The test-only Modal app passes temporary values from the local process into
 `modal serve`. It registers the shared collector definition with an ephemeral

@@ -12,8 +12,8 @@ from .errors import (
     RepositoryError,
     UnknownInstallationError,
 )
+from .ingestion import ingest as ingest_telemetry
 from .repository import IngestionRepository, SupabaseRepository
-from .service import IngestionService
 from .settings import Settings
 
 
@@ -25,9 +25,6 @@ def create_app(
     resolved_repository = repository or SupabaseRepository(
         resolved_settings.supabase_url,
         resolved_settings.supabase_secret_key,
-    )
-    service = IngestionService(
-        resolved_repository, resolved_settings.max_decompressed_bytes
     )
     app = FastAPI(title="Slowpoke ingestion backend", docs_url=None, redoc_url=None)
 
@@ -54,10 +51,12 @@ def create_app(
             raise HTTPException(status_code=404, detail="unknown signal")
         try:
             await run_in_threadpool(
-                service.ingest,
+                ingest_telemetry,
                 signal,
                 await request.body(),
                 request.headers,
+                resolved_repository,
+                resolved_settings.max_decompressed_bytes,
             )
         except PayloadTooLargeError as error:
             raise HTTPException(status_code=413, detail="payload too large") from error

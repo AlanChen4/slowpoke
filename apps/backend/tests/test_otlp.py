@@ -73,6 +73,30 @@ def test_undocumented_log_names_do_not_create_prompt_rows() -> None:
     assert partition.prompts == ()
 
 
+def test_ignores_unrelated_attribute_types_but_preserves_raw_payload() -> None:
+    group = resource_group(
+        "installation",
+        prompt_event="codex.user_prompt",
+        prompt_text="keep useful strings",
+    )
+    resource = group["resource"]
+    assert isinstance(resource, dict)
+    resource_attributes = resource["attributes"]
+    assert isinstance(resource_attributes, list)
+    resource_attributes.extend(
+        [
+            {"key": "nested", "value": {"arrayValue": {"values": []}}},
+            {"key": "count", "value": {"intValue": "42"}},
+            {"malformed": True},
+        ]
+    )
+
+    partition = partition_export({"resourceLogs": [group]}, "logs")[0]
+
+    assert partition.prompts[0].prompt_text == "keep useful strings"
+    assert partition.payload["resourceLogs"] == [group]
+
+
 def test_hash_is_canonical_and_replay_key_is_stable() -> None:
     first = {
         "resourceLogs": [resource_group("installation")],

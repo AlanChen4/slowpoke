@@ -118,8 +118,6 @@ CREATE TABLE public.prompt_events (
   actor_email         text,
   prompt_text         text                     NOT NULL,
   is_redacted         boolean                  DEFAULT false NOT NULL,
-  attributes          jsonb                    DEFAULT '{}'::jsonb NOT NULL,
-  resource_attributes jsonb                    DEFAULT '{}'::jsonb NOT NULL,
   created_at          timestamp with time zone DEFAULT now() NOT NULL
 );
 

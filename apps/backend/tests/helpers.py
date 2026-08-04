@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 
 from slowpoke_backend.domain import Installation, Partition
 from slowpoke_backend.errors import UnknownInstallationError
@@ -58,42 +58,35 @@ def resource_group(
 class FakeRepository:
     def __init__(self, known: Mapping[str, Installation] | None = None):
         self.known = dict(known or {})
-        self.resolve_calls: list[set[str]] = []
-        self.persist_calls: list[tuple[Partition, ...]] = []
+        self.resolve_calls: list[str] = []
+        self.persist_calls: list[Partition] = []
         self.batch_keys: set[tuple[str, str, str]] = set()
         self.prompt_keys: set[tuple[str, str, int]] = set()
 
-    def resolve_installations(
-        self, collector_ids: set[str]
-    ) -> Mapping[str, Installation]:
-        self.resolve_calls.append(collector_ids)
-        missing = collector_ids - self.known.keys()
-        if missing:
-            raise UnknownInstallationError(missing)
-        return {
-            collector_id: self.known[collector_id] for collector_id in collector_ids
-        }
+    def resolve_installation(self, collector_id: str) -> Installation:
+        self.resolve_calls.append(collector_id)
+        if collector_id not in self.known:
+            raise UnknownInstallationError({collector_id})
+        return self.known[collector_id]
 
     def persist(
         self,
-        partitions: Iterable[Partition],
-        installations: Mapping[str, Installation],
+        partition: Partition,
+        installation: Installation,
     ) -> None:
-        resolved = tuple(partitions)
-        assert {item.installation_id for item in resolved} <= installations.keys()
-        self.persist_calls.append(resolved)
-        for partition in resolved:
-            key = (
-                partition.installation_id,
-                partition.signal,
-                partition.content_sha256,
-            )
-            self.batch_keys.add(key)
-            for prompt in partition.prompts:
-                self.prompt_keys.add(
-                    (
-                        partition.installation_id,
-                        partition.content_sha256,
-                        prompt.record_index,
-                    )
+        assert partition.installation_id == installation.collector_id
+        self.persist_calls.append(partition)
+        key = (
+            partition.installation_id,
+            partition.signal,
+            partition.content_sha256,
+        )
+        self.batch_keys.add(key)
+        for prompt in partition.prompts:
+            self.prompt_keys.add(
+                (
+                    partition.installation_id,
+                    partition.content_sha256,
+                    prompt.record_index,
                 )
+            )

@@ -26,9 +26,6 @@ importers:
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@slowpoke/telemetry':
-        specifier: workspace:*
-        version: link:../../packages/telemetry
       '@supabase/ssr':
         specifier: ^0.12.4
         version: 0.12.4(@supabase/supabase-js@2.111.0)
@@ -78,12 +75,6 @@ importers:
       tailwindcss:
         specifier: ^4
         version: 4.3.3
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-
-  packages/telemetry:
-    devDependencies:
       typescript:
         specifier: ^5
         version: 5.9.3

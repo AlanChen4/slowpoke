@@ -98,7 +98,6 @@ class PublicOrganizationsUpdate(TypedDict):
 class PublicPromptEvents(BaseModel):
     actor_account_id: Optional[str] = Field(alias="actor_account_id")
     actor_email: Optional[str] = Field(alias="actor_email")
-    attributes: Json[Any] = Field(alias="attributes")
     batch_id: int = Field(alias="batch_id")
     created_at: datetime.datetime = Field(alias="created_at")
     event_name: str = Field(alias="event_name")
@@ -111,13 +110,11 @@ class PublicPromptEvents(BaseModel):
     prompt_text: str = Field(alias="prompt_text")
     provider: str = Field(alias="provider")
     record_index: int = Field(alias="record_index")
-    resource_attributes: Json[Any] = Field(alias="resource_attributes")
     session_id: Optional[str] = Field(alias="session_id")
 
 class PublicPromptEventsInsert(TypedDict):
     actor_account_id: NotRequired[Annotated[Optional[str], Field(alias="actor_account_id")]]
     actor_email: NotRequired[Annotated[Optional[str], Field(alias="actor_email")]]
-    attributes: NotRequired[Annotated[Json[Any], Field(alias="attributes")]]
     batch_id: Annotated[int, Field(alias="batch_id")]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     event_name: Annotated[str, Field(alias="event_name")]
@@ -130,13 +127,11 @@ class PublicPromptEventsInsert(TypedDict):
     prompt_text: Annotated[str, Field(alias="prompt_text")]
     provider: Annotated[str, Field(alias="provider")]
     record_index: Annotated[int, Field(alias="record_index")]
-    resource_attributes: NotRequired[Annotated[Json[Any], Field(alias="resource_attributes")]]
     session_id: NotRequired[Annotated[Optional[str], Field(alias="session_id")]]
 
 class PublicPromptEventsUpdate(TypedDict):
     actor_account_id: NotRequired[Annotated[Optional[str], Field(alias="actor_account_id")]]
     actor_email: NotRequired[Annotated[Optional[str], Field(alias="actor_email")]]
-    attributes: NotRequired[Annotated[Json[Any], Field(alias="attributes")]]
     batch_id: NotRequired[Annotated[int, Field(alias="batch_id")]]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     event_name: NotRequired[Annotated[str, Field(alias="event_name")]]
@@ -149,7 +144,6 @@ class PublicPromptEventsUpdate(TypedDict):
     prompt_text: NotRequired[Annotated[str, Field(alias="prompt_text")]]
     provider: NotRequired[Annotated[str, Field(alias="provider")]]
     record_index: NotRequired[Annotated[int, Field(alias="record_index")]]
-    resource_attributes: NotRequired[Annotated[Json[Any], Field(alias="resource_attributes")]]
     session_id: NotRequired[Annotated[Optional[str], Field(alias="session_id")]]
 
 class PublicTelemetryBatches(BaseModel):

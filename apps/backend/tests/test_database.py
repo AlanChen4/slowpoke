@@ -158,3 +158,41 @@ def test_unknown_installation_is_retryable_and_stores_nothing() -> None:
         .count
     )
     assert after == before
+
+
+def test_mixed_export_persists_known_partition_before_retry() -> None:
+    url, secret_key = _credentials()
+    token = secrets.token_urlsafe(24)
+    with _database_fixture() as (
+        service_client,
+        organization_id,
+        installation_id,
+        collector_id,
+    ):
+        client = _api(secret_key, url, token)
+        response = _post(
+            client,
+            "logs",
+            {
+                "resourceLogs": [
+                    resource_group(collector_id),
+                    resource_group(f"unknown-{secrets.token_hex(8)}"),
+                ]
+            },
+            token,
+        )
+
+        assert response.status_code == 503
+        batches = (
+            service_client.table("telemetry_batches")
+            .select("organization_id,installation_id")
+            .eq("organization_id", organization_id)
+            .execute()
+            .data
+        )
+        assert batches == [
+            {
+                "organization_id": organization_id,
+                "installation_id": installation_id,
+            }
+        ]
