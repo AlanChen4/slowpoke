@@ -1,0 +1,4 @@
+interface:
+  display_name: "Caveman PR Explain"
+  short_description: "Explain any PR with concrete before-and-after examples"
+  default_prompt: "Use $caveman-pr-explain to explain this PR from its actual entry point to its final effect, with concrete before-and-after examples."
