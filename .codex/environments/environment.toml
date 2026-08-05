@@ -8,7 +8,7 @@ script = '''
 set -euo pipefail
 { set +x; } 2>/dev/null || true
 
-PROJECT="web"
+PROJECT="frontend"
 CONFIG="dev"
 SOURCE_ROOT="${DOPPLER_SOURCE_ROOT:-}"
 

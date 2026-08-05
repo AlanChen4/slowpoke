@@ -1,11 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { buttonVariants } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getClaims();
+
+  if (!error && data?.claims) {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="bg-background text-foreground relative flex min-h-screen flex-col overflow-hidden">
       <nav className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6 sm:px-10 lg:px-12">
@@ -20,14 +27,9 @@ export default function Home() {
           />
         </Link>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Link href="/login" className={buttonVariants({ variant: "ghost" })}>
-            Log in
-          </Link>
-          <Link href="/signup" className={buttonVariants()}>
-            Sign up
-          </Link>
-        </div>
+        <Link href="/login" className={buttonVariants({ variant: "ghost" })}>
+          Sign in
+        </Link>
       </nav>
 
       <section className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col items-start justify-center gap-8 px-6 pb-24 pt-12 sm:px-10 lg:px-12">
@@ -35,26 +37,9 @@ export default function Home() {
           Manage your company&apos;s AI usage
         </h1>
 
-        <form className="w-full max-w-xl">
-          <FieldGroup>
-            <Field orientation="responsive">
-              <FieldLabel htmlFor="waitlist-email" className="sr-only">
-                Work email
-              </FieldLabel>
-              <Input
-                id="waitlist-email"
-                type="email"
-                autoComplete="email"
-                placeholder="Work email"
-                required
-                className="@md/field-group:flex-1"
-              />
-              <Button type="button" size="lg">
-                Join the waitlist
-              </Button>
-            </Field>
-          </FieldGroup>
-        </form>
+        <Link href="/login" className={buttonVariants({ size: "lg" })}>
+          Get Started — it&apos;s free
+        </Link>
       </section>
     </main>
   );
