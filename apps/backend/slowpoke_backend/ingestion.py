@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import zlib
 from collections.abc import Mapping
+from uuid import UUID
 
 from .domain import Signal
 from .errors import (
@@ -36,7 +37,7 @@ def ingest(
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
         raise InvalidPayloadError("request body must be valid UTF-8 JSON") from error
 
-    unknown_installations: set[str] = set()
+    unknown_installations: set[UUID] = set()
     for partition in partition_export(payload, signal):
         try:
             installation = repository.resolve_installation(partition.installation_id)

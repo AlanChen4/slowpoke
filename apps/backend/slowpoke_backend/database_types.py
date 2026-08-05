@@ -17,12 +17,6 @@ from pydantic import BaseModel, Field, Json
 
 NetRequestStatus: TypeAlias = Literal["PENDING", "SUCCESS", "ERROR"]
 
-RealtimeEqualityOp: TypeAlias = Literal["eq", "neq", "lt", "lte", "gt", "gte", "in", "like", "ilike", "is", "match", "imatch", "isdistinct"]
-
-RealtimeAction: TypeAlias = Literal["INSERT", "UPDATE", "DELETE", "TRUNCATE", "ERROR"]
-
-StorageBuckettype: TypeAlias = Literal["STANDARD", "ANALYTICS", "VECTOR"]
-
 AuthFactorType: TypeAlias = Literal["totp", "webauthn", "phone"]
 
 AuthFactorStatus: TypeAlias = Literal["unverified", "verified"]
@@ -42,70 +36,67 @@ AuthOauthResponseType: TypeAlias = Literal["code"]
 AuthOauthClientType: TypeAlias = Literal["public", "confidential"]
 
 class PublicInstallations(BaseModel):
-    collector_id: str = Field(alias="collector_id")
     created_at: datetime.datetime = Field(alias="created_at")
-    id: int = Field(alias="id")
-    organization_id: int = Field(alias="organization_id")
+    id: uuid.UUID = Field(alias="id")
+    organization_id: uuid.UUID = Field(alias="organization_id")
     revoked_at: Optional[datetime.datetime] = Field(alias="revoked_at")
 
 class PublicInstallationsInsert(TypedDict):
-    collector_id: Annotated[str, Field(alias="collector_id")]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
-    id: NotRequired[Annotated[int, Field(alias="id")]]
-    organization_id: Annotated[int, Field(alias="organization_id")]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
 
 class PublicInstallationsUpdate(TypedDict):
-    collector_id: NotRequired[Annotated[str, Field(alias="collector_id")]]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
-    id: NotRequired[Annotated[int, Field(alias="id")]]
-    organization_id: NotRequired[Annotated[int, Field(alias="organization_id")]]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
 
 class PublicOrganizationMembers(BaseModel):
     created_at: datetime.datetime = Field(alias="created_at")
-    organization_id: int = Field(alias="organization_id")
+    organization_id: uuid.UUID = Field(alias="organization_id")
     role: str = Field(alias="role")
     user_id: uuid.UUID = Field(alias="user_id")
 
 class PublicOrganizationMembersInsert(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
-    organization_id: Annotated[int, Field(alias="organization_id")]
+    organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     role: Annotated[str, Field(alias="role")]
     user_id: Annotated[uuid.UUID, Field(alias="user_id")]
 
 class PublicOrganizationMembersUpdate(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
-    organization_id: NotRequired[Annotated[int, Field(alias="organization_id")]]
+    organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     role: NotRequired[Annotated[str, Field(alias="role")]]
     user_id: NotRequired[Annotated[uuid.UUID, Field(alias="user_id")]]
 
 class PublicOrganizations(BaseModel):
     created_at: datetime.datetime = Field(alias="created_at")
-    id: int = Field(alias="id")
+    id: uuid.UUID = Field(alias="id")
     name: str = Field(alias="name")
 
 class PublicOrganizationsInsert(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
-    id: NotRequired[Annotated[int, Field(alias="id")]]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
     name: Annotated[str, Field(alias="name")]
 
 class PublicOrganizationsUpdate(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
-    id: NotRequired[Annotated[int, Field(alias="id")]]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
     name: NotRequired[Annotated[str, Field(alias="name")]]
 
 class PublicPromptEvents(BaseModel):
     actor_account_id: Optional[str] = Field(alias="actor_account_id")
     actor_email: Optional[str] = Field(alias="actor_email")
-    batch_id: int = Field(alias="batch_id")
+    batch_id: uuid.UUID = Field(alias="batch_id")
     created_at: datetime.datetime = Field(alias="created_at")
     event_name: str = Field(alias="event_name")
-    id: int = Field(alias="id")
-    installation_id: int = Field(alias="installation_id")
+    id: uuid.UUID = Field(alias="id")
+    installation_id: uuid.UUID = Field(alias="installation_id")
     is_redacted: bool = Field(alias="is_redacted")
     occurred_at: datetime.datetime = Field(alias="occurred_at")
-    organization_id: int = Field(alias="organization_id")
+    organization_id: uuid.UUID = Field(alias="organization_id")
     prompt_id: Optional[str] = Field(alias="prompt_id")
     prompt_text: str = Field(alias="prompt_text")
     provider: str = Field(alias="provider")
@@ -115,14 +106,14 @@ class PublicPromptEvents(BaseModel):
 class PublicPromptEventsInsert(TypedDict):
     actor_account_id: NotRequired[Annotated[Optional[str], Field(alias="actor_account_id")]]
     actor_email: NotRequired[Annotated[Optional[str], Field(alias="actor_email")]]
-    batch_id: Annotated[int, Field(alias="batch_id")]
+    batch_id: Annotated[uuid.UUID, Field(alias="batch_id")]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     event_name: Annotated[str, Field(alias="event_name")]
-    id: NotRequired[Annotated[int, Field(alias="id")]]
-    installation_id: Annotated[int, Field(alias="installation_id")]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_id: Annotated[uuid.UUID, Field(alias="installation_id")]
     is_redacted: NotRequired[Annotated[bool, Field(alias="is_redacted")]]
     occurred_at: Annotated[datetime.datetime, Field(alias="occurred_at")]
-    organization_id: Annotated[int, Field(alias="organization_id")]
+    organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     prompt_id: NotRequired[Annotated[Optional[str], Field(alias="prompt_id")]]
     prompt_text: Annotated[str, Field(alias="prompt_text")]
     provider: Annotated[str, Field(alias="provider")]
@@ -132,14 +123,14 @@ class PublicPromptEventsInsert(TypedDict):
 class PublicPromptEventsUpdate(TypedDict):
     actor_account_id: NotRequired[Annotated[Optional[str], Field(alias="actor_account_id")]]
     actor_email: NotRequired[Annotated[Optional[str], Field(alias="actor_email")]]
-    batch_id: NotRequired[Annotated[int, Field(alias="batch_id")]]
+    batch_id: NotRequired[Annotated[uuid.UUID, Field(alias="batch_id")]]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     event_name: NotRequired[Annotated[str, Field(alias="event_name")]]
-    id: NotRequired[Annotated[int, Field(alias="id")]]
-    installation_id: NotRequired[Annotated[int, Field(alias="installation_id")]]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_id: NotRequired[Annotated[uuid.UUID, Field(alias="installation_id")]]
     is_redacted: NotRequired[Annotated[bool, Field(alias="is_redacted")]]
     occurred_at: NotRequired[Annotated[datetime.datetime, Field(alias="occurred_at")]]
-    organization_id: NotRequired[Annotated[int, Field(alias="organization_id")]]
+    organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     prompt_id: NotRequired[Annotated[Optional[str], Field(alias="prompt_id")]]
     prompt_text: NotRequired[Annotated[str, Field(alias="prompt_text")]]
     provider: NotRequired[Annotated[str, Field(alias="provider")]]
@@ -148,27 +139,27 @@ class PublicPromptEventsUpdate(TypedDict):
 
 class PublicTelemetryBatches(BaseModel):
     content_sha256: str = Field(alias="content_sha256")
-    id: int = Field(alias="id")
-    installation_id: int = Field(alias="installation_id")
-    organization_id: int = Field(alias="organization_id")
+    id: uuid.UUID = Field(alias="id")
+    installation_id: uuid.UUID = Field(alias="installation_id")
+    organization_id: uuid.UUID = Field(alias="organization_id")
     raw_payload: Json[Any] = Field(alias="raw_payload")
     received_at: datetime.datetime = Field(alias="received_at")
     signal: str = Field(alias="signal")
 
 class PublicTelemetryBatchesInsert(TypedDict):
     content_sha256: Annotated[str, Field(alias="content_sha256")]
-    id: NotRequired[Annotated[int, Field(alias="id")]]
-    installation_id: Annotated[int, Field(alias="installation_id")]
-    organization_id: Annotated[int, Field(alias="organization_id")]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_id: Annotated[uuid.UUID, Field(alias="installation_id")]
+    organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     raw_payload: Annotated[Json[Any], Field(alias="raw_payload")]
     received_at: NotRequired[Annotated[datetime.datetime, Field(alias="received_at")]]
     signal: Annotated[str, Field(alias="signal")]
 
 class PublicTelemetryBatchesUpdate(TypedDict):
     content_sha256: NotRequired[Annotated[str, Field(alias="content_sha256")]]
-    id: NotRequired[Annotated[int, Field(alias="id")]]
-    installation_id: NotRequired[Annotated[int, Field(alias="installation_id")]]
-    organization_id: NotRequired[Annotated[int, Field(alias="organization_id")]]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_id: NotRequired[Annotated[uuid.UUID, Field(alias="installation_id")]]
+    organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     raw_payload: NotRequired[Annotated[Json[Any], Field(alias="raw_payload")]]
     received_at: NotRequired[Annotated[datetime.datetime, Field(alias="received_at")]]
     signal: NotRequired[Annotated[str, Field(alias="signal")]]

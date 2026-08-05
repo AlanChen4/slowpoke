@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from uuid import UUID
 
 from slowpoke_backend.domain import Installation, Partition
 from slowpoke_backend.errors import UnknownInstallationError
@@ -17,16 +18,17 @@ def attribute(key: str, value: object) -> dict[str, object]:
 
 
 def resource_group(
-    collector_id: str,
+    installation_id: UUID | str,
     *,
     prompt_event: str | None = None,
     prompt_text: str | None = None,
     service_name: str = "test",
 ) -> dict[str, object]:
+    installation_id = str(installation_id)
     group: dict[str, object] = {
         "resource": {
             "attributes": [
-                attribute("slowpoke.installation.id", collector_id),
+                attribute("slowpoke.installation.id", installation_id),
                 attribute("service.name", service_name),
             ]
         },
@@ -34,8 +36,8 @@ def resource_group(
     }
     if prompt_event is not None:
         record_attributes = [
-            attribute("prompt.id", f"prompt-{collector_id}"),
-            attribute("session.id", f"session-{collector_id}"),
+            attribute("prompt.id", f"prompt-{installation_id}"),
+            attribute("session.id", f"session-{installation_id}"),
             attribute("event.timestamp", "2026-07-31T12:00:00Z"),
         ]
         if prompt_text is not None:
@@ -56,25 +58,25 @@ def resource_group(
 
 
 class FakeRepository:
-    def __init__(self, known: Mapping[str, Installation] | None = None):
+    def __init__(self, known: Mapping[UUID, Installation] | None = None):
         self.known = dict(known or {})
-        self.resolve_calls: list[str] = []
+        self.resolve_calls: list[UUID] = []
         self.persist_calls: list[Partition] = []
-        self.batch_keys: set[tuple[str, str, str]] = set()
-        self.prompt_keys: set[tuple[str, str, int]] = set()
+        self.batch_keys: set[tuple[UUID, str, str]] = set()
+        self.prompt_keys: set[tuple[UUID, str, int]] = set()
 
-    def resolve_installation(self, collector_id: str) -> Installation:
-        self.resolve_calls.append(collector_id)
-        if collector_id not in self.known:
-            raise UnknownInstallationError({collector_id})
-        return self.known[collector_id]
+    def resolve_installation(self, installation_id: UUID) -> Installation:
+        self.resolve_calls.append(installation_id)
+        if installation_id not in self.known:
+            raise UnknownInstallationError({installation_id})
+        return self.known[installation_id]
 
     def persist(
         self,
         partition: Partition,
         installation: Installation,
     ) -> None:
-        assert partition.installation_id == installation.collector_id
+        assert partition.installation_id == installation.id
         self.persist_calls.append(partition)
         key = (
             partition.installation_id,

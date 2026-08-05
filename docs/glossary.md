@@ -6,8 +6,9 @@ and prompt events.
 **Administrator** — An authenticated organization member with the `admin` role.
 Administrators may read their organization's prompt events through RLS.
 
-**Installation** — A collector credential identity mapped to exactly one
-organization. Its collector ID becomes `slowpoke.installation.id`.
+**Installation:** A Collector credential identity mapped to exactly one
+organization. Its UUID is the Basic-auth username and becomes
+`slowpoke.installation.id`.
 
 **Collector** — The OpenTelemetry gateway that authenticates local harnesses,
 stamps installation identity, batches signals, and forwards them to the
