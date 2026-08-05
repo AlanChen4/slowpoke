@@ -66,8 +66,8 @@ def _backend_server(settings: Settings) -> Iterator[int]:
             create_app(
                 settings,
                 SupabaseRepository(
-                    settings.supabase_url,
-                    settings.supabase_secret_key.get_secret_value(),
+                    settings.SUPABASE_URL,
+                    settings.SUPABASE_SECRET_KEY.get_secret_value(),
                 ),
             ),
             host="0.0.0.0",
@@ -295,9 +295,9 @@ def test_real_clis_flow_through_collector_into_supabase() -> None:
     installation_id = str(installation["id"])
     token = secrets.token_urlsafe(24)
     settings = Settings(
-        ingest_token=token,
-        supabase_url=url,
-        supabase_secret_key=secret_key,
+        SLOWPOKE_INGEST_TOKEN=token,
+        SUPABASE_URL=url,
+        SUPABASE_SECRET_KEY=secret_key,
     )
 
     try:

@@ -15,10 +15,10 @@ from .helpers import FakeRepository, attribute, resource_group
 
 TOKEN = "test-ingest-token"
 SETTINGS = Settings(
-    ingest_token=TOKEN,
-    supabase_url="http://unused.invalid",
-    supabase_secret_key="unused",
-    max_decompressed_bytes=512,
+    SLOWPOKE_INGEST_TOKEN=TOKEN,
+    SUPABASE_URL="http://unused.invalid",
+    SUPABASE_SECRET_KEY="unused",
+    SLOWPOKE_MAX_DECOMPRESSED_BYTES=512,
 )
 KNOWN = UUID("00000000-0000-4000-8000-000000000001")
 KNOWN_A = UUID("00000000-0000-4000-8000-000000000002")

@@ -55,9 +55,9 @@ def _database_fixture() -> Iterator[tuple[Client, str, str]]:
 
 def _api(secret_key: str, url: str, collector_token: str) -> TestClient:
     settings = Settings(
-        ingest_token=collector_token,
-        supabase_url=url,
-        supabase_secret_key=secret_key,
+        SLOWPOKE_INGEST_TOKEN=collector_token,
+        SUPABASE_URL=url,
+        SUPABASE_SECRET_KEY=secret_key,
     )
     return TestClient(create_app(settings, SupabaseRepository(url, secret_key)))
 

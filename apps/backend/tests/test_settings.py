@@ -16,10 +16,10 @@ def test_reads_required_values_from_environment(
 
     settings = Settings()
 
-    assert settings.ingest_token.get_secret_value() == "ingest-token"
-    assert settings.supabase_url == "http://127.0.0.1:55321"
-    assert settings.supabase_secret_key.get_secret_value() == "secret-key"
-    assert settings.max_decompressed_bytes == 1024
+    assert settings.SLOWPOKE_INGEST_TOKEN.get_secret_value() == "ingest-token"
+    assert settings.SUPABASE_URL == "http://127.0.0.1:55321"
+    assert settings.SUPABASE_SECRET_KEY.get_secret_value() == "secret-key"
+    assert settings.SLOWPOKE_MAX_DECOMPRESSED_BYTES == 1024
 
 
 def test_rejects_missing_required_values(monkeypatch: pytest.MonkeyPatch) -> None:

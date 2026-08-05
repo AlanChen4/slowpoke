@@ -1,30 +1,27 @@
 # Glossary
 
-**Organization** — A company tenant that owns users, installations, telemetry,
-and prompt events.
+**Organization:** A company tenant that owns users, installations, and telemetry.
 
-**Administrator** — An authenticated organization member with the `admin` role.
-Administrators may read their organization's prompt events through RLS.
+**Administrator:** An organization member with the `admin` role. May read the
+organization's prompts through row-level security (RLS).
 
-**Installation:** A Collector credential identity mapped to exactly one
-organization. Its UUID is the Basic-auth username and becomes
-`slowpoke.installation.id`.
+**Installation:** A Collector credential for one organization. Its UUID is both
+the username for HTTP Basic authentication and `slowpoke.installation.id`.
 
-**Collector** — The OpenTelemetry gateway that authenticates local harnesses,
-stamps installation identity, batches signals, and forwards them to the
-ingestion backend.
+**Collector:** An OpenTelemetry gateway that authenticates, stamps installation
+identity, batches signals, and sends them to the backend.
 
-**Ingestion backend** — The authenticated FastAPI service that validates,
-partitions, deduplicates, and persists collector exports.
+**Ingestion backend:** A FastAPI service that validates, partitions, deduplicates,
+and stores Collector exports.
 
-**OTLP export** — One OpenTelemetry logs, metrics, or traces request encoded as
-JSON between the collector and backend.
+**OTLP export:** One JSON request containing OpenTelemetry logs, metrics, or
+traces.
 
-**Resource group** — A top-level OTLP group sharing resource attributes. It is
-the unit partitioned by installation.
+**Resource group:** A top-level OTLP group that shares resource attributes. The
+backend partitions exports at this level.
 
-**Telemetry batch** — One canonical, tenant-scoped OTLP partition stored with
-its signal and content digest.
+**Telemetry batch:** A canonical tenant-scoped OTLP partition stored with its
+signal and content digest.
 
-**Prompt event** — A normalized Codex or Claude user-prompt log derived from a
+**Prompt event:** A normalized Codex or Claude user-prompt log derived from a
 telemetry batch.

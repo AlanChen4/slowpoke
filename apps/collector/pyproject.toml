@@ -2,7 +2,6 @@
 name = "slowpoke-collector"
 version = "0.1.0"
 description = "Slowpoke's OpenTelemetry gateway on Modal"
-readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = ["modal==1.5.2"]
 

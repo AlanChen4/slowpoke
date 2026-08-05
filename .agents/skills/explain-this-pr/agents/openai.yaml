@@ -1,0 +1,4 @@
+interface:
+  display_name: "Explain This PR"
+  short_description: "Understand the current pull request"
+  default_prompt: "Use $explain-this-pr to explain the pull request for my current branch."
