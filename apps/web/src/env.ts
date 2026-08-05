@@ -4,7 +4,7 @@ import * as z from "zod";
 export const env = createEnv({
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]),
-    SUPABASE_SECRET_KEY: z.string().min(1).optional(),
+    SUPABASE_SECRET_KEY: z.string().min(1),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.url(),

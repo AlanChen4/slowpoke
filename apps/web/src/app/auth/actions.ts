@@ -22,10 +22,6 @@ function usesLocalSupabase() {
 }
 
 async function signInLocally(email: string): Promise<AuthActionState | null> {
-  if (!env.SUPABASE_SECRET_KEY) {
-    return { error: "Local authentication is missing SUPABASE_SECRET_KEY." };
-  }
-
   const admin = createAdminClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
     auth: {
       autoRefreshToken: false,
