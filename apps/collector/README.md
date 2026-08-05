@@ -22,6 +22,10 @@ Create a Modal secret named `slowpoke-collector` with:
 
 Do not place raw passwords or ingestion credentials in this repository.
 
+Production deployments use Doppler as the source of truth. GitHub Actions
+refreshes this filtered Modal secret before each deployment through
+`scripts/sync-modal-secrets.sh`.
+
 ## Deploy
 
 From this directory:

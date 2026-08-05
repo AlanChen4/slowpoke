@@ -20,3 +20,7 @@ Deploy the ASGI wrapper only after adding those values to a Modal secret named
 cd apps/backend
 uv run modal deploy modal_app.py
 ```
+
+Production deployments use Doppler as the source of truth. GitHub Actions
+refreshes the filtered Modal secret before each deployment through
+`scripts/sync-modal-secrets.sh`.
