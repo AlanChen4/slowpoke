@@ -20,14 +20,9 @@ export default function Home() {
           />
         </Link>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Link href="/login" className={buttonVariants({ variant: "ghost" })}>
-            Log in
-          </Link>
-          <Link href="/signup" className={buttonVariants()}>
-            Sign up
-          </Link>
-        </div>
+        <Link href="/login" className={buttonVariants()}>
+          Get started
+        </Link>
       </nav>
 
       <section className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col items-start justify-center gap-8 px-6 pb-24 pt-12 sm:px-10 lg:px-12">

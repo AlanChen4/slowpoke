@@ -3,45 +3,50 @@
   "categories": {
     "correctness": "error"
   },
-  "plugins": ["oxc", "typescript", "unicorn", "react", "jsx-a11y", "nextjs"],
-  "jsPlugins": ["./scripts/lint-rules/shadcn.mjs"],
+  "plugins": ["node", "oxc", "typescript", "unicorn", "react", "jsx-a11y", "nextjs"],
+  "options": {
+    "reportUnusedDisableDirectives": "error"
+  },
   "rules": {
-    "react/react-compiler": "error",
-    "slowpoke/prefer-shadcn-components": [
+    "node/no-process-env": "error",
+    "react/forbid-elements": [
       "error",
       {
-        "button": {
-          "component": "Button",
-          "importPath": "@/components/ui/button"
-        },
-        "input": {
-          "component": "Input",
-          "importPath": "@/components/ui/input"
-        },
-        "label": {
-          "component": "Label",
-          "importPath": "@/components/ui/label"
-        },
-        "hr": {
-          "component": "Separator",
-          "importPath": "@/components/ui/separator"
-        },
-        "fieldset": {
-          "component": "FieldSet",
-          "importPath": "@/components/ui/field"
-        },
-        "legend": {
-          "component": "FieldLegend",
-          "importPath": "@/components/ui/field"
-        }
+        "forbid": [
+          {
+            "element": "button",
+            "message": "Use <Button /> from '@/components/ui/button'."
+          },
+          {
+            "element": "input",
+            "message": "Use <Input /> from '@/components/ui/input'."
+          },
+          {
+            "element": "label",
+            "message": "Use <Label /> from '@/components/ui/label'."
+          },
+          {
+            "element": "hr",
+            "message": "Use <Separator /> from '@/components/ui/separator'."
+          },
+          {
+            "element": "fieldset",
+            "message": "Use <FieldSet /> from '@/components/ui/field'."
+          },
+          {
+            "element": "legend",
+            "message": "Use <FieldLegend /> from '@/components/ui/field'."
+          }
+        ]
       }
-    ]
+    ],
+    "react/react-compiler": "error"
   },
   "overrides": [
     {
       "files": ["apps/web/src/components/ui/**/*.{js,jsx,ts,tsx}"],
       "rules": {
-        "slowpoke/prefer-shadcn-components": "off"
+        "react/forbid-elements": "off"
       }
     }
   ]
