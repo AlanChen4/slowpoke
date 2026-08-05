@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 type Signal = Literal["logs", "metrics", "traces"]
 type Provider = Literal["anthropic", "openai"]
@@ -10,9 +11,8 @@ type Provider = Literal["anthropic", "openai"]
 
 @dataclass(frozen=True, slots=True)
 class Installation:
-    id: int
-    organization_id: int
-    collector_id: str
+    id: UUID
+    organization_id: UUID
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +31,7 @@ class Prompt:
 
 @dataclass(frozen=True, slots=True)
 class Partition:
-    installation_id: str
+    installation_id: UUID
     signal: Signal
     payload: dict[str, object]
     content_sha256: str

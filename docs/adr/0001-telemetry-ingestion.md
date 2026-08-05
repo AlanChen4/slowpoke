@@ -6,47 +6,55 @@ Accepted for the ingestion MVP.
 
 ## Context
 
-The OpenTelemetry Collector authenticates an installation, stamps every OTLP
-resource group with `slowpoke.installation.id`, and forwards OTLP/JSON to the
-backend. One export may contain resource groups from multiple installations.
-The product needs exact source telemetry for later reprocessing and a small,
-RLS-readable prompt model for the frontend.
+The Collector authenticates installations, stamps OTLP resource groups with
+`slowpoke.installation.id`, and sends OTLP/JSON to the backend. Batching can
+combine installations in one export. Slowpoke must retain source telemetry for
+reprocessing and expose prompts through row-level security (RLS).
 
 ## Decision
 
-The backend partitions each export by the stamped installation ID before
-persistence. It processes each partition independently. Known installations are
-stored even when another partition has an unknown or revoked installation. The
-backend then returns retryable `503`, so the collector retries the full export
-and existing rows deduplicate.
+### Partition exports
 
-Every partition is stored as canonical OTLP JSON in `telemetry_batches`.
-`prompt_events` is derived only from `codex.user_prompt` and
-`claude_code.user_prompt` log records. Metrics and traces stay raw. A SHA-256 of
-the canonical tenant partition deduplicates batches by installation and signal;
-the batch plus log-record ordinal deduplicates prompts. Prompt rows contain only
-queryable product fields; complete OTLP attributes remain in the raw batch for
-later reprocessing.
+The backend partitions exports by installation ID. It stores valid partitions,
+then returns `503` if any installation is unknown or revoked. The Collector
+retries the full export; existing rows deduplicate.
 
-All public tables use RLS and explicit grants. Authenticated organization admins
-may select their organization's prompt events. Installations and raw batches
-have no frontend grants. The backend alone receives the Supabase secret key.
+### Use one installation identity
 
-The framework-neutral ingestion function is exposed through a FastAPI app
-factory. Uvicorn uses that factory locally; a thin Modal ASGI wrapper uses the
-same factory remotely with zero warm containers.
+Application-owned IDs use UUIDs from `gen_random_uuid()`. The installation UUID
+also serves as the username for HTTP Basic authentication and
+`slowpoke.installation.id`. This removes a lookup key and prevents sequential
+IDs from revealing approximate row counts. The password authenticates the
+installation; its UUID is public identity data.
+
+### Store raw and derived data
+
+Every partition becomes canonical OTLP JSON in `telemetry_batches`. Only
+`codex.user_prompt` and `claude_code.user_prompt` logs produce `prompt_events`;
+metrics and traces stay raw. A SHA-256 digest deduplicates batches by installation
+and signal. Batch ID plus log position deduplicates prompts. Raw batches retain
+complete attributes for reprocessing.
+
+### Limit data access
+
+All public tables use RLS and explicit grants. Organization admins may read only
+their prompt events. Installations and raw batches have no frontend grants. Only
+the backend receives the Supabase secret key.
+
+### Share ingestion logic
+
+Uvicorn and the Modal ASGI wrapper use the same FastAPI app factory. Modal keeps
+zero warm containers.
 
 ## Consequences
 
 - Raw telemetry can be reprocessed when extraction rules change.
+- UUIDv4 inserts have less index locality than sequential identifiers. A future
+  migration can change new-row defaults to UUIDv7 when the database provides it
+  and exposing creation time is acceptable.
 - Mixed-tenant exports cannot create cross-organization rows.
 - Unknown installations do not block valid tenant partitions.
 - Collector retries are safe after ambiguous failures.
 - Raw storage grows without bound until a retention policy is added.
-- The local Supabase stack, local FastAPI process, and real collector container
-  test database behavior without calling Modal.
-- Ephemeral Modal tests use synthetic OTLP to verify collector packaging and
-  routing without repeating real harness calls.
 
-Hosted Supabase provisioning, remote migrations, production Modal deployment,
-retention, and frontend queries are deferred.
+Deployment, retention, and frontend query design remain outside this decision.

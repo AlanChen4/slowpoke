@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gzip
 import json
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 
@@ -14,11 +15,17 @@ from .helpers import FakeRepository, attribute, resource_group
 
 TOKEN = "test-ingest-token"
 SETTINGS = Settings(
-    ingest_token=TOKEN,
-    supabase_url="http://unused.invalid",
-    supabase_secret_key="unused",
-    max_decompressed_bytes=512,
+    SLOWPOKE_INGEST_TOKEN=TOKEN,
+    SUPABASE_URL="http://unused.invalid",
+    SUPABASE_SECRET_KEY="unused",
+    SLOWPOKE_MAX_DECOMPRESSED_BYTES=512,
 )
+KNOWN = UUID("00000000-0000-4000-8000-000000000001")
+KNOWN_A = UUID("00000000-0000-4000-8000-000000000002")
+UNKNOWN = UUID("00000000-0000-4000-8000-000000000003")
+KNOWN_C = UUID("00000000-0000-4000-8000-000000000004")
+ORGANIZATION_A = UUID("10000000-0000-4000-8000-000000000001")
+ORGANIZATION_C = UUID("10000000-0000-4000-8000-000000000002")
 
 
 def _client(repository: FakeRepository) -> TestClient:
@@ -55,18 +62,18 @@ def test_requires_exact_bearer_token() -> None:
 
 
 def test_accepts_gzipped_otlp_json() -> None:
-    installation = Installation(1, 10, "known")
-    repository = FakeRepository({"known": installation})
+    installation = Installation(KNOWN, ORGANIZATION_A)
+    repository = FakeRepository({KNOWN: installation})
 
     response = _post(
         _client(repository),
-        {"resourceLogs": [resource_group("known")]},
+        {"resourceLogs": [resource_group(KNOWN)]},
         gzip_body=True,
     )
 
     assert response.status_code == 200
     assert response.json() == {}
-    assert repository.resolve_calls == ["known"]
+    assert repository.resolve_calls == [KNOWN]
     assert len(repository.persist_calls) == 1
 
 
@@ -114,26 +121,33 @@ def test_rejects_structurally_invalid_otlp() -> None:
         client,
         {"resourceLogs": [{"resource": {"attributes": []}, "scopeLogs": []}]},
     )
+    malformed_installation_id = _post(
+        client,
+        {"resourceLogs": [resource_group("not-a-uuid")]},
+    )
 
     assert missing_signal_export.status_code == 400
     assert unstamped_resource.status_code == 400
+    assert malformed_installation_id.status_code == 400
 
 
 def test_persists_known_groups_before_retrying_unknown_installation() -> None:
     repository = FakeRepository(
         {
-            "known-a": Installation(1, 10, "known-a"),
-            "known-c": Installation(2, 20, "known-c"),
+            KNOWN_A: Installation(KNOWN_A, ORGANIZATION_A),
+            KNOWN_C: Installation(KNOWN_C, ORGANIZATION_C),
         }
     )
     payload = {
         "resourceLogs": [
             {
                 "resource": {
-                    "attributes": [attribute("slowpoke.installation.id", collector_id)]
+                    "attributes": [
+                        attribute("slowpoke.installation.id", str(installation_id))
+                    ]
                 }
             }
-            for collector_id in ("known-a", "unknown", "known-c")
+            for installation_id in (KNOWN_A, UNKNOWN, KNOWN_C)
         ]
     }
 
@@ -141,21 +155,21 @@ def test_persists_known_groups_before_retrying_unknown_installation() -> None:
 
     assert response.status_code == 503
     assert response.headers["retry-after"] == "30"
-    assert repository.resolve_calls == ["known-a", "unknown", "known-c"]
+    assert repository.resolve_calls == [KNOWN_A, UNKNOWN, KNOWN_C]
     assert [item.installation_id for item in repository.persist_calls] == [
-        "known-a",
-        "known-c",
+        KNOWN_A,
+        KNOWN_C,
     ]
 
 
 def test_database_failure_is_retryable() -> None:
     class FailingRepository(FakeRepository):
-        def resolve_installation(self, collector_id: str):
+        def resolve_installation(self, installation_id: UUID):
             raise RepositoryError("database unavailable")
 
     response = _post(
         _client(FailingRepository()),
-        {"resourceLogs": [resource_group("known")]},
+        {"resourceLogs": [resource_group(KNOWN)]},
     )
 
     assert response.status_code == 503

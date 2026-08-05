@@ -8,13 +8,13 @@ alter default privileges for role postgres in schema public
   revoke execute on functions from public, anon, authenticated, service_role;
 
 create table public.organizations (
-  id bigint generated always as identity primary key,
+  id uuid primary key default gen_random_uuid(),
   name text not null,
   created_at timestamptz not null default now()
 );
 
 create table public.organization_members (
-  organization_id bigint not null references public.organizations (id) on delete cascade,
+  organization_id uuid not null references public.organizations (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
   role text not null check (role in ('admin', 'member')),
   created_at timestamptz not null default now(),
@@ -29,9 +29,8 @@ create index organization_members_admin_lookup_idx
   where role = 'admin';
 
 create table public.installations (
-  id bigint generated always as identity primary key,
-  organization_id bigint not null references public.organizations (id) on delete cascade,
-  collector_id text not null unique,
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations (id) on delete cascade,
   created_at timestamptz not null default now(),
   revoked_at timestamptz,
   unique (id, organization_id)
@@ -41,9 +40,9 @@ create index installations_organization_id_idx
   on public.installations (organization_id);
 
 create table public.telemetry_batches (
-  id bigint generated always as identity primary key,
-  organization_id bigint not null references public.organizations (id) on delete cascade,
-  installation_id bigint not null,
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations (id) on delete cascade,
+  installation_id uuid not null,
   signal text not null check (signal in ('logs', 'metrics', 'traces')),
   content_sha256 text not null check (char_length(content_sha256) = 64),
   raw_payload jsonb not null,
@@ -61,10 +60,10 @@ create index telemetry_batches_installation_id_idx
   on public.telemetry_batches (installation_id);
 
 create table public.prompt_events (
-  id bigint generated always as identity primary key,
-  organization_id bigint not null references public.organizations (id) on delete cascade,
-  installation_id bigint not null,
-  batch_id bigint not null,
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations (id) on delete cascade,
+  installation_id uuid not null,
+  batch_id uuid not null,
   record_index integer not null check (record_index >= 0),
   provider text not null check (provider in ('anthropic', 'openai')),
   event_name text not null,
@@ -146,5 +145,3 @@ grant select, insert, update, delete on table public.organization_members to ser
 grant select, insert, update, delete on table public.installations to service_role;
 grant select, insert, update, delete on table public.telemetry_batches to service_role;
 grant select, insert, update, delete on table public.prompt_events to service_role;
-
-grant usage, select on all sequences in schema public to service_role;

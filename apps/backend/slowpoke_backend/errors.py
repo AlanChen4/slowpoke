@@ -1,3 +1,6 @@
+from uuid import UUID
+
+
 class IngestionError(Exception):
     """Base class for expected ingestion failures."""
 
@@ -11,8 +14,8 @@ class PayloadTooLargeError(IngestionError):
 
 
 class UnknownInstallationError(IngestionError):
-    def __init__(self, collector_ids: set[str]):
-        self.collector_ids = collector_ids
+    def __init__(self, installation_ids: set[UUID]):
+        self.installation_ids = installation_ids
         super().__init__("unknown or revoked installation")
 
 

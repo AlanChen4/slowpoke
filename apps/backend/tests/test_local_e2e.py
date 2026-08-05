@@ -65,7 +65,10 @@ def _backend_server(settings: Settings) -> Iterator[int]:
         uvicorn.Config(
             create_app(
                 settings,
-                SupabaseRepository(settings.supabase_url, settings.supabase_secret_key),
+                SupabaseRepository(
+                    settings.SUPABASE_URL,
+                    settings.SUPABASE_SECRET_KEY.get_secret_value(),
+                ),
             ),
             host="0.0.0.0",
             port=port,
@@ -87,10 +90,10 @@ def _backend_server(settings: Settings) -> Iterator[int]:
 
 
 @contextmanager
-def _collector(backend_port: int, collector_id: str, token: str) -> Iterator[int]:
+def _collector(backend_port: int, installation_id: str, token: str) -> Iterator[int]:
     password = secrets.token_urlsafe(18)
     digest = base64.b64encode(hashlib.sha1(password.encode()).digest()).decode()
-    htpasswd = f"{collector_id}:{{SHA}}{digest}"
+    htpasswd = f"{installation_id}:{{SHA}}{digest}"
     collector_port = _free_port()
     container_name = f"slowpoke-local-e2e-{secrets.token_hex(6)}"
 
@@ -124,7 +127,7 @@ def _collector(backend_port: int, collector_id: str, token: str) -> Iterator[int
         timeout=30,
     )
     authorization = (
-        "Basic " + base64.b64encode(f"{collector_id}:{password}".encode()).decode()
+        "Basic " + base64.b64encode(f"{installation_id}:{password}".encode()).decode()
     )
     try:
         _wait_for_collector(collector_port, authorization)
@@ -282,23 +285,26 @@ def test_real_clis_flow_through_collector_into_supabase() -> None:
         .execute()
         .data[0]
     )
-    organization_id = int(organization["id"])
-    collector_id = f"local-e2e-{suffix}"
+    organization_id = str(organization["id"])
     installation = (
         service_client.table("installations")
-        .insert({"organization_id": organization_id, "collector_id": collector_id})
+        .insert({"organization_id": organization_id})
         .execute()
         .data[0]
     )
-    installation_id = int(installation["id"])
+    installation_id = str(installation["id"])
     token = secrets.token_urlsafe(24)
-    settings = Settings(token, url, secret_key)
+    settings = Settings(
+        SLOWPOKE_INGEST_TOKEN=token,
+        SUPABASE_URL=url,
+        SUPABASE_SECRET_KEY=secret_key,
+    )
 
     try:
         with ExitStack() as stack:
             backend_port = stack.enter_context(_backend_server(settings))
             collector_port = stack.enter_context(
-                _collector(backend_port, collector_id, token)
+                _collector(backend_port, installation_id, token)
             )
             endpoint = f"http://127.0.0.1:{collector_port}"
             authorization = os.environ["SLOWPOKE_E2E_BASIC_AUTHORIZATION"]

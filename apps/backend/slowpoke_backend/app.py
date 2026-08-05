@@ -21,15 +21,18 @@ def create_app(
     settings: Settings | None = None,
     repository: IngestionRepository | None = None,
 ) -> FastAPI:
-    resolved_settings = settings or Settings.from_environment()
+    # BaseSettings resolves required fields from environment at runtime.
+    resolved_settings = settings or Settings()  # pyright: ignore[reportCallIssue]
     resolved_repository = repository or SupabaseRepository(
-        resolved_settings.supabase_url,
-        resolved_settings.supabase_secret_key,
+        resolved_settings.SUPABASE_URL,
+        resolved_settings.SUPABASE_SECRET_KEY.get_secret_value(),
     )
     app = FastAPI(title="Slowpoke ingestion backend", docs_url=None, redoc_url=None)
 
     def authorize(authorization: Annotated[str | None, Header()] = None) -> None:
-        expected = f"Bearer {resolved_settings.ingest_token}"
+        expected = (
+            f"Bearer {resolved_settings.SLOWPOKE_INGEST_TOKEN.get_secret_value()}"
+        )
         if authorization is None or not hmac.compare_digest(authorization, expected):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -56,7 +59,7 @@ def create_app(
                 await request.body(),
                 request.headers,
                 resolved_repository,
-                resolved_settings.max_decompressed_bytes,
+                resolved_settings.SLOWPOKE_MAX_DECOMPRESSED_BYTES,
             )
         except PayloadTooLargeError as error:
             raise HTTPException(status_code=413, detail="payload too large") from error

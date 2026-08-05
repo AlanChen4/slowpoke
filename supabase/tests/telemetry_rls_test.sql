@@ -30,26 +30,27 @@ values
   ('10000000-0000-0000-0000-000000000003', 'admin-b@example.test');
 
 insert into public.organizations (id, name)
-overriding system value
-values (101, 'Organization A'), (102, 'Organization B');
+values
+  ('20000000-0000-4000-8000-000000000001', 'Organization A'),
+  ('20000000-0000-4000-8000-000000000002', 'Organization B');
 
 insert into public.organization_members (organization_id, user_id, role)
 values
-  (101, '10000000-0000-0000-0000-000000000001', 'admin'),
-  (101, '10000000-0000-0000-0000-000000000002', 'member'),
-  (102, '10000000-0000-0000-0000-000000000003', 'admin');
+  ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', 'admin'),
+  ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000002', 'member'),
+  ('20000000-0000-4000-8000-000000000002', '10000000-0000-0000-0000-000000000003', 'admin');
 
-insert into public.installations (id, organization_id, collector_id)
-overriding system value
-values (201, 101, 'installation-a'), (202, 102, 'installation-b');
+insert into public.installations (id, organization_id)
+values
+  ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001'),
+  ('30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002');
 
 insert into public.telemetry_batches (
   id, organization_id, installation_id, signal, content_sha256, raw_payload
 )
-overriding system value
 values
-  (301, 101, 201, 'logs', repeat('a', 64), '{"resourceLogs": []}'),
-  (302, 102, 202, 'logs', repeat('b', 64), '{"resourceLogs": []}');
+  ('40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'logs', repeat('a', 64), '{"resourceLogs": []}'),
+  ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'logs', repeat('b', 64), '{"resourceLogs": []}');
 
 insert into public.prompt_events (
   organization_id,
@@ -62,8 +63,8 @@ insert into public.prompt_events (
   prompt_text
 )
 values
-  (101, 201, 301, 0, 'openai', 'codex.user_prompt', now(), 'organization a'),
-  (102, 202, 302, 0, 'anthropic', 'claude_code.user_prompt', now(), 'organization b');
+  ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 0, 'openai', 'codex.user_prompt', now(), 'organization a'),
+  ('20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', 0, 'anthropic', 'claude_code.user_prompt', now(), 'organization b');
 
 set local role authenticated;
 select set_config(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Protocol, cast
+from uuid import UUID
 
 from supabase import Client, create_client
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class IngestionRepository(Protocol):
-    def resolve_installation(self, collector_id: str) -> Installation: ...
+    def resolve_installation(self, installation_id: UUID) -> Installation: ...
 
     def persist(self, partition: Partition, installation: Installation) -> None: ...
 
@@ -26,23 +27,22 @@ class SupabaseRepository:
     def __init__(self, url: str, secret_key: str):
         self._client: Client = create_client(url, secret_key)
 
-    def resolve_installation(self, collector_id: str) -> Installation:
+    def resolve_installation(self, installation_id: UUID) -> Installation:
         try:
             response = (
                 self._client.table("installations")
-                .select("id,organization_id,collector_id,created_at,revoked_at")
-                .eq("collector_id", collector_id)
+                .select("id,organization_id,created_at,revoked_at")
+                .eq("id", str(installation_id))
                 .is_("revoked_at", "null")
                 .limit(1)
                 .execute()
             )
             if not response.data:
-                raise UnknownInstallationError({collector_id})
+                raise UnknownInstallationError({installation_id})
             row = PublicInstallations.model_validate(response.data[0])
             return Installation(
                 id=row.id,
                 organization_id=row.organization_id,
-                collector_id=row.collector_id,
             )
         except UnknownInstallationError:
             raise
@@ -59,16 +59,21 @@ class SupabaseRepository:
                 "content_sha256": partition.content_sha256,
                 "raw_payload": cast(Any, partition.payload),
             }
+            serialized_batch = {
+                **cast(dict[str, Any], batch),
+                "organization_id": str(batch["organization_id"]),
+                "installation_id": str(batch["installation_id"]),
+            }
             response = (
                 self._client.table("telemetry_batches")
                 .upsert(
-                    cast(dict[str, Any], batch),
+                    serialized_batch,
                     on_conflict="installation_id,signal,content_sha256",
                 )
                 .select("id")
                 .execute()
             )
-            batch_id = int(cast(dict[str, Any], response.data[0])["id"])
+            batch_id = UUID(str(cast(dict[str, Any], response.data[0])["id"]))
 
             if not partition.prompts:
                 return
@@ -95,6 +100,9 @@ class SupabaseRepository:
                 {
                     **cast(dict[str, Any], row),
                     "occurred_at": cast(dict[str, Any], row)["occurred_at"].isoformat(),
+                    "organization_id": str(row["organization_id"]),
+                    "installation_id": str(row["installation_id"]),
+                    "batch_id": str(row["batch_id"]),
                 }
                 for row in prompt_rows
             ]

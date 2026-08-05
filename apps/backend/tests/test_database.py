@@ -5,6 +5,7 @@ import os
 import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,7 +29,7 @@ def _credentials() -> tuple[str, str]:
 
 
 @contextmanager
-def _database_fixture() -> Iterator[tuple[Client, int, int, str]]:
+def _database_fixture() -> Iterator[tuple[Client, str, str]]:
     url, secret_key = _credentials()
     client = create_client(url, secret_key)
     suffix = secrets.token_hex(8)
@@ -38,26 +39,25 @@ def _database_fixture() -> Iterator[tuple[Client, int, int, str]]:
         .execute()
         .data[0]
     )
-    organization_id = int(organization["id"])
-    collector_id = f"database-test-{suffix}"
+    organization_id = str(organization["id"])
     installation = (
         client.table("installations")
-        .insert({"organization_id": organization_id, "collector_id": collector_id})
+        .insert({"organization_id": organization_id})
         .execute()
         .data[0]
     )
-    installation_id = int(installation["id"])
+    installation_id = str(installation["id"])
     try:
-        yield client, organization_id, installation_id, collector_id
+        yield client, organization_id, installation_id
     finally:
         client.table("organizations").delete().eq("id", organization_id).execute()
 
 
 def _api(secret_key: str, url: str, collector_token: str) -> TestClient:
     settings = Settings(
-        ingest_token=collector_token,
-        supabase_url=url,
-        supabase_secret_key=secret_key,
+        SLOWPOKE_INGEST_TOKEN=collector_token,
+        SUPABASE_URL=url,
+        SUPABASE_SECRET_KEY=secret_key,
     )
     return TestClient(create_app(settings, SupabaseRepository(url, secret_key)))
 
@@ -80,21 +80,20 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
         service_client,
         organization_id,
         installation_id,
-        collector_id,
     ):
         client = _api(secret_key, url, token)
         payloads = {
             "logs": {
                 "resourceLogs": [
                     resource_group(
-                        collector_id,
+                        installation_id,
                         prompt_event="codex.user_prompt",
                         prompt_text="database prompt",
                     )
                 ]
             },
-            "metrics": {"resourceMetrics": [resource_group(collector_id)]},
-            "traces": {"resourceSpans": [resource_group(collector_id)]},
+            "metrics": {"resourceMetrics": [resource_group(installation_id)]},
+            "traces": {"resourceSpans": [resource_group(installation_id)]},
         }
 
         for signal, payload in payloads.items():
@@ -134,7 +133,7 @@ def test_unknown_installation_is_retryable_and_stores_nothing() -> None:
     url, secret_key = _credentials()
     token = secrets.token_urlsafe(24)
     client = _api(secret_key, url, token)
-    unknown_id = f"unknown-{secrets.token_hex(8)}"
+    unknown_id = str(uuid4())
     service_client = create_client(url, secret_key)
     before = (
         service_client.table("telemetry_batches")
@@ -167,7 +166,6 @@ def test_mixed_export_persists_known_partition_before_retry() -> None:
         service_client,
         organization_id,
         installation_id,
-        collector_id,
     ):
         client = _api(secret_key, url, token)
         response = _post(
@@ -175,8 +173,8 @@ def test_mixed_export_persists_known_partition_before_retry() -> None:
             "logs",
             {
                 "resourceLogs": [
-                    resource_group(collector_id),
-                    resource_group(f"unknown-{secrets.token_hex(8)}"),
+                    resource_group(installation_id),
+                    resource_group(uuid4()),
                 ]
             },
             token,
