@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 
 import { continueWithEmail, type AuthActionState } from "@/app/auth/actions";
 import { AuthBrand } from "@/components/auth/auth-brand";
-import { Button } from "@/components/ui/button";
+import { GitHubLogo, GoogleLogo } from "@/components/auth/provider-logos";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
@@ -18,7 +20,11 @@ import { cn } from "@/lib/utils";
 
 const initialState: AuthActionState = {};
 
-export function MagicLinkForm({ className, ...props }: React.ComponentProps<"div">) {
+type MagicLinkFormProps = React.ComponentProps<"div"> & {
+  authError?: string;
+};
+
+export function MagicLinkForm({ authError, className, ...props }: MagicLinkFormProps) {
   const [state, formAction, pending] = useActionState(continueWithEmail, initialState);
 
   return (
@@ -28,6 +34,7 @@ export function MagicLinkForm({ className, ...props }: React.ComponentProps<"div
           <div className="flex justify-center">
             <AuthBrand />
           </div>
+          {authError ? <FieldError className="text-center">{authError}</FieldError> : null}
           <Field data-invalid={Boolean(state.error)}>
             <FieldLabel htmlFor="auth-email">Email</FieldLabel>
             <Input
@@ -51,12 +58,22 @@ export function MagicLinkForm({ className, ...props }: React.ComponentProps<"div
           </Field>
           <FieldSeparator>Or</FieldSeparator>
           <Field className="grid gap-4 sm:grid-cols-2">
-            <Button variant="outline" type="button" disabled>
-              Continue with Apple
-            </Button>
-            <Button variant="outline" type="button" disabled>
+            <Link
+              href="/auth/oauth?provider=github"
+              prefetch={false}
+              className={buttonVariants({ variant: "secondary" })}
+            >
+              <GitHubLogo data-icon="inline-start" />
+              Continue with GitHub
+            </Link>
+            <Link
+              href="/auth/oauth?provider=google"
+              prefetch={false}
+              className={buttonVariants({ variant: "secondary" })}
+            >
+              <GoogleLogo className="size-4" data-icon="inline-start" />
               Continue with Google
-            </Button>
+            </Link>
           </Field>
         </FieldGroup>
       </form>
