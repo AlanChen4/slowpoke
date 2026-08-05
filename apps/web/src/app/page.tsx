@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
@@ -25,12 +26,20 @@ export default async function Home() {
             priority
           />
         </Link>
+
+        <Link href="/login" className={buttonVariants({ variant: "ghost" })}>
+          Sign in
+        </Link>
       </nav>
 
       <section className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col items-start justify-center gap-8 px-6 pb-24 pt-12 sm:px-10 lg:px-12">
         <h1 className="max-w-5xl text-left text-5xl font-semibold leading-[0.96] tracking-[-0.06em] text-balance sm:text-7xl lg:text-[6.75rem]">
           Manage your company&apos;s AI usage
         </h1>
+
+        <Link href="/login" className={buttonVariants({ size: "lg" })}>
+          Get Started — it&apos;s free
+        </Link>
       </section>
     </main>
   );
