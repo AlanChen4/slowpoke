@@ -65,7 +65,10 @@ def _backend_server(settings: Settings) -> Iterator[int]:
         uvicorn.Config(
             create_app(
                 settings,
-                SupabaseRepository(settings.supabase_url, settings.supabase_secret_key),
+                SupabaseRepository(
+                    settings.supabase_url,
+                    settings.supabase_secret_key.get_secret_value(),
+                ),
             ),
             host="0.0.0.0",
             port=port,
@@ -292,7 +295,11 @@ def test_real_clis_flow_through_collector_into_supabase() -> None:
     )
     installation_id = int(installation["id"])
     token = secrets.token_urlsafe(24)
-    settings = Settings(token, url, secret_key)
+    settings = Settings(
+        ingest_token=token,
+        supabase_url=url,
+        supabase_secret_key=secret_key,
+    )
 
     try:
         with ExitStack() as stack:
