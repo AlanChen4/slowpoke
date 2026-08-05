@@ -4,8 +4,13 @@ The backend accepts tenant-stamped OTLP/JSON from the collector and stores raw
 batches plus extracted user prompts in Supabase.
 
 ```sh
-pnpm backend:dev
+pnpm dev
 ```
+
+Run that command from the repository root to start local Supabase, the frontend,
+backend, and Collector. From the host, the backend URL is
+`http://127.0.0.1:8000`. The Collector container reaches it at
+`http://host.docker.internal:8000`.
 
 Required environment variables:
 

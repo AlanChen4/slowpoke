@@ -41,7 +41,17 @@ The sending queue is intentionally in-memory for the MVP. Pending telemetry can 
 
 ## Develop
 
-Start the same Modal Server definition as an ephemeral development app:
+Run the complete local stack from the repository root:
+
+```sh
+pnpm dev
+```
+
+This starts the Collector in Docker on `http://127.0.0.1:4318` alongside local
+Supabase, the frontend, and backend.
+
+To test the Collector specifically on Modal, start the same Modal Server
+definition as an ephemeral development app:
 
 ```sh
 uv sync --locked
@@ -50,6 +60,10 @@ uv run modal serve modal_app.py
 
 `modal serve` creates a temporary public URL and stops the app when the command
 exits. It does not create or update a deployment.
+
+The served Collector still runs remotely on Modal. It cannot reach a backend at
+`127.0.0.1` or `host.docker.internal`; `SLOWPOKE_INGEST_URL` must be an
+internet-reachable backend URL when using this workflow.
 
 ## Test
 
