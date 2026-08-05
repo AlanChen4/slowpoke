@@ -8,7 +8,6 @@ Install Docker Desktop, pnpm, uv, and the Doppler CLI. Configure Doppler once:
 
 ```sh
 doppler login
-doppler setup --project backend --config dev
 pnpm install
 (cd apps/backend && uv sync --locked)
 (cd apps/collector && uv sync --locked)
@@ -22,7 +21,8 @@ pnpm dev
 ```
 
 The command reads local Supabase credentials directly from the Supabase CLI.
-Doppler provides only the shared ingestion token and Collector htpasswd file.
+Doppler provides the local OAuth configuration, shared ingestion token, and
+Collector htpasswd file from the `frontend/dev` and `backend/dev` configs.
 Stopping the command stops the application processes and Collector; Supabase
 keeps running so its development data remains available.
 

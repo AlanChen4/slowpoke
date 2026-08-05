@@ -62,7 +62,7 @@ done
 
 cd "$project_root"
 
-pnpm exec supabase start >/dev/null
+bash scripts/run-local-supabase.sh start >/dev/null
 supabase_status="$(pnpm exec supabase status -o env)"
 
 supabase_url="$(read_status_value API_URL)"
@@ -82,6 +82,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 (
+  export SUPABASE_SECRET_KEY="$supabase_secret_key"
   export NEXT_PUBLIC_SUPABASE_URL="$supabase_url"
   export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$supabase_publishable_key"
   exec pnpm --filter @slowpoke/web dev --port "$web_port"
