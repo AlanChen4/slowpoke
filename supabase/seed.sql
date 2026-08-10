@@ -20,7 +20,7 @@ values (
   '00000000-0000-0000-0000-000000000000',
   'authenticated',
   'authenticated',
-  'dev@slowblink.ai',
+  'dev@slowpoke.ai',
   now(),
   '',
   '',
@@ -45,7 +45,7 @@ insert into auth.identities (
 values (
   '00000000-0000-4000-8000-000000000002',
   '00000000-0000-4000-8000-000000000002',
-  '{"sub": "00000000-0000-4000-8000-000000000002", "email": "dev@slowblink.ai", "email_verified": true}'::jsonb,
+  '{"sub": "00000000-0000-4000-8000-000000000002", "email": "dev@slowpoke.ai", "email_verified": true}'::jsonb,
   'email',
   now(),
   now(),

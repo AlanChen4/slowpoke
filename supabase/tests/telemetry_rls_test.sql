@@ -1,6 +1,6 @@
 begin;
 
-select plan(11);
+select plan(14);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass),
@@ -60,11 +60,16 @@ insert into public.prompt_events (
   provider,
   event_name,
   occurred_at,
-  prompt_text
+  session_id,
+  prompt_text,
+  model,
+  slug
 )
 values
-  ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 0, 'openai', 'codex.user_prompt', now(), 'organization a'),
-  ('20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', 0, 'anthropic', 'claude_code.user_prompt', now(), 'organization b');
+  ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 0, 'openai', 'codex.user_prompt', '2026-08-10 10:00:00+00', 'conversation-a', 'organization a', 'gpt-5.6-sol', 'gpt-5.6-sol'),
+  ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 1, 'openai', 'codex.user_prompt', '2026-08-10 10:01:00+00', 'conversation-a', 'organization a follow-up', 'gpt-5.6-sol', 'gpt-5.6-sol'),
+  ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 2, 'openai', 'codex.user_prompt', '2026-08-10 10:02:00+00', 'review-a', 'organization a review', 'codex-auto-review', 'codex-auto-review'),
+  ('20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', 0, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:00:00+00', 'conversation-b', 'organization b', null, null);
 
 set local role authenticated;
 select set_config(
@@ -75,8 +80,13 @@ select set_config(
 
 select results_eq(
   'select prompt_text from public.prompt_events order by prompt_text',
-  $$values ('organization a'::text)$$,
+  $$values ('organization a'::text), ('organization a follow-up'::text), ('organization a review'::text)$$,
   'an administrator sees only prompts in their organization'
+);
+select results_eq(
+  'select prompt_text from public.human_prompt_events order by prompt_text',
+  $$values ('organization a'::text), ('organization a follow-up'::text)$$,
+  'the human-prompt view keeps every user turn and removes internal reviews'
 );
 select results_eq(
   'select name from public.organizations order by name',
@@ -105,6 +115,10 @@ select is_empty(
   'select * from public.prompt_events',
   'a non-admin cannot read prompt rows'
 );
+select is_empty(
+  'select * from public.human_prompt_events',
+  'a non-admin cannot read human-prompt rows'
+);
 
 set local role anon;
 select throws_ok(
@@ -112,6 +126,12 @@ select throws_ok(
   '42501',
   'permission denied for table prompt_events',
   'anonymous clients cannot read prompt rows'
+);
+select throws_ok(
+  'select * from public.human_prompt_events',
+  '42501',
+  'permission denied for view human_prompt_events',
+  'anonymous clients cannot read human-prompt rows'
 );
 
 select * from finish();

@@ -75,6 +75,9 @@ create table public.prompt_events (
   prompt_text text not null,
   is_redacted boolean not null default false,
   created_at timestamptz not null default now(),
+  model text,
+  slug text,
+  originator text,
   foreign key (installation_id, organization_id)
     references public.installations (id, organization_id) on delete cascade,
   foreign key (batch_id, organization_id)
@@ -130,15 +133,42 @@ create policy "admins can read organization prompts"
     )
   );
 
+create view public.human_prompt_events
+with (security_invoker = true) as
+select
+  id,
+  organization_id,
+  installation_id,
+  batch_id,
+  record_index,
+  provider,
+  event_name,
+  occurred_at,
+  prompt_id,
+  session_id,
+  actor_account_id,
+  actor_email,
+  prompt_text,
+  is_redacted,
+  created_at,
+  model,
+  slug,
+  originator
+from public.prompt_events
+where coalesce(model, '') <> 'codex-auto-review'
+  and coalesce(slug, '') <> 'codex-auto-review';
+
 revoke all on table public.organizations from anon, authenticated, service_role;
 revoke all on table public.organization_members from anon, authenticated, service_role;
 revoke all on table public.installations from anon, authenticated, service_role;
 revoke all on table public.telemetry_batches from anon, authenticated, service_role;
 revoke all on table public.prompt_events from anon, authenticated, service_role;
+revoke all on table public.human_prompt_events from anon, authenticated, service_role;
 
 grant select on table public.organizations to authenticated;
 grant select on table public.organization_members to authenticated;
 grant select on table public.prompt_events to authenticated;
+grant select on table public.human_prompt_events to authenticated;
 
 grant select, insert, update, delete on table public.organizations to service_role;
 grant select, insert, update, delete on table public.organization_members to service_role;

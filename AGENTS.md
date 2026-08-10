@@ -12,14 +12,13 @@ Before changing backend or Collector, read the nearest `AGENTS.md` in that app.
 
 ## Develop locally
 
-Install Docker Desktop, pnpm, uv, and the Doppler CLI. Configure the workspace
-once:
+Install Docker Desktop, pnpm, and uv. Configure the workspace once:
 
 ```sh
-doppler login
 pnpm install
 (cd apps/backend && uv sync --locked)
 (cd apps/collector && uv sync --locked)
+pnpm setup:codex
 pnpm db:reset
 ```
 
@@ -30,10 +29,10 @@ Run `pnpm dev` to start web, backend, Collector, and local Supabase. Services us
 - Collector: `http://127.0.0.1:4318`
 - Supabase Studio: `http://127.0.0.1:55323`
 
-Supabase CLI provides local credentials. Doppler provides OAuth values from
-`frontend/dev` and ingestion secrets from `backend/dev`. Stopping `pnpm dev`
-leaves Supabase running. Run `pnpm db:reset` to rebuild it from migrations and
-seed data.
+Supabase CLI provides local credentials. `pnpm setup:codex` creates ignored
+local ingestion credentials and configures the user's Codex telemetry exporter.
+Stopping `pnpm dev` leaves Supabase running. Run `pnpm db:reset` to rebuild it
+from migrations and seed data.
 
 ## Verify
 

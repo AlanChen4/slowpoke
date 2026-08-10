@@ -16,6 +16,9 @@ def test_partitions_mixed_resources_and_extracts_documented_prompts() -> None:
                 codex_id,
                 prompt_event="codex.user_prompt",
                 prompt_text="Ask Codex",
+                model="gpt-5.6-sol",
+                slug="gpt-5.6-sol",
+                originator="Codex_Desktop",
                 service_name="codex_cli_rs",
             ),
             resource_group(
@@ -38,6 +41,9 @@ def test_partitions_mixed_resources_and_extracts_documented_prompts() -> None:
     }
     assert prompts[codex_id].provider == "openai"
     assert prompts[codex_id].prompt_text == "Ask Codex"
+    assert prompts[codex_id].model == "gpt-5.6-sol"
+    assert prompts[codex_id].slug == "gpt-5.6-sol"
+    assert prompts[codex_id].originator == "Codex_Desktop"
     assert prompts[claude_id].provider == "anthropic"
     assert prompts[claude_id].prompt_text == "Ask Claude"
     assert prompts[claude_id].session_id == f"session-{claude_id}"

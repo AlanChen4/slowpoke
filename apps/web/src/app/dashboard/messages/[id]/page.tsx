@@ -1,0 +1,333 @@
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import type { ReactNode } from "react";
+
+import { humanPromptText } from "@/app/dashboard/human-prompt-text";
+import { buttonVariants } from "@/components/ui/button";
+import { env } from "@/env";
+import { createClient } from "@/lib/supabase/server";
+import { cn } from "@/lib/utils";
+
+import { promptRecordMetadata, responseUsageForPrompt } from "./telemetry";
+
+const dateFormatter = new Intl.DateTimeFormat("en", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+const numberFormatter = new Intl.NumberFormat("en");
+
+const rawMetadataKeys = ["app.version", "auth_mode", "prompt_length", "terminal.type"] as const;
+
+type MessageDetailPageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ scope?: string | string[] }>;
+};
+
+type PromptEvent = {
+  id: string;
+  organization_id: string;
+  installation_id: string;
+  batch_id: string;
+  record_index: number;
+  provider: string;
+  event_name: string;
+  occurred_at: string;
+  prompt_id: string | null;
+  session_id: string | null;
+  actor_account_id: string | null;
+  actor_email: string | null;
+  prompt_text: string;
+  is_redacted: boolean;
+  created_at: string;
+  model: string | null;
+  slug: string | null;
+  originator: string | null;
+};
+
+function providerName(provider: string) {
+  return provider === "openai" ? "OpenAI" : provider === "anthropic" ? "Anthropic" : provider;
+}
+
+function DetailItem({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1 border-t pt-3">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="break-words text-sm">{children ?? "—"}</dd>
+    </div>
+  );
+}
+
+function PromptPanel({ label, text, tone }: { label: string; text: string; tone?: "muted" }) {
+  return (
+    <article className={cn("min-w-0 border", tone === "muted" && "bg-muted/30")}>
+      <header className="border-b px-4 py-3 text-xs font-medium">{label}</header>
+      <p className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs leading-6">
+        {text}
+      </p>
+    </article>
+  );
+}
+
+function UsageItem({ label, value }: { label: string; value: number | null | undefined }) {
+  return (
+    <div className="border-t pt-3">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-lg font-medium">
+        {value === null || value === undefined ? "—" : numberFormatter.format(value)}
+      </dd>
+    </div>
+  );
+}
+
+function createTelemetryAdminClient() {
+  return createAdminClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
+export default async function MessageDetailPage({ params, searchParams }: MessageDetailPageProps) {
+  const [{ id }, { scope: requestedScope }] = await Promise.all([params, searchParams]);
+  const scope = requestedScope === "human" ? "human" : "all";
+  const backHref = scope === "human" ? "/dashboard?scope=human" : "/dashboard";
+  const supabase = await createClient();
+  const { data: claims, error: claimsError } = await supabase.auth.getClaims();
+
+  if (claimsError || !claims?.claims) {
+    redirect("/login");
+  }
+
+  const { data: promptData, error: promptError } = await supabase
+    .from("prompt_events")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (promptError) {
+    throw new Error(`Unable to load prompt details: ${promptError.message}`);
+  }
+
+  if (!promptData) {
+    notFound();
+  }
+
+  const prompt = promptData as PromptEvent;
+  const conversationQuery = prompt.session_id
+    ? supabase
+        .from("prompt_events")
+        .select("*")
+        .eq("session_id", prompt.session_id)
+        .order("occurred_at", { ascending: true })
+        .limit(100)
+    : Promise.resolve({ data: [promptData], error: null });
+  const admin = createTelemetryAdminClient();
+  const responseBatchQuery = admin
+    .from("telemetry_batches")
+    .select("raw_payload,received_at")
+    .eq("organization_id", prompt.organization_id)
+    .eq("installation_id", prompt.installation_id)
+    .eq("signal", "logs")
+    .gte("received_at", prompt.occurred_at)
+    .order("received_at", { ascending: true })
+    .limit(100);
+
+  const [conversationResult, selectedBatchResult, responseBatchResult] = await Promise.all([
+    conversationQuery,
+    admin
+      .from("telemetry_batches")
+      .select("raw_payload")
+      .eq("id", prompt.batch_id)
+      .eq("organization_id", prompt.organization_id)
+      .maybeSingle(),
+    responseBatchQuery,
+  ]);
+
+  if (conversationResult.error) {
+    throw new Error(`Unable to load conversation: ${conversationResult.error.message}`);
+  }
+
+  if (selectedBatchResult.error || responseBatchResult.error) {
+    console.error(
+      `[dashboard] telemetry detail query failed ${JSON.stringify({
+        promptId: prompt.id,
+        selectedBatchError: selectedBatchResult.error?.message,
+        responseBatchError: responseBatchResult.error?.message,
+      })}`,
+    );
+  }
+
+  const conversation = (conversationResult.data ?? [promptData]) as PromptEvent[];
+  const selectedIndex = conversation.findIndex((event) => event.id === prompt.id);
+  const nextPromptOccurredAt =
+    selectedIndex >= 0 ? (conversation[selectedIndex + 1]?.occurred_at ?? null) : null;
+  const usage = prompt.session_id
+    ? responseUsageForPrompt(
+        (responseBatchResult.data ?? []).map((batch) => batch.raw_payload),
+        prompt.session_id,
+        prompt.occurred_at,
+        nextPromptOccurredAt,
+      )
+    : null;
+  const rawMetadata = promptRecordMetadata(
+    selectedBatchResult.data?.raw_payload,
+    prompt.record_index,
+  );
+  const humanText = prompt.is_redacted
+    ? "Prompt content was redacted."
+    : humanPromptText(prompt.prompt_text);
+  const sentText = prompt.is_redacted ? "Prompt content was redacted." : prompt.prompt_text;
+  const addedCharacters = Math.max(0, sentText.length - humanText.length);
+
+  return (
+    <main className="mx-auto flex min-h-svh w-full max-w-7xl flex-col gap-8 px-6 py-8 sm:px-10 lg:px-12">
+      <nav className="flex items-center justify-between gap-4">
+        <Link href={backHref} className={cn(buttonVariants({ variant: "outline" }))}>
+          Back to prompts
+        </Link>
+        <p className="text-xs text-muted-foreground">
+          {dateFormatter.format(new Date(prompt.occurred_at))}
+        </p>
+      </nav>
+
+      <header className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground">{providerName(prompt.provider)}</p>
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Message details</h1>
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          Compare the human request with the full prompt sent by the Codex harness.
+        </p>
+      </header>
+
+      <section className="space-y-4" aria-labelledby="prompt-comparison-heading">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 id="prompt-comparison-heading" className="text-lg font-semibold">
+              Prompt comparison
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {numberFormatter.format(humanText.length)} human characters ·{" "}
+              {numberFormatter.format(sentText.length)} sent ·{" "}
+              {numberFormatter.format(addedCharacters)} added by context
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PromptPanel label="Human input" text={humanText} />
+          <PromptPanel label="Actually sent" text={sentText} tone="muted" />
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[1fr_2fr]">
+        <div className="space-y-4 border p-5">
+          <div>
+            <h2 className="text-lg font-semibold">Usage and cost</h2>
+            <p className="text-xs text-muted-foreground">
+              Response usage linked by conversation and event time.
+            </p>
+          </div>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <UsageItem label="Input tokens" value={usage?.inputTokens} />
+            <UsageItem label="Cached tokens" value={usage?.cachedTokens} />
+            <UsageItem label="Output tokens" value={usage?.outputTokens} />
+            <UsageItem label="Reasoning tokens" value={usage?.reasoningTokens} />
+            <UsageItem label="Total tokens" value={usage?.totalTokens} />
+            <div className="border-t pt-3">
+              <dt className="text-xs text-muted-foreground">Cost</dt>
+              <dd className="mt-1 text-lg font-medium">
+                {usage?.costUsd === null || usage?.costUsd === undefined
+                  ? "Not reported"
+                  : `$${usage.costUsd.toFixed(4)}`}
+              </dd>
+            </div>
+          </dl>
+          {!usage ? (
+            <p className="border-t pt-3 text-xs text-muted-foreground">
+              No completed response usage was found before the next human prompt.
+            </p>
+          ) : usage.costUsd === null ? (
+            <p className="border-t pt-3 text-xs text-muted-foreground">
+              Codex reported token counts for this response, but not a billable dollar amount.
+            </p>
+          ) : null}
+        </div>
+
+        <div className="space-y-4 border p-5">
+          <div>
+            <h2 className="text-lg font-semibold">Metadata</h2>
+            <p className="text-xs text-muted-foreground">
+              Normalized prompt fields and safe OTLP attributes.
+            </p>
+          </div>
+          <dl className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+            <DetailItem label="Event">{prompt.event_name}</DetailItem>
+            <DetailItem label="Model">{prompt.model}</DetailItem>
+            <DetailItem label="Originator">{prompt.originator}</DetailItem>
+            <DetailItem label="Actor">{prompt.actor_email ?? prompt.actor_account_id}</DetailItem>
+            <DetailItem label="Conversation ID">{prompt.session_id}</DetailItem>
+            <DetailItem label="Prompt ID">{prompt.prompt_id}</DetailItem>
+            <DetailItem label="Installation ID">{prompt.installation_id}</DetailItem>
+            <DetailItem label="Batch ID">{prompt.batch_id}</DetailItem>
+            <DetailItem label="Record index">{prompt.record_index}</DetailItem>
+            {rawMetadataKeys.map((key) => (
+              <DetailItem key={key} label={key}>
+                {rawMetadata[key] === undefined ? null : String(rawMetadata[key])}
+              </DetailItem>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      <section className="space-y-4" aria-labelledby="conversation-heading">
+        <div>
+          <h2 id="conversation-heading" className="text-lg font-semibold">
+            Conversation
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {conversation.length} captured human{" "}
+            {conversation.length === 1 ? "message" : "messages"} in this conversation.
+          </p>
+        </div>
+        <ol className="divide-y border">
+          {conversation.map((event, index) => {
+            const displayText = event.is_redacted
+              ? "Prompt content was redacted."
+              : humanPromptText(event.prompt_text);
+            const isSelected = event.id === prompt.id;
+
+            return (
+              <li
+                key={event.id}
+                className={cn(
+                  "grid gap-3 p-4 sm:grid-cols-[9rem_1fr] sm:p-5",
+                  isSelected && "bg-muted/50",
+                )}
+              >
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">Message {index + 1}</p>
+                  <time dateTime={event.occurred_at}>
+                    {dateFormatter.format(new Date(event.occurred_at))}
+                  </time>
+                  {isSelected ? <p className="font-medium text-foreground">Selected</p> : null}
+                </div>
+                <div className="min-w-0 space-y-3">
+                  <p className="whitespace-pre-wrap break-words text-sm leading-6">{displayText}</p>
+                  {!isSelected ? (
+                    <Link
+                      href={`/dashboard/messages/${event.id}?scope=${scope}`}
+                      className="inline-block text-xs font-medium underline underline-offset-4"
+                    >
+                      View details
+                    </Link>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    </main>
+  );
+}

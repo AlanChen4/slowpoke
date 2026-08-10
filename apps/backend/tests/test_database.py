@@ -89,6 +89,9 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
                         installation_id,
                         prompt_event="codex.user_prompt",
                         prompt_text="database prompt",
+                        model="gpt-5.6-sol",
+                        slug="gpt-5.6-sol",
+                        originator="Codex_Desktop",
                     )
                 ]
             },
@@ -109,7 +112,7 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
         )
         prompts = (
             service_client.table("prompt_events")
-            .select("organization_id,installation_id,prompt_text")
+            .select("organization_id,installation_id,prompt_text,model,slug,originator")
             .eq("organization_id", organization_id)
             .execute()
             .data
@@ -125,6 +128,9 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
                 "organization_id": organization_id,
                 "installation_id": installation_id,
                 "prompt_text": "database prompt",
+                "model": "gpt-5.6-sol",
+                "slug": "gpt-5.6-sol",
+                "originator": "Codex_Desktop",
             }
         ]
 

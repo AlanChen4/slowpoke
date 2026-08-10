@@ -5,9 +5,10 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "prepare": "bash scripts/install-git-hooks.sh",
+    "setup:codex": "node scripts/setup-local-codex.mjs",
     "dev": "bash scripts/run-local-dev.sh",
     "build": "pnpm --filter @slowpoke/web build",
-    "test": "bash scripts/run-local-supabase.sh start >/dev/null && supabase test db && bash scripts/run-backend-database-tests.sh && bash scripts/check-python-db-types.sh && (cd apps/backend && uv run pytest -m 'not database') && (cd apps/collector && uv run pytest) && pnpm test:metadata",
+    "test": "bash scripts/run-local-supabase.sh start >/dev/null && supabase test db && bash scripts/run-backend-database-tests.sh && bash scripts/check-python-db-types.sh && (cd apps/backend && uv run pytest -m 'not database') && (cd apps/collector && uv run pytest) && pnpm test:metadata && pnpm test:setup && pnpm test:prompts",
     "test:e2e": "bash scripts/run-local-ingestion-e2e.sh",
     "typecheck": "pnpm --filter @slowpoke/web typecheck && (cd apps/backend && uv run pyright)",
     "lint": "oxlint --deny-warnings apps/web/src apps/web/scripts scripts apps/web/next.config.ts apps/web/postcss.config.mjs && (cd apps/backend && uv run ruff check .)",
@@ -17,7 +18,9 @@
     "db:reset": "bash scripts/run-local-supabase.sh start >/dev/null && bash scripts/run-local-supabase.sh db reset --local",
     "db:types": "supabase gen types --lang=python --local --schema public > apps/backend/slowpoke_backend/database_types.py",
     "check:metadata": "node scripts/check-metadata.mjs",
-    "test:metadata": "node --test scripts/check-metadata.test.mjs"
+    "test:metadata": "node --test scripts/check-metadata.test.mjs",
+    "test:setup": "node --test scripts/setup-local-codex.test.mjs",
+    "test:prompts": "node --test apps/web/src/app/dashboard/human-prompt-text.test.mjs"
   },
   "devDependencies": {
     "oxfmt": "^0.61.0",

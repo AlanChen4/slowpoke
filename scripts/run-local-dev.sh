@@ -8,6 +8,7 @@ collector_name="slowpoke-collector-local-$$"
 web_port="${SLOWPOKE_WEB_PORT:-3000}"
 backend_port="${SLOWPOKE_BACKEND_PORT:-8000}"
 collector_port="${SLOWPOKE_COLLECTOR_PORT:-4318}"
+local_env="$project_root/.slowpoke/local-dev.env"
 pids=()
 
 read_status_value() {
@@ -53,16 +54,84 @@ wait_for_service_exit() {
   done
 }
 
-for command in docker doppler pnpm uv; do
+stop_stale_collectors() {
+  local container_names
+  local name
+  local owner_pid
+
+  container_names="$(
+    docker ps \
+      --filter 'name=slowpoke-collector-local-' \
+      --format '{{.Names}}'
+  )"
+
+  while IFS= read -r name; do
+    if [[ ! "$name" =~ ^slowpoke-collector-local-([0-9]+)$ ]]; then
+      continue
+    fi
+
+    owner_pid="${BASH_REMATCH[1]}"
+    if kill -0 "$owner_pid" 2>/dev/null; then
+      continue
+    fi
+
+    printf 'Stopping stale local Collector: %s\n' "$name"
+    docker stop --time 10 "$name" >/dev/null
+  done <<<"$container_names"
+}
+
+restart_local_postgrest() {
+  local container_id
+
+  container_id="$(
+    docker ps \
+      --filter "label=com.supabase.cli.workdir=$project_root" \
+      --format '{{.ID}} {{.Image}}' |
+      awk '$2 ~ /postgrest/ { print $1; exit }'
+  )"
+
+  if [[ -z "$container_id" ]]; then
+    printf 'Unable to find the local Supabase REST service.\n' >&2
+    exit 1
+  fi
+
+  # PostgREST caches time for JWT validation. Restart it so a machine sleep or
+  # clock change cannot leave fresh local Auth tokens looking future-dated.
+  docker restart "$container_id" >/dev/null
+}
+
+for command in docker pnpm uv; do
   if ! command -v "$command" >/dev/null 2>&1; then
     printf 'Missing required command: %s\n' "$command" >&2
     exit 1
   fi
 done
 
+if [[ ! -f "$local_env" ]]; then
+  printf 'Missing local Codex setup. Run: pnpm setup:codex\n' >&2
+  exit 1
+fi
+
+read_local_value() {
+  local name="$1"
+
+  sed -n "s/^${name}='\([^']*\)'$/\1/p" "$local_env"
+}
+
+SLOWPOKE_INGEST_TOKEN="$(read_local_value SLOWPOKE_INGEST_TOKEN)"
+SLOWPOKE_OTLP_HTPASSWD="$(read_local_value SLOWPOKE_OTLP_HTPASSWD)"
+if [[ -z "$SLOWPOKE_INGEST_TOKEN" || -z "$SLOWPOKE_OTLP_HTPASSWD" ]]; then
+  printf 'Invalid local Codex setup. Run: pnpm setup:codex\n' >&2
+  exit 1
+fi
+export SLOWPOKE_INGEST_TOKEN SLOWPOKE_OTLP_HTPASSWD
+
 cd "$project_root"
 
+stop_stale_collectors
+
 bash scripts/run-local-supabase.sh start >/dev/null
+restart_local_postgrest
 supabase_status="$(pnpm exec supabase status -o env)"
 
 supabase_url="$(read_status_value API_URL)"
@@ -93,12 +162,7 @@ pids+=("$!")
   export SUPABASE_URL="$supabase_url"
   export SUPABASE_SECRET_KEY="$supabase_secret_key"
   cd apps/backend
-  exec doppler run \
-    --project backend \
-    --config dev \
-    --only-secrets SLOWPOKE_INGEST_TOKEN \
-    --forward-signals \
-    -- uv run uvicorn slowpoke_backend:create_app \
+  exec uv run uvicorn slowpoke_backend:create_app \
       --factory \
       --reload \
       --port "$backend_port"
@@ -106,12 +170,7 @@ pids+=("$!")
 pids+=("$!")
 
 (
-  exec doppler run \
-    --project backend \
-    --config dev \
-    --only-secrets SLOWPOKE_OTLP_HTPASSWD,SLOWPOKE_INGEST_TOKEN \
-    --forward-signals \
-    -- docker run --rm \
+  exec docker run --rm \
       --name "$collector_name" \
       --publish "127.0.0.1:${collector_port}:4318" \
       --env SLOWPOKE_OTLP_HTPASSWD \
