@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { humanPromptText } from "@/app/dashboard/human-prompt-text";
 import { buttonVariants } from "@/components/ui/button";
 import { env } from "@/env";
+import { getOrganizationContext } from "@/lib/organization-context";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +23,11 @@ const rawMetadataKeys = ["app.version", "auth_mode", "prompt_length", "terminal.
 
 type MessageDetailPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ scope?: string | string[] }>;
+  searchParams: Promise<{
+    page?: string | string[];
+    q?: string | string[];
+    scope?: string | string[];
+  }>;
 };
 
 type PromptEvent = {
@@ -91,9 +96,25 @@ function createTelemetryAdminClient() {
 }
 
 export default async function MessageDetailPage({ params, searchParams }: MessageDetailPageProps) {
-  const [{ id }, { scope: requestedScope }] = await Promise.all([params, searchParams]);
+  const [{ id }, { page: requestedPage, q: requestedQuery, scope: requestedScope }] =
+    await Promise.all([params, searchParams]);
   const scope = requestedScope === "human" ? "human" : "all";
-  const backHref = scope === "human" ? "/dashboard?scope=human" : "/dashboard";
+  const rawSearchQuery = Array.isArray(requestedQuery) ? requestedQuery[0] : requestedQuery;
+  const searchQuery = rawSearchQuery?.trim().slice(0, 200) ?? "";
+  const parsedPage = Number(Array.isArray(requestedPage) ? requestedPage[0] : requestedPage);
+  const currentPage = Number.isInteger(parsedPage) && parsedPage > 1 ? parsedPage : 1;
+  const backParams = new URLSearchParams();
+  if (scope === "human") {
+    backParams.set("scope", "human");
+  }
+  if (currentPage > 1) {
+    backParams.set("page", String(currentPage));
+  }
+  if (searchQuery) {
+    backParams.set("q", searchQuery);
+  }
+  const backQuery = backParams.toString();
+  const backHref = backQuery ? `/dashboard?${backQuery}` : "/dashboard";
   const supabase = await createClient();
   const { data: claims, error: claimsError } = await supabase.auth.getClaims();
 
@@ -101,10 +122,17 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
     redirect("/login");
   }
 
+  const { selectedOrganization } = await getOrganizationContext();
+
+  if (!selectedOrganization) {
+    notFound();
+  }
+
   const { data: promptData, error: promptError } = await supabase
     .from("prompt_events")
     .select("*")
     .eq("id", id)
+    .eq("organization_id", selectedOrganization.id)
     .maybeSingle();
 
   if (promptError) {
@@ -121,6 +149,7 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
         .from("prompt_events")
         .select("*")
         .eq("session_id", prompt.session_id)
+        .eq("organization_id", prompt.organization_id)
         .order("occurred_at", { ascending: true })
         .limit(100)
     : Promise.resolve({ data: [promptData], error: null });
@@ -183,7 +212,7 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
   const addedCharacters = Math.max(0, sentText.length - humanText.length);
 
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-7xl flex-col gap-8 px-6 py-8 sm:px-10 lg:px-12">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
       <nav className="flex items-center justify-between gap-4">
         <Link href={backHref} className={cn(buttonVariants({ variant: "outline" }))}>
           Back to prompts
@@ -316,7 +345,7 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
                   <p className="whitespace-pre-wrap break-words text-sm leading-6">{displayText}</p>
                   {!isSelected ? (
                     <Link
-                      href={`/dashboard/messages/${event.id}?scope=${scope}`}
+                      href={`/dashboard/messages/${event.id}${backQuery ? `?${backQuery}` : ""}`}
                       className="inline-block text-xs font-medium underline underline-offset-4"
                     >
                       View details
@@ -328,6 +357,6 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
           })}
         </ol>
       </section>
-    </main>
+    </div>
   );
 }

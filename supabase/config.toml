@@ -61,7 +61,7 @@ max_client_conn = 100
 enabled = true
 # Specifies an ordered list of schema files, directories, or glob patterns that describe your database.
 # Supports paths relative to supabase directory: "./schemas/*.sql", "./database".
-schema_paths = ["./schemas/*.sql"]
+schema_paths = ["./schemas/telemetry.sql", "./schemas/storage.sql"]
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
@@ -113,16 +113,14 @@ port = 55324
 # sender_name = "Admin"
 
 [storage]
-enabled = false
+enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+[storage.buckets.organization-logos]
+public = true
+file_size_limit = "2MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp", "image/gif"]
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]

@@ -35,6 +35,8 @@ AuthOauthResponseType: TypeAlias = Literal["code"]
 
 AuthOauthClientType: TypeAlias = Literal["public", "confidential"]
 
+StorageBuckettype: TypeAlias = Literal["STANDARD", "ANALYTICS", "VECTOR"]
+
 class PublicInstallations(BaseModel):
     created_at: datetime.datetime = Field(alias="created_at")
     id: uuid.UUID = Field(alias="id")
@@ -74,16 +76,19 @@ class PublicOrganizationMembersUpdate(TypedDict):
 class PublicOrganizations(BaseModel):
     created_at: datetime.datetime = Field(alias="created_at")
     id: uuid.UUID = Field(alias="id")
+    logo_url: Optional[str] = Field(alias="logo_url")
     name: str = Field(alias="name")
 
 class PublicOrganizationsInsert(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    logo_url: NotRequired[Annotated[Optional[str], Field(alias="logo_url")]]
     name: Annotated[str, Field(alias="name")]
 
 class PublicOrganizationsUpdate(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    logo_url: NotRequired[Annotated[Optional[str], Field(alias="logo_url")]]
     name: NotRequired[Annotated[str, Field(alias="name")]]
 
 class PublicPromptEvents(BaseModel):

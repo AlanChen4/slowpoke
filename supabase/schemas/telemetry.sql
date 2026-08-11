@@ -9,8 +9,9 @@ alter default privileges for role postgres in schema public
 
 create table public.organizations (
   id uuid primary key default gen_random_uuid(),
-  name text not null,
-  created_at timestamptz not null default now()
+  name text not null check (char_length(trim(name)) between 1 and 80),
+  created_at timestamptz not null default now(),
+  logo_url text check (logo_url is null or char_length(logo_url) <= 2048)
 );
 
 create table public.organization_members (
@@ -113,11 +114,46 @@ create policy "members can read their organizations"
     )
   );
 
+create policy "admins can update their organizations"
+  on public.organizations
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.organization_members as membership
+      where membership.organization_id = organizations.id
+        and membership.user_id = (select auth.uid())
+        and membership.role = 'admin'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.organization_members as membership
+      where membership.organization_id = organizations.id
+        and membership.user_id = (select auth.uid())
+        and membership.role = 'admin'
+    )
+  );
+
 create policy "members can read their memberships"
   on public.organization_members
   for select
   to authenticated
   using (user_id = (select auth.uid()));
+
+create policy "members can read organization installations"
+  on public.installations
+  for select
+  to authenticated
+  using (
+    organization_id in (
+      select membership.organization_id
+      from public.organization_members as membership
+      where membership.user_id = (select auth.uid())
+    )
+  );
 
 create policy "admins can read organization prompts"
   on public.prompt_events
@@ -156,7 +192,23 @@ select
   originator
 from public.prompt_events
 where coalesce(model, '') <> 'codex-auto-review'
-  and coalesce(slug, '') <> 'codex-auto-review';
+  and coalesce(slug, '') <> 'codex-auto-review'
+  and not starts_with(
+    prompt_text,
+    E'You are a helpful assistant. You will be presented with a user prompt, and your job is to provide a short title for a task that will be created from that prompt.\nThe tasks typically have to do with coding-related tasks, for example requests for bug fixes or questions about a codebase. The title you generate will be shown in the UI to represent the prompt.'
+  )
+  and not starts_with(
+    prompt_text,
+    E'You are in a fork of an existing Codex thread.\nFill the structured description field with a compact, search-oriented summary (up to 100 characters) of the thread''s current purpose.'
+  )
+  and not starts_with(
+    prompt_text,
+    'You are an expert at upholding safety and compliance standards for Codex ambient suggestions.'
+  )
+  and strpos(
+    prompt_text,
+    'Generate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this '
+  ) = 0;
 
 revoke all on table public.organizations from anon, authenticated, service_role;
 revoke all on table public.organization_members from anon, authenticated, service_role;
@@ -166,7 +218,9 @@ revoke all on table public.prompt_events from anon, authenticated, service_role;
 revoke all on table public.human_prompt_events from anon, authenticated, service_role;
 
 grant select on table public.organizations to authenticated;
+grant update (name, logo_url) on table public.organizations to authenticated;
 grant select on table public.organization_members to authenticated;
+grant select on table public.installations to authenticated;
 grant select on table public.prompt_events to authenticated;
 grant select on table public.human_prompt_events to authenticated;
 

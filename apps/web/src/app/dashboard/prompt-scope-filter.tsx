@@ -37,6 +37,7 @@ export function PromptScopeFilter({ value }: PromptScopeFilterProps) {
     } else {
       nextParams.delete("scope");
     }
+    nextParams.delete("page");
 
     const query = nextParams.toString();
 

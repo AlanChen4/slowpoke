@@ -20,7 +20,7 @@
     "check:metadata": "node scripts/check-metadata.mjs",
     "test:metadata": "node --test scripts/check-metadata.test.mjs",
     "test:setup": "node --test scripts/setup-local-codex.test.mjs",
-    "test:prompts": "node --test apps/web/src/app/dashboard/human-prompt-text.test.mjs"
+    "test:prompts": "pnpm --filter @slowpoke/web test"
   },
   "devDependencies": {
     "oxfmt": "^0.61.0",
