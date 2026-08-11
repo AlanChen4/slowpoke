@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field, Json
 
 NetRequestStatus: TypeAlias = Literal["PENDING", "SUCCESS", "ERROR"]
 
+StorageBuckettype: TypeAlias = Literal["STANDARD", "ANALYTICS", "VECTOR"]
+
 AuthFactorType: TypeAlias = Literal["totp", "webauthn", "phone"]
 
 AuthFactorStatus: TypeAlias = Literal["unverified", "verified"]
@@ -34,8 +36,6 @@ AuthOauthAuthorizationStatus: TypeAlias = Literal["pending", "approved", "denied
 AuthOauthResponseType: TypeAlias = Literal["code"]
 
 AuthOauthClientType: TypeAlias = Literal["public", "confidential"]
-
-StorageBuckettype: TypeAlias = Literal["STANDARD", "ANALYTICS", "VECTOR"]
 
 class PublicInstallations(BaseModel):
     created_at: datetime.datetime = Field(alias="created_at")
