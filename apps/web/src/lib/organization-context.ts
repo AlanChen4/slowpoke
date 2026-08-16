@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,7 +24,7 @@ type MembershipRow = {
     | null;
 };
 
-export async function getOrganizationContext() {
+export const getOrganizationContext = cache(async function getOrganizationContext() {
   const [supabase, cookieStore] = await Promise.all([createClient(), cookies()]);
   const { data, error } = await supabase
     .from("organization_members")
@@ -58,4 +59,4 @@ export async function getOrganizationContext() {
     null;
 
   return { organizations, selectedOrganization, error };
-}
+});

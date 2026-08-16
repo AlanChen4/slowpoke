@@ -29,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getAuthClaims } from "@/lib/auth-context";
 import { getOrganizationContext } from "@/lib/organization-context";
 import { createClient } from "@/lib/supabase/server";
 
@@ -55,8 +56,10 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  const [supabase, { data: claimsData, error: claimsError }] = await Promise.all([
+    createClient(),
+    getAuthClaims(),
+  ]);
 
   if (claimsError || !claimsData?.claims) {
     redirect("/login");

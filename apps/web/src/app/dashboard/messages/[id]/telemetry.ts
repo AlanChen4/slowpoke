@@ -9,6 +9,20 @@ export type PromptResponseUsage = {
   costUsd: number | null;
 };
 
+export type ResponseUsageEvent = {
+  event_timestamp: string | null;
+  time_unix_nano: string | number | null;
+  observed_time_unix_nano: string | number | null;
+  input_token_count: string | number | null;
+  cached_token_count: string | number | null;
+  output_token_count: string | number | null;
+  reasoning_token_count: string | number | null;
+  tool_token_count: string | number | null;
+  cost_usd: string | number | null;
+  estimated_cost_usd: string | number | null;
+  total_cost_usd: string | number | null;
+};
+
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -75,19 +89,15 @@ function logRecords(rawPayload: unknown) {
   );
 }
 
-function recordTimestamp(
-  record: JsonObject,
-  attributes: Record<string, string | number | boolean>,
-) {
-  const eventTimestamp = attributes["event.timestamp"];
-  if (typeof eventTimestamp === "string") {
-    const timestamp = Date.parse(eventTimestamp);
+function eventTimestamp(event: ResponseUsageEvent) {
+  if (event.event_timestamp) {
+    const timestamp = Date.parse(event.event_timestamp);
     if (!Number.isNaN(timestamp)) {
       return timestamp;
     }
   }
 
-  const unixNanos = record.timeUnixNano ?? record.observedTimeUnixNano;
+  const unixNanos = event.time_unix_nano ?? event.observed_time_unix_nano;
   if (typeof unixNanos === "string" || typeof unixNanos === "number") {
     const timestamp = Number(unixNanos) / 1_000_000;
     return Number.isFinite(timestamp) ? timestamp : null;
@@ -96,8 +106,7 @@ function recordTimestamp(
   return null;
 }
 
-function numberAttribute(attributes: Record<string, string | number | boolean>, key: string) {
-  const value = attributes[key];
+function numberValue(value: string | number | null) {
   if (typeof value === "number") {
     return value;
   }
@@ -110,57 +119,70 @@ function numberAttribute(attributes: Record<string, string | number | boolean>, 
   return null;
 }
 
+function sumValues(
+  events: ResponseUsageEvent[],
+  valueForEvent: (event: ResponseUsageEvent) => number | null,
+) {
+  let foundValue = false;
+  let total = 0;
+
+  for (const event of events) {
+    const value = valueForEvent(event);
+    if (value !== null) {
+      foundValue = true;
+      total += value;
+    }
+  }
+
+  return foundValue ? total : null;
+}
+
 export function promptRecordMetadata(rawPayload: unknown, recordIndex: number) {
   const record = logRecords(rawPayload)[recordIndex];
   return record ? logRecordAttributes(record) : {};
 }
 
 export function responseUsageForPrompt(
-  rawPayloads: unknown[],
-  conversationId: string,
+  events: ResponseUsageEvent[],
   promptOccurredAt: string,
   nextPromptOccurredAt: string | null,
 ): PromptResponseUsage | null {
   const promptTime = Date.parse(promptOccurredAt);
   const nextPromptTime = nextPromptOccurredAt ? Date.parse(nextPromptOccurredAt) : null;
-  const candidates = rawPayloads
-    .flatMap(logRecords)
-    .map((record) => ({
-      attributes: logRecordAttributes(record),
-      timestamp: recordTimestamp(record, logRecordAttributes(record)),
-    }))
-    .filter(({ attributes, timestamp }) => {
-      return (
-        timestamp !== null &&
-        timestamp >= promptTime &&
-        (nextPromptTime === null || timestamp < nextPromptTime) &&
-        attributes["conversation.id"] === conversationId &&
-        attributes["event.name"] === "codex.sse_event" &&
-        attributes["event.kind"] === "response.completed"
-      );
-    })
-    .sort((left, right) => (left.timestamp ?? 0) - (right.timestamp ?? 0));
+  const candidates = events.filter((event) => {
+    const timestamp = eventTimestamp(event);
+    return (
+      timestamp !== null &&
+      timestamp >= promptTime &&
+      (nextPromptTime === null || timestamp < nextPromptTime)
+    );
+  });
 
-  const attributes = candidates[0]?.attributes;
-  if (!attributes) {
+  if (candidates.length === 0) {
     return null;
   }
 
-  const inputTokens = numberAttribute(attributes, "input_token_count");
-  const outputTokens = numberAttribute(attributes, "output_token_count");
-  const reportedTotal = numberAttribute(attributes, "tool_token_count");
-
   return {
-    inputTokens,
-    cachedTokens: numberAttribute(attributes, "cached_token_count"),
-    outputTokens,
-    reasoningTokens: numberAttribute(attributes, "reasoning_token_count"),
-    totalTokens:
-      reportedTotal ??
-      (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null),
-    costUsd:
-      numberAttribute(attributes, "cost_usd") ??
-      numberAttribute(attributes, "estimated_cost_usd") ??
-      numberAttribute(attributes, "total_cost_usd"),
+    inputTokens: sumValues(candidates, (event) => numberValue(event.input_token_count)),
+    cachedTokens: sumValues(candidates, (event) => numberValue(event.cached_token_count)),
+    outputTokens: sumValues(candidates, (event) => numberValue(event.output_token_count)),
+    reasoningTokens: sumValues(candidates, (event) => numberValue(event.reasoning_token_count)),
+    totalTokens: sumValues(candidates, (event) => {
+      const reportedTotal = numberValue(event.tool_token_count);
+      if (reportedTotal !== null) {
+        return reportedTotal;
+      }
+
+      const inputTokens = numberValue(event.input_token_count);
+      const outputTokens = numberValue(event.output_token_count);
+      return inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null;
+    }),
+    costUsd: sumValues(
+      candidates,
+      (event) =>
+        numberValue(event.cost_usd) ??
+        numberValue(event.estimated_cost_usd) ??
+        numberValue(event.total_cost_usd),
+    ),
   };
 }

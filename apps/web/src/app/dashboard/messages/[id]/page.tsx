@@ -6,11 +6,12 @@ import type { ReactNode } from "react";
 import { humanPromptText } from "@/app/dashboard/human-prompt-text";
 import { buttonVariants } from "@/components/ui/button";
 import { env } from "@/env";
+import { getAuthClaims } from "@/lib/auth-context";
 import { getOrganizationContext } from "@/lib/organization-context";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
-import { promptRecordMetadata, responseUsageForPrompt } from "./telemetry";
+import { promptRecordMetadata, responseUsageForPrompt, type ResponseUsageEvent } from "./telemetry";
 
 const dateFormatter = new Intl.DateTimeFormat("en", {
   dateStyle: "medium",
@@ -20,6 +21,7 @@ const dateFormatter = new Intl.DateTimeFormat("en", {
 const numberFormatter = new Intl.NumberFormat("en");
 
 const rawMetadataKeys = ["app.version", "auth_mode", "prompt_length", "terminal.type"] as const;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 type MessageDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -98,6 +100,11 @@ function createTelemetryAdminClient() {
 export default async function MessageDetailPage({ params, searchParams }: MessageDetailPageProps) {
   const [{ id }, { page: requestedPage, q: requestedQuery, scope: requestedScope }] =
     await Promise.all([params, searchParams]);
+
+  if (!uuidPattern.test(id)) {
+    notFound();
+  }
+
   const scope = requestedScope === "human" ? "human" : "all";
   const rawSearchQuery = Array.isArray(requestedQuery) ? requestedQuery[0] : requestedQuery;
   const searchQuery = rawSearchQuery?.trim().slice(0, 200) ?? "";
@@ -115,8 +122,10 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
   }
   const backQuery = backParams.toString();
   const backHref = backQuery ? `/dashboard?${backQuery}` : "/dashboard";
-  const supabase = await createClient();
-  const { data: claims, error: claimsError } = await supabase.auth.getClaims();
+  const [supabase, { data: claims, error: claimsError }] = await Promise.all([
+    createClient(),
+    getAuthClaims(),
+  ]);
 
   if (claimsError || !claims?.claims) {
     redirect("/login");
@@ -144,59 +153,80 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
   }
 
   const prompt = promptData as PromptEvent;
-  const conversationQuery = prompt.session_id
+  const conversationBeforeQuery = prompt.session_id
     ? supabase
         .from("prompt_events")
         .select("*")
         .eq("session_id", prompt.session_id)
         .eq("organization_id", prompt.organization_id)
+        .eq("installation_id", prompt.installation_id)
+        .lt("occurred_at", prompt.occurred_at)
+        .order("occurred_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(49)
+    : Promise.resolve({ data: [] as PromptEvent[], error: null });
+  const conversationAfterQuery = prompt.session_id
+    ? supabase
+        .from("prompt_events")
+        .select("*")
+        .eq("session_id", prompt.session_id)
+        .eq("organization_id", prompt.organization_id)
+        .eq("installation_id", prompt.installation_id)
+        .gt("occurred_at", prompt.occurred_at)
         .order("occurred_at", { ascending: true })
-        .limit(100)
-    : Promise.resolve({ data: [promptData], error: null });
+        .order("id", { ascending: true })
+        .limit(50)
+    : Promise.resolve({ data: [] as PromptEvent[], error: null });
   const admin = createTelemetryAdminClient();
-  const responseBatchQuery = admin
-    .from("telemetry_batches")
-    .select("raw_payload,received_at")
-    .eq("organization_id", prompt.organization_id)
-    .eq("installation_id", prompt.installation_id)
-    .eq("signal", "logs")
-    .gte("received_at", prompt.occurred_at)
-    .order("received_at", { ascending: true })
-    .limit(100);
+  const responseUsageQuery = prompt.session_id
+    ? admin
+        .from("codex_response_usage_events")
+        .select(
+          "event_timestamp,time_unix_nano,observed_time_unix_nano,input_token_count,cached_token_count,output_token_count,reasoning_token_count,tool_token_count,cost_usd,estimated_cost_usd,total_cost_usd",
+        )
+        .eq("organization_id", prompt.organization_id)
+        .eq("installation_id", prompt.installation_id)
+        .eq("conversation_id", prompt.session_id)
+        .gte("received_at", prompt.occurred_at)
+        .order("received_at", { ascending: true })
+        .limit(100)
+    : Promise.resolve({ data: [] as ResponseUsageEvent[], error: null });
 
-  const [conversationResult, selectedBatchResult, responseBatchResult] = await Promise.all([
-    conversationQuery,
-    admin
-      .from("telemetry_batches")
-      .select("raw_payload")
-      .eq("id", prompt.batch_id)
-      .eq("organization_id", prompt.organization_id)
-      .maybeSingle(),
-    responseBatchQuery,
-  ]);
+  const [conversationBeforeResult, conversationAfterResult, selectedBatchResult, usageResult] =
+    await Promise.all([
+      conversationBeforeQuery,
+      conversationAfterQuery,
+      admin
+        .from("telemetry_batches")
+        .select("raw_payload")
+        .eq("id", prompt.batch_id)
+        .eq("organization_id", prompt.organization_id)
+        .maybeSingle(),
+      responseUsageQuery,
+    ]);
 
-  if (conversationResult.error) {
-    throw new Error(`Unable to load conversation: ${conversationResult.error.message}`);
+  const conversationError = conversationBeforeResult.error ?? conversationAfterResult.error;
+  if (conversationError) {
+    throw new Error(`Unable to load conversation: ${conversationError.message}`);
   }
 
-  if (selectedBatchResult.error || responseBatchResult.error) {
+  if (selectedBatchResult.error || usageResult.error) {
     console.error(
       `[dashboard] telemetry detail query failed ${JSON.stringify({
         promptId: prompt.id,
         selectedBatchError: selectedBatchResult.error?.message,
-        responseBatchError: responseBatchResult.error?.message,
+        responseUsageError: usageResult.error?.message,
       })}`,
     );
   }
 
-  const conversation = (conversationResult.data ?? [promptData]) as PromptEvent[];
-  const selectedIndex = conversation.findIndex((event) => event.id === prompt.id);
-  const nextPromptOccurredAt =
-    selectedIndex >= 0 ? (conversation[selectedIndex + 1]?.occurred_at ?? null) : null;
+  const conversationBefore = (conversationBeforeResult.data ?? []) as PromptEvent[];
+  const conversationAfter = (conversationAfterResult.data ?? []) as PromptEvent[];
+  const conversation = [...conversationBefore.reverse(), prompt, ...conversationAfter];
+  const nextPromptOccurredAt = conversationAfter[0]?.occurred_at ?? null;
   const usage = prompt.session_id
     ? responseUsageForPrompt(
-        (responseBatchResult.data ?? []).map((batch) => batch.raw_payload),
-        prompt.session_id,
+        (usageResult.data ?? []) as ResponseUsageEvent[],
         prompt.occurred_at,
         nextPromptOccurredAt,
       )
@@ -315,8 +345,8 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
             Conversation
           </h2>
           <p className="text-xs text-muted-foreground">
-            {conversation.length} captured human{" "}
-            {conversation.length === 1 ? "message" : "messages"} in this conversation.
+            Showing {conversation.length} captured{" "}
+            {conversation.length === 1 ? "message" : "messages"} around the selected message.
           </p>
         </div>
         <ol className="divide-y border">

@@ -15,6 +15,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";
+const REQUIRED_STATE_KEYS = [
+  "SLOWPOKE_INSTALLATION_ID",
+  "SLOWPOKE_INGEST_TOKEN",
+  "SLOWPOKE_OTLP_HTPASSWD",
+  "SLOWPOKE_CODEX_AUTHORIZATION",
+];
 const MANAGED_KEYS = new Set([
   "environment",
   "exporter",
@@ -53,7 +59,7 @@ function withoutManagedAssignments(lines) {
   const output = [];
 
   for (let index = 0; index < lines.length;) {
-    const match = lines[index].match(/^([A-Za-z0-9_-]+)\s*=/);
+    const match = lines[index].match(/^\s*([A-Za-z0-9_-]+)\s*=/);
     if (!match) {
       output.push(lines[index]);
       index += 1;
@@ -61,7 +67,7 @@ function withoutManagedAssignments(lines) {
     }
 
     let next = index + 1;
-    while (next < lines.length && !/^[A-Za-z0-9_-]+\s*=/.test(lines[next])) {
+    while (next < lines.length && !/^\s*[A-Za-z0-9_-]+\s*=/.test(lines[next])) {
       next += 1;
     }
 
@@ -90,7 +96,7 @@ export function updateCodexConfig(source, authorization, collectorUrl) {
       "Nested [otel.*] tables are present. Move them into one [otel] table before running setup.",
     );
   }
-  if (lines.some((line) => /^otel\.[A-Za-z0-9_-]+\s*=/.test(line))) {
+  if (lines.some((line) => /^\s*otel\.[A-Za-z0-9_-]+\s*=/.test(line))) {
     throw new Error(
       "Dotted otel.* settings are present. Move them into one [otel] table before running setup.",
     );
@@ -154,7 +160,9 @@ function serializeState(values) {
 
 export function installLocalCodex({ configPath, statePath, collectorUrl }) {
   const existingState = existsSync(statePath) ? stateValues(readFileSync(statePath, "utf8")) : null;
-  const state = existingState?.has("SLOWPOKE_CODEX_AUTHORIZATION") ? existingState : createState();
+  const hasCompleteState =
+    existingState !== null && REQUIRED_STATE_KEYS.every((key) => existingState.get(key));
+  const state = hasCompleteState ? existingState : createState();
   writePrivateFile(statePath, serializeState(state));
 
   const originalConfig = existsSync(configPath) ? readFileSync(configPath, "utf8") : "";

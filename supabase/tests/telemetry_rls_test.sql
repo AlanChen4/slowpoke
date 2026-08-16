@@ -1,6 +1,6 @@
 begin;
 
-select plan(21);
+select plan(24);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass),
@@ -21,6 +21,11 @@ select ok(
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.prompt_events'::regclass),
   'prompt_events has RLS enabled'
+);
+select results_eq(
+  $$select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'organization-logos'$$,
+  $$values (true, 2097152::bigint, array['image/png', 'image/jpeg', 'image/webp', 'image/gif']::text[])$$,
+  'the organization logo bucket is deployable with its upload restrictions'
 );
 
 insert into auth.users (id, email)
@@ -49,7 +54,32 @@ insert into public.telemetry_batches (
   id, organization_id, installation_id, signal, content_sha256, raw_payload
 )
 values
-  ('40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'logs', repeat('a', 64), '{"resourceLogs": []}'),
+  (
+    '40000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    'logs',
+    repeat('a', 64),
+    $json$
+    {
+      "resourceLogs": [{
+        "scopeLogs": [{
+          "logRecords": [{
+            "timeUnixNano": "1786356001000000000",
+            "eventName": "codex.sse_event",
+            "attributes": [
+              {"key": "conversation.id", "value": {"stringValue": "conversation-a"}},
+              {"key": "event.kind", "value": {"stringValue": "response.completed"}},
+              {"key": "input_token_count", "value": {"intValue": "100"}},
+              {"key": "tool_token_count", "value": {"intValue": "110"}},
+              {"value": {"stringValue": "ignored malformed attribute"}}
+            ]
+          }]
+        }]
+      }]
+    }
+    $json$::jsonb
+  ),
   ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'logs', repeat('b', 64), '{"resourceLogs": []}');
 
 insert into public.prompt_events (
@@ -112,6 +142,12 @@ select throws_ok(
   '42501',
   'permission denied for table telemetry_batches',
   'raw telemetry is backend-only'
+);
+select throws_ok(
+  'select * from public.codex_response_usage_events',
+  '42501',
+  'permission denied for view codex_response_usage_events',
+  'compact response usage remains backend-only'
 );
 select results_eq(
   'select id from public.installations order by id',
@@ -178,6 +214,13 @@ select throws_ok(
   '42501',
   'permission denied for view human_prompt_events',
   'anonymous clients cannot read human-prompt rows'
+);
+
+set local role service_role;
+select results_eq(
+  $$select conversation_id, input_token_count, tool_token_count from public.codex_response_usage_events$$,
+  $$values ('conversation-a'::text, '100'::text, '110'::text)$$,
+  'the backend can read compact usage from eventName-only telemetry'
 );
 
 select * from finish();
