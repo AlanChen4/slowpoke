@@ -5,7 +5,7 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd -- "$script_dir/.." && pwd)"
 collector_name="slowpoke-collector-local-$$"
-web_port="${SLOWPOKE_WEB_PORT:-3000}"
+web_port="${SLOWPOKE_WEB_PORT:-}"
 backend_port="${SLOWPOKE_BACKEND_PORT:-8000}"
 collector_port="${SLOWPOKE_COLLECTOR_PORT:-4318}"
 pids=()
@@ -99,12 +99,16 @@ restart_local_postgrest() {
   docker restart "$container_id" >/dev/null
 }
 
-for command in docker pnpm uv; do
+for command in docker node pnpm uv; do
   if ! command -v "$command" >/dev/null 2>&1; then
     printf 'Missing required command: %s\n' "$command" >&2
     exit 1
   fi
 done
+
+if [[ -z "$web_port" ]]; then
+  web_port="$(node "$project_root/scripts/find-open-port.mjs" 3000)"
+fi
 
 read_credential_value() {
   local name="$1"
