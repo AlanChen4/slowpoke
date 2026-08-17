@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams, useSelectedLayoutSegments } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   Breadcrumb,
@@ -13,10 +13,10 @@ import {
 } from "@/components/ui/breadcrumb";
 
 export function DashboardTitle() {
-  const [section] = useSelectedLayoutSegments();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  if (section === "prompts") {
+  if (pathname.startsWith("/dashboard/prompts/")) {
     const query = searchParams.toString();
     const promptsHref = query ? `/dashboard?${query}` : "/dashboard";
 
@@ -35,7 +35,7 @@ export function DashboardTitle() {
     );
   }
 
-  const title = section === "settings" ? "Settings" : "Prompts";
+  const title = pathname.startsWith("/dashboard/settings") ? "Settings" : "Prompts";
 
   return (
     <Breadcrumb>
