@@ -207,7 +207,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     <p>{prompt.actor_email ?? "Unknown user"}</p>
                     <PromptTime occurredAt={prompt.occurred_at} />
                   </div>
-                  <p className="max-w-full min-w-0 whitespace-pre-wrap break-words text-xs leading-5 [overflow-wrap:anywhere]">
+                  <p className="line-clamp-4 max-w-full min-w-0 whitespace-pre-wrap break-words text-xs leading-5 [overflow-wrap:anywhere]">
                     {prompt.is_redacted
                       ? "Prompt content was redacted."
                       : scope === "human"
