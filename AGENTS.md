@@ -24,7 +24,7 @@ pnpm db:reset
 
 Run `pnpm dev` to start web, backend, Collector, and local Supabase. Services use:
 
-- Web: the first available port starting at `http://127.0.0.1:3000`
+- Web: `http://127.0.0.1:3123`
 - Backend: `http://127.0.0.1:8000`
 - Collector: `http://127.0.0.1:4318`
 - Supabase Studio: `http://127.0.0.1:55323`

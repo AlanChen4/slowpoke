@@ -5,7 +5,6 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd -- "$script_dir/.." && pwd)"
 collector_name="slowpoke-collector-local-$$"
-web_port="${SLOWPOKE_WEB_PORT:-}"
 backend_port="${SLOWPOKE_BACKEND_PORT:-8000}"
 collector_port="${SLOWPOKE_COLLECTOR_PORT:-4318}"
 pids=()
@@ -99,16 +98,12 @@ restart_local_postgrest() {
   docker restart "$container_id" >/dev/null
 }
 
-for command in docker node pnpm uv; do
+for command in docker pnpm uv; do
   if ! command -v "$command" >/dev/null 2>&1; then
     printf 'Missing required command: %s\n' "$command" >&2
     exit 1
   fi
 done
-
-if [[ -z "$web_port" ]]; then
-  web_port="$(node "$project_root/scripts/find-open-port.mjs" 3000)"
-fi
 
 read_credential_value() {
   local name="$1"
@@ -157,7 +152,7 @@ trap 'exit 143' TERM
   export SUPABASE_SECRET_KEY="$supabase_secret_key"
   export NEXT_PUBLIC_SUPABASE_URL="$supabase_url"
   export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$supabase_publishable_key"
-  exec pnpm --filter @slowpoke/web dev --port "$web_port"
+  exec pnpm --filter @slowpoke/web dev
 ) &
 pids+=("$!")
 
@@ -186,7 +181,7 @@ pids+=("$!")
 pids+=("$!")
 
 printf '\nSlowpoke local development\n'
-printf '  Web:       http://127.0.0.1:%s\n' "$web_port"
+printf '  Web:       http://127.0.0.1:3123\n'
 printf '  Backend:   http://127.0.0.1:%s\n' "$backend_port"
 printf '  Collector: http://127.0.0.1:%s\n' "$collector_port"
 printf '  Studio:    http://127.0.0.1:55323\n\n'

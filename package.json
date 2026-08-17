@@ -20,7 +20,7 @@
     "db:types": "supabase gen types --lang=python --local --schema public > apps/backend/slowpoke_backend/database_types.py",
     "check:metadata": "node scripts/check-metadata.mjs",
     "test:metadata": "node --test scripts/check-metadata.test.mjs",
-    "test:setup": "node --test scripts/setup-local-codex.test.mjs scripts/find-open-port.test.mjs",
+    "test:setup": "node --test scripts/setup-local-codex.test.mjs",
     "test:prompts": "pnpm --filter @slowpoke/web test"
   },
   "devDependencies": {
