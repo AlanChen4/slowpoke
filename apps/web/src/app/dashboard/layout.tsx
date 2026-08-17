@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { PromptRefreshProvider } from "@/app/dashboard/prompt-refresh";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardTitle } from "@/components/dashboard-title";
-import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getAuthClaims } from "@/lib/auth-context";
@@ -45,16 +44,15 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
           selectedOrganizationId={selectedOrganization?.id ?? null}
         />
         <SidebarInset>
-          <header className="shrink-0 border-b">
-            <div className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2 px-6 sm:px-10 lg:px-12">
-              <SidebarTrigger className="md:hidden" />
-              <Separator orientation="vertical" className="my-3 md:hidden" />
+          <header className="shrink-0 border-b px-6 sm:px-10 lg:px-12">
+            <div className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2">
               <DashboardTitle />
+              <SidebarTrigger className="ml-auto md:hidden" />
             </div>
           </header>
           <PromptRefreshProvider>
             <div className="flex min-w-0 flex-1 flex-col px-6 py-8 sm:px-10 lg:px-12">
-              {children}
+              <div className="mx-auto w-full max-w-7xl">{children}</div>
             </div>
           </PromptRefreshProvider>
         </SidebarInset>

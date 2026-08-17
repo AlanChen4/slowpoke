@@ -79,7 +79,7 @@ export default async function SettingsPage() {
   const dataError = organizationError ?? installationsResult.error;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+    <div className="flex w-full flex-col gap-8">
       {dataError ? (
         <Alert variant="destructive">
           <WarningCircleIcon />
