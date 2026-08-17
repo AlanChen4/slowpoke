@@ -15,12 +15,6 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";
-const REQUIRED_STATE_KEYS = [
-  "SLOWPOKE_INSTALLATION_ID",
-  "SLOWPOKE_INGEST_TOKEN",
-  "SLOWPOKE_OTLP_HTPASSWD",
-  "SLOWPOKE_CODEX_AUTHORIZATION",
-];
 const MANAGED_KEYS = new Set([
   "environment",
   "exporter",
@@ -133,17 +127,35 @@ function stateValues(source) {
   return values;
 }
 
-function createState() {
-  const password = randomBytes(24).toString("base64url");
+function credentialsFromAuthorization(authorization) {
+  const match = authorization.match(/^Basic ([A-Za-z0-9+/]+={0,2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const decoded = Buffer.from(match[1], "base64").toString("utf8");
+  const separator = decoded.indexOf(":");
+  if (separator <= 0 || separator === decoded.length - 1) {
+    return null;
+  }
+
+  const installationId = decoded.slice(0, separator);
+  const password = decoded.slice(separator + 1);
   const passwordDigest = createHash("sha1").update(password).digest("base64");
-  const encodedCredential = Buffer.from(`${INSTALLATION_ID}:${password}`).toString("base64");
 
   return new Map([
-    ["SLOWPOKE_INSTALLATION_ID", INSTALLATION_ID],
-    ["SLOWPOKE_INGEST_TOKEN", randomBytes(32).toString("base64url")],
-    ["SLOWPOKE_OTLP_HTPASSWD", `${INSTALLATION_ID}:{SHA}${passwordDigest}`],
-    ["SLOWPOKE_CODEX_AUTHORIZATION", `Basic ${encodedCredential}`],
+    ["SLOWPOKE_INSTALLATION_ID", installationId],
+    ["SLOWPOKE_INGEST_TOKEN", password],
+    ["SLOWPOKE_OTLP_HTPASSWD", `${installationId}:{SHA}${passwordDigest}`],
+    ["SLOWPOKE_CODEX_AUTHORIZATION", authorization],
   ]);
+}
+
+function createCredentials() {
+  const password = randomBytes(24).toString("base64url");
+  const encodedCredential = Buffer.from(`${INSTALLATION_ID}:${password}`).toString("base64");
+
+  return credentialsFromAuthorization(`Basic ${encodedCredential}`);
 }
 
 function writePrivateFile(path, contents) {
@@ -154,21 +166,40 @@ function writePrivateFile(path, contents) {
   chmodSync(path, 0o600);
 }
 
-function serializeState(values) {
+function serializeCredentials(values) {
   return `${[...values.entries()].map(([key, value]) => `${key}='${value}'`).join("\n")}\n`;
 }
 
-export function installLocalCodex({ configPath, statePath, collectorUrl }) {
-  const existingState = existsSync(statePath) ? stateValues(readFileSync(statePath, "utf8")) : null;
-  const hasCompleteState =
-    existingState !== null && REQUIRED_STATE_KEYS.every((key) => existingState.get(key));
-  const state = hasCompleteState ? existingState : createState();
-  writePrivateFile(statePath, serializeState(state));
+export function configuredCredentials(source, collectorUrl) {
+  const lines = source.replaceAll("\r\n", "\n").split("\n");
+  const start = lines.findIndex((line) => /^\s*\[otel\]\s*(?:#.*)?$/.test(line));
+  if (start === -1) {
+    return null;
+  }
 
+  const section = lines.slice(start + 1, sectionEnd(lines, start)).join("\n");
+  const endpoint = section.match(/\bendpoint\s*=\s*"([^"\r\n]+)"/)?.[1];
+  const authorization = section.match(/\bauthorization\s*=\s*"([^"\r\n]+)"/)?.[1];
+  if (endpoint !== `${collectorUrl}/v1/logs` || !authorization) {
+    return null;
+  }
+
+  return credentialsFromAuthorization(authorization);
+}
+
+export function installLocalCodex({ configPath, statePath, collectorUrl }) {
   const originalConfig = existsSync(configPath) ? readFileSync(configPath, "utf8") : "";
+  const configured = configuredCredentials(originalConfig, collectorUrl);
+  const legacyState =
+    statePath && existsSync(statePath) ? stateValues(readFileSync(statePath, "utf8")) : null;
+  const legacyAuthorization = legacyState?.get("SLOWPOKE_CODEX_AUTHORIZATION");
+  const legacyCredentials = legacyAuthorization
+    ? credentialsFromAuthorization(legacyAuthorization)
+    : null;
+  const credentials = configured ?? legacyCredentials ?? createCredentials();
   const updatedConfig = updateCodexConfig(
     originalConfig,
-    state.get("SLOWPOKE_CODEX_AUTHORIZATION"),
+    credentials.get("SLOWPOKE_CODEX_AUTHORIZATION"),
     collectorUrl,
   );
 
@@ -182,20 +213,42 @@ export function installLocalCodex({ configPath, statePath, collectorUrl }) {
     writePrivateFile(configPath, updatedConfig);
   }
 
-  return { changed: updatedConfig !== originalConfig, configPath, statePath };
+  return { changed: updatedConfig !== originalConfig, configPath };
 }
 
-function main() {
+function localPaths() {
   const scriptDirectory = dirname(fileURLToPath(import.meta.url));
   const repositoryRoot = resolve(scriptDirectory, "..");
   // oxlint-disable-next-line node/no-process-env -- setup honors Codex's documented home override.
   const codexHome = process.env.CODEX_HOME || join(homedir(), ".codex");
   // oxlint-disable-next-line node/no-process-env -- setup must match the configured local Collector port.
   const collectorPort = process.env.SLOWPOKE_COLLECTOR_PORT || "4318";
-  const result = installLocalCodex({
-    configPath: join(codexHome, "config.toml"),
-    statePath: join(repositoryRoot, ".slowpoke", "local-dev.env"),
+  return {
     collectorUrl: `http://127.0.0.1:${collectorPort}`,
+    configPath: join(codexHome, "config.toml"),
+    legacyStatePath: join(repositoryRoot, ".slowpoke", "local-dev.env"),
+  };
+}
+
+function printCredentials() {
+  const { collectorUrl, configPath } = localPaths();
+  const source = existsSync(configPath) ? readFileSync(configPath, "utf8") : "";
+  const credentials = configuredCredentials(source, collectorUrl);
+  if (!credentials) {
+    console.error(`Missing Slowpoke credentials in ${configPath}. Run: pnpm setup:codex`);
+    return false;
+  }
+
+  process.stdout.write(serializeCredentials(credentials));
+  return true;
+}
+
+function main() {
+  const { collectorUrl, configPath, legacyStatePath } = localPaths();
+  const result = installLocalCodex({
+    configPath,
+    statePath: legacyStatePath,
+    collectorUrl,
   });
 
   console.log(
@@ -204,10 +257,16 @@ function main() {
       : "Codex is already configured for Slowpoke local development.",
   );
   console.log(`Config: ${result.configPath}`);
-  console.log(`Local credential state: ${result.statePath}`);
+  console.log("Credentials: [otel] exporter authorization in the Codex config");
   console.log("Restart Codex after the local development stack is running.");
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main();
+  if (process.argv[2] === "credentials") {
+    if (!printCredentials()) {
+      process.exitCode = 1;
+    }
+  } else {
+    main();
+  }
 }

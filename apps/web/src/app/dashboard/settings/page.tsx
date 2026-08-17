@@ -182,7 +182,7 @@ export default async function SettingsPage() {
           </CardContent>
           <CardFooter className="flex flex-col items-start gap-2">
             <p className="text-xs text-muted-foreground">
-              Create or repair the local installation:
+              Create or repair the machine-wide Codex installation:
             </p>
             <code className="bg-muted px-2 py-1 font-mono text-xs">pnpm setup:codex</code>
           </CardFooter>

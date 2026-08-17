@@ -29,8 +29,9 @@ Run `pnpm dev` to start web, backend, Collector, and local Supabase. Services us
 - Collector: `http://127.0.0.1:4318`
 - Supabase Studio: `http://127.0.0.1:55323`
 
-Supabase CLI provides local credentials. `pnpm setup:codex` creates ignored
-local ingestion credentials and configures the user's Codex telemetry exporter.
+Supabase CLI provides local credentials. `pnpm setup:codex` stores machine-local
+ingestion credentials in the user's Codex telemetry exporter configuration so
+every worktree can reuse them.
 Stopping `pnpm dev` leaves Supabase running. Run `pnpm db:reset` to rebuild it
 from migrations and seed data.
 

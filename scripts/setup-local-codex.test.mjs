@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { installLocalCodex, updateCodexConfig } from "./setup-local-codex.mjs";
+import {
+  configuredCredentials,
+  installLocalCodex,
+  updateCodexConfig,
+} from "./setup-local-codex.mjs";
 
 const AUTHORIZATION = "Basic dGVzdDp0ZXN0";
 const COLLECTOR_URL = "http://127.0.0.1:4318";
@@ -54,42 +58,55 @@ test("rejects nested otel tables instead of risking a partial edit", () => {
   );
 });
 
-test("installation is idempotent and writes private state", () => {
+test("reads all local credentials from the global Codex config", () => {
+  const source = updateCodexConfig("", AUTHORIZATION, COLLECTOR_URL);
+  const credentials = configuredCredentials(source, COLLECTOR_URL);
+
+  assert.equal(credentials?.get("SLOWPOKE_INSTALLATION_ID"), "test");
+  assert.equal(credentials?.get("SLOWPOKE_INGEST_TOKEN"), "test");
+  assert.equal(credentials?.get("SLOWPOKE_CODEX_AUTHORIZATION"), AUTHORIZATION);
+  assert.match(credentials?.get("SLOWPOKE_OTLP_HTPASSWD") ?? "", /^test:\{SHA\}.+/);
+});
+
+test("rejects credentials for a different Collector", () => {
+  const source = updateCodexConfig("", AUTHORIZATION, "http://127.0.0.1:9999");
+
+  assert.equal(configuredCredentials(source, COLLECTOR_URL), null);
+});
+
+test("installation is idempotent and keeps credentials in private global config", () => {
   const directory = mkdtempSync(join(tmpdir(), "slowpoke-codex-"));
   const configPath = join(directory, "codex", "config.toml");
-  const statePath = join(directory, "project", ".slowpoke", "local-dev.env");
   mkdirSync(join(directory, "codex"));
   writeFileSync(configPath, 'model = "gpt-test"\n', { encoding: "utf8", flag: "wx" });
 
-  const first = installLocalCodex({ configPath, statePath, collectorUrl: COLLECTOR_URL });
+  const first = installLocalCodex({ configPath, collectorUrl: COLLECTOR_URL });
   const firstConfig = readFileSync(configPath, "utf8");
-  const firstState = readFileSync(statePath, "utf8");
-  const second = installLocalCodex({ configPath, statePath, collectorUrl: COLLECTOR_URL });
+  const second = installLocalCodex({ configPath, collectorUrl: COLLECTOR_URL });
 
   assert.equal(first.changed, true);
   assert.equal(second.changed, false);
   assert.equal(readFileSync(configPath, "utf8"), firstConfig);
-  assert.equal(readFileSync(statePath, "utf8"), firstState);
-  assert.equal(statSync(statePath).mode & 0o777, 0o600);
   assert.equal(statSync(configPath).mode & 0o777, 0o600);
+  assert.ok(configuredCredentials(firstConfig, COLLECTOR_URL));
   assert.equal(readFileSync(`${configPath}.slowpoke-backup`, "utf8"), 'model = "gpt-test"\n');
 });
 
-test("repairs incomplete local credential state", () => {
+test("migrates a legacy worktree authorization into global config", () => {
   const directory = mkdtempSync(join(tmpdir(), "slowpoke-codex-"));
   const configPath = join(directory, "codex", "config.toml");
   const statePath = join(directory, "project", ".slowpoke", "local-dev.env");
   mkdirSync(join(directory, "codex"), { recursive: true });
   mkdirSync(join(directory, "project", ".slowpoke"), { recursive: true });
   writeFileSync(configPath, 'model = "gpt-test"\n', { encoding: "utf8", flag: "wx" });
-  writeFileSync(statePath, "SLOWPOKE_CODEX_AUTHORIZATION='Basic stale'\n", "utf8");
+  writeFileSync(statePath, `SLOWPOKE_CODEX_AUTHORIZATION='${AUTHORIZATION}'\n`, "utf8");
 
   installLocalCodex({ configPath, statePath, collectorUrl: COLLECTOR_URL });
 
-  const repairedState = readFileSync(statePath, "utf8");
-  assert.match(repairedState, /^SLOWPOKE_INSTALLATION_ID=/m);
-  assert.match(repairedState, /^SLOWPOKE_INGEST_TOKEN=/m);
-  assert.match(repairedState, /^SLOWPOKE_OTLP_HTPASSWD=/m);
-  assert.match(repairedState, /^SLOWPOKE_CODEX_AUTHORIZATION=/m);
-  assert.doesNotMatch(repairedState, /Basic stale/);
+  const configured = configuredCredentials(readFileSync(configPath, "utf8"), COLLECTOR_URL);
+  assert.equal(configured?.get("SLOWPOKE_CODEX_AUTHORIZATION"), AUTHORIZATION);
+  assert.equal(
+    readFileSync(statePath, "utf8"),
+    `SLOWPOKE_CODEX_AUTHORIZATION='${AUTHORIZATION}'\n`,
+  );
 });

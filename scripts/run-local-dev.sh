@@ -8,7 +8,6 @@ collector_name="slowpoke-collector-local-$$"
 web_port="${SLOWPOKE_WEB_PORT:-3000}"
 backend_port="${SLOWPOKE_BACKEND_PORT:-8000}"
 collector_port="${SLOWPOKE_COLLECTOR_PORT:-4318}"
-local_env="$project_root/.slowpoke/local-dev.env"
 pids=()
 
 read_status_value() {
@@ -107,21 +106,21 @@ for command in docker pnpm uv; do
   fi
 done
 
-if [[ ! -f "$local_env" ]]; then
-  printf 'Missing local Codex setup. Run: pnpm setup:codex\n' >&2
+read_credential_value() {
+  local name="$1"
+
+  printf '%s\n' "$codex_credentials" |
+    sed -n "s/^${name}='\([^']*\)'$/\1/p"
+}
+
+if ! codex_credentials="$(node "$project_root/scripts/setup-local-codex.mjs" credentials)"; then
   exit 1
 fi
 
-read_local_value() {
-  local name="$1"
-
-  sed -n "s/^${name}='\([^']*\)'$/\1/p" "$local_env"
-}
-
-SLOWPOKE_INGEST_TOKEN="$(read_local_value SLOWPOKE_INGEST_TOKEN)"
-SLOWPOKE_OTLP_HTPASSWD="$(read_local_value SLOWPOKE_OTLP_HTPASSWD)"
+SLOWPOKE_INGEST_TOKEN="$(read_credential_value SLOWPOKE_INGEST_TOKEN)"
+SLOWPOKE_OTLP_HTPASSWD="$(read_credential_value SLOWPOKE_OTLP_HTPASSWD)"
 if [[ -z "$SLOWPOKE_INGEST_TOKEN" || -z "$SLOWPOKE_OTLP_HTPASSWD" ]]; then
-  printf 'Invalid local Codex setup. Run: pnpm setup:codex\n' >&2
+  printf 'Invalid Slowpoke credentials in the Codex config. Run: pnpm setup:codex\n' >&2
   exit 1
 fi
 export SLOWPOKE_INGEST_TOKEN SLOWPOKE_OTLP_HTPASSWD
