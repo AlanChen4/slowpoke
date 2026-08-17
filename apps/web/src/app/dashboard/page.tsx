@@ -53,7 +53,7 @@ function pageHref(scope: PromptScope, page: number, searchQuery: string) {
   return query ? `/dashboard?${query}` : "/dashboard";
 }
 
-function messageHref(id: string, scope: PromptScope, page: number, searchQuery: string) {
+function promptHref(id: string, scope: PromptScope, page: number, searchQuery: string) {
   const params = new URLSearchParams({ scope });
 
   if (page > 1) {
@@ -64,7 +64,7 @@ function messageHref(id: string, scope: PromptScope, page: number, searchQuery: 
     params.set("q", searchQuery);
   }
 
-  return `/dashboard/messages/${id}?${params.toString()}`;
+  return `/dashboard/prompts/${id}?${params.toString()}`;
 }
 
 function paginationPages(currentPage: number, totalPages: number) {
@@ -195,7 +195,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             {promptRows.map((prompt) => (
               <li key={prompt.id} className="min-w-0">
                 <Link
-                  href={messageHref(prompt.id, scope, currentPage, searchQuery)}
+                  href={promptHref(prompt.id, scope, currentPage, searchQuery)}
                   className="grid max-w-full min-w-0 gap-3 p-4 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none sm:grid-cols-[9rem_minmax(0,1fr)] sm:p-5"
                 >
                   <div className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">

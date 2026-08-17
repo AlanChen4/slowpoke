@@ -48,14 +48,14 @@ export function PromptScopeFilter({ value }: PromptScopeFilterProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor="prompt-scope">Messages</Label>
+      <Label htmlFor="prompt-scope">Prompts</Label>
       <Select value={value} onValueChange={updateScope} disabled={isPending}>
         <SelectTrigger id="prompt-scope" className="w-44">
-          <SelectValue>{value === "human" ? "Human prompts" : "All messages"}</SelectValue>
+          <SelectValue>{value === "human" ? "Human prompts" : "All prompts"}</SelectValue>
         </SelectTrigger>
         <SelectContent align="end">
           <SelectGroup>
-            <SelectItem value="all">All messages</SelectItem>
+            <SelectItem value="all">All prompts</SelectItem>
             <SelectItem value="human">Human prompts</SelectItem>
           </SelectGroup>
         </SelectContent>

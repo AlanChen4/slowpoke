@@ -16,7 +16,7 @@ export function DashboardTitle() {
   const [section] = useSelectedLayoutSegments();
   const searchParams = useSearchParams();
 
-  if (section === "messages") {
+  if (section === "prompts") {
     const query = searchParams.toString();
     const promptsHref = query ? `/dashboard?${query}` : "/dashboard";
 

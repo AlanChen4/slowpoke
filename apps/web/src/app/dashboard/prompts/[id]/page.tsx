@@ -28,7 +28,7 @@ const numberFormatter = new Intl.NumberFormat("en");
 const rawMetadataKeys = ["app.version", "auth_mode", "prompt_length", "terminal.type"] as const;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
-type MessageDetailPageProps = {
+type PromptDetailPageProps = {
   params: Promise<{ id: string }>;
   searchParams: Promise<{
     page?: string | string[];
@@ -119,7 +119,7 @@ function createTelemetryAdminClient() {
   });
 }
 
-export default async function MessageDetailPage({ params, searchParams }: MessageDetailPageProps) {
+export default async function PromptDetailPage({ params, searchParams }: PromptDetailPageProps) {
   const [{ id }, { page: requestedPage, q: requestedQuery, scope: requestedScope }] =
     await Promise.all([params, searchParams]);
 
@@ -365,7 +365,7 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
           </h2>
           <output className="text-xs text-muted-foreground">
             Showing {conversation.length} captured{" "}
-            {conversation.length === 1 ? "message" : "messages"} around the selected message.
+            {conversation.length === 1 ? "prompt" : "prompts"} around the selected prompt.
           </output>
         </div>
         <ol className="divide-y border">
@@ -384,7 +384,7 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
                 )}
               >
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <p className="font-medium text-foreground">Message {index + 1}</p>
+                  <p className="font-medium text-foreground">Prompt {index + 1}</p>
                   <time dateTime={event.occurred_at}>
                     {dateFormatter.format(new Date(event.occurred_at))}
                   </time>
@@ -394,7 +394,7 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
                   <p className="whitespace-pre-wrap break-words text-sm leading-6">{displayText}</p>
                   {!isSelected ? (
                     <Link
-                      href={`/dashboard/messages/${event.id}${backQuery ? `?${backQuery}` : ""}`}
+                      href={`/dashboard/prompts/${event.id}${backQuery ? `?${backQuery}` : ""}`}
                       className="inline-block text-xs font-medium underline underline-offset-4"
                     >
                       View details

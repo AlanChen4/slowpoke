@@ -49,7 +49,7 @@ const navigation = [
     href: "/dashboard?scope=human",
     icon: ChatsCircleIcon,
     isActive: (pathname: string) =>
-      pathname === "/dashboard" || pathname.startsWith("/dashboard/messages/"),
+      pathname === "/dashboard" || pathname.startsWith("/dashboard/prompts/"),
   },
   {
     title: "Settings",
