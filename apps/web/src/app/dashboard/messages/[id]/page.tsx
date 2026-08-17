@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import * as z from "zod";
 
 import { humanPromptText } from "@/app/dashboard/human-prompt-text";
-import { buttonVariants } from "@/components/ui/button";
 import { env } from "@/env";
 import { getAuthClaims } from "@/lib/auth-context";
 import { getOrganizationContext } from "@/lib/organization-context";
@@ -120,7 +119,6 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
     backParams.set("q", searchQuery);
   }
   const backQuery = backParams.toString();
-  const backHref = backQuery ? `/dashboard?${backQuery}` : "/dashboard";
   const [supabase, { data: claims, error: claimsError }] = await Promise.all([
     createClient(),
     getAuthClaims(),
@@ -245,14 +243,11 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-      <nav className="flex items-center justify-between gap-4">
-        <Link href={backHref} className={cn(buttonVariants({ variant: "outline" }))}>
-          Back to prompts
-        </Link>
+      <div className="flex justify-end">
         <p className="text-xs text-muted-foreground">
           {dateFormatter.format(new Date(prompt.occurred_at))}
         </p>
-      </nav>
+      </div>
 
       <section className="space-y-4" aria-labelledby="prompt-comparison-heading">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
