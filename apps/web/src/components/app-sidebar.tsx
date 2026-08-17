@@ -171,7 +171,7 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
               {navigation.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
-                    tooltip={item.title}
+                    tooltip={{ children: item.title }}
                     isActive={item.isActive(pathname)}
                     render={<Link href={item.href} />}
                   >
@@ -190,7 +190,7 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              tooltip={email}
+              tooltip={{ children: email }}
               render={<Link href="/dashboard/settings#account" />}
             >
               <Avatar size="sm">

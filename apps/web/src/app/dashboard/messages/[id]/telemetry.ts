@@ -1,4 +1,54 @@
-type JsonObject = Record<string, unknown>;
+import * as z from "zod";
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue | undefined };
+
+const integerValueSchema = z.union([
+  z.number(),
+  z.string().transform((value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : value;
+  }),
+]);
+const attributeValueSchema = z.object({
+  stringValue: z.string().optional(),
+  intValue: integerValueSchema.optional(),
+  doubleValue: z.number().optional(),
+  boolValue: z.boolean().optional(),
+});
+const attributeSchema = z
+  .object({
+    key: z.string(),
+    value: attributeValueSchema,
+  })
+  .nullable()
+  .catch(null);
+const logRecordSchema = z
+  .object({
+    attributes: z.array(attributeSchema).catch([]).default([]),
+  })
+  .catch({ attributes: [] });
+const scopeLogSchema = z
+  .object({
+    logRecords: z.array(logRecordSchema).catch([]).default([]),
+  })
+  .catch({ logRecords: [] });
+const resourceLogSchema = z
+  .object({
+    scopeLogs: z.array(scopeLogSchema).catch([]).default([]),
+  })
+  .catch({ scopeLogs: [] });
+const telemetryPayloadSchema = z.object({
+  resourceLogs: z.array(resourceLogSchema).catch([]).default([]),
+});
+
+type AttributeValue = z.infer<typeof attributeValueSchema>;
+type LogRecord = z.infer<typeof logRecordSchema>;
 
 export type PromptResponseUsage = {
   inputTokens: number | null;
@@ -23,48 +73,31 @@ export type ResponseUsageEvent = {
   total_cost_usd: string | number | null;
 };
 
-function isObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function objectArray(value: unknown): JsonObject[] {
-  return Array.isArray(value) ? value.filter(isObject) : [];
-}
-
-function attributeValue(value: unknown): string | number | boolean | null {
-  if (!isObject(value)) {
-    return null;
-  }
-
-  if (typeof value.stringValue === "string") {
+function attributeValue(value: AttributeValue): string | number | boolean | null {
+  if (value.stringValue !== undefined) {
     return value.stringValue;
   }
 
-  if (typeof value.intValue === "number") {
+  if (value.intValue !== undefined) {
     return value.intValue;
   }
 
-  if (typeof value.intValue === "string") {
-    const parsed = Number(value.intValue);
-    return Number.isFinite(parsed) ? parsed : value.intValue;
-  }
-
-  if (typeof value.doubleValue === "number") {
+  if (value.doubleValue !== undefined) {
     return value.doubleValue;
   }
 
-  if (typeof value.boolValue === "boolean") {
+  if (value.boolValue !== undefined) {
     return value.boolValue;
   }
 
   return null;
 }
 
-function logRecordAttributes(record: JsonObject) {
+function logRecordAttributes(record: LogRecord) {
   const attributes: Record<string, string | number | boolean> = {};
 
-  for (const attribute of objectArray(record.attributes)) {
-    if (typeof attribute.key !== "string") {
+  for (const attribute of record.attributes) {
+    if (!attribute) {
       continue;
     }
 
@@ -77,15 +110,14 @@ function logRecordAttributes(record: JsonObject) {
   return attributes;
 }
 
-function logRecords(rawPayload: unknown) {
-  if (!isObject(rawPayload)) {
+function logRecords(rawPayload: JsonValue | undefined) {
+  const parsedPayload = telemetryPayloadSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
     return [];
   }
 
-  return objectArray(rawPayload.resourceLogs).flatMap((resourceGroup) =>
-    objectArray(resourceGroup.scopeLogs).flatMap((scopeGroup) =>
-      objectArray(scopeGroup.logRecords),
-    ),
+  return parsedPayload.data.resourceLogs.flatMap((resourceGroup) =>
+    resourceGroup.scopeLogs.flatMap((scopeGroup) => scopeGroup.logRecords),
   );
 }
 
@@ -98,7 +130,7 @@ function eventTimestamp(event: ResponseUsageEvent) {
   }
 
   const unixNanos = event.time_unix_nano ?? event.observed_time_unix_nano;
-  if (typeof unixNanos === "string" || typeof unixNanos === "number") {
+  if (unixNanos !== null) {
     const timestamp = Number(unixNanos) / 1_000_000;
     return Number.isFinite(timestamp) ? timestamp : null;
   }
@@ -107,16 +139,12 @@ function eventTimestamp(event: ResponseUsageEvent) {
 }
 
 function numberValue(value: string | number | null) {
-  if (typeof value === "number") {
-    return value;
+  if (value === null) {
+    return null;
   }
 
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function sumValues(
@@ -137,7 +165,7 @@ function sumValues(
   return foundValue ? total : null;
 }
 
-export function promptRecordMetadata(rawPayload: unknown, recordIndex: number) {
+export function promptRecordMetadata(rawPayload: JsonValue | undefined, recordIndex: number) {
   const record = logRecords(rawPayload)[recordIndex];
   return record ? logRecordAttributes(record) : {};
 }

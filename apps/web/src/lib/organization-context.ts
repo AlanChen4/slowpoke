@@ -29,29 +29,28 @@ export const getOrganizationContext = cache(async function getOrganizationContex
   const { data, error } = await supabase
     .from("organization_members")
     .select("organization_id,role,organizations(id,name,logo_url,created_at)")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .overrideTypes<MembershipRow[], { merge: false }>();
 
-  const organizations = ((data ?? []) as unknown as MembershipRow[]).flatMap(
-    (membership): WorkspaceOrganization[] => {
-      const organization = Array.isArray(membership.organizations)
-        ? membership.organizations[0]
-        : membership.organizations;
+  const organizations = (data ?? []).flatMap((membership): WorkspaceOrganization[] => {
+    const organization = Array.isArray(membership.organizations)
+      ? membership.organizations[0]
+      : membership.organizations;
 
-      if (!organization) {
-        return [];
-      }
+    if (!organization) {
+      return [];
+    }
 
-      return [
-        {
-          id: membership.organization_id,
-          name: organization.name,
-          logoUrl: organization.logo_url,
-          createdAt: organization.created_at,
-          role: membership.role,
-        },
-      ];
-    },
-  );
+    return [
+      {
+        id: membership.organization_id,
+        name: organization.name,
+        logoUrl: organization.logo_url,
+        createdAt: organization.created_at,
+        role: membership.role,
+      },
+    ];
+  });
   const requestedOrganizationId = cookieStore.get(ORGANIZATION_COOKIE)?.value;
   const selectedOrganization =
     organizations.find((organization) => organization.id === requestedOrganizationId) ??

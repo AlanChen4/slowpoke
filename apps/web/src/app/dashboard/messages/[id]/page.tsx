@@ -2,6 +2,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
+import * as z from "zod";
 
 import { humanPromptText } from "@/app/dashboard/human-prompt-text";
 import { buttonVariants } from "@/components/ui/button";
@@ -32,26 +33,28 @@ type MessageDetailPageProps = {
   }>;
 };
 
-type PromptEvent = {
-  id: string;
-  organization_id: string;
-  installation_id: string;
-  batch_id: string;
-  record_index: number;
-  provider: string;
-  event_name: string;
-  occurred_at: string;
-  prompt_id: string | null;
-  session_id: string | null;
-  actor_account_id: string | null;
-  actor_email: string | null;
-  prompt_text: string;
-  is_redacted: boolean;
-  created_at: string;
-  model: string | null;
-  slug: string | null;
-  originator: string | null;
-};
+const promptEventSchema = z.object({
+  id: z.string(),
+  organization_id: z.string(),
+  installation_id: z.string(),
+  batch_id: z.string(),
+  record_index: z.number(),
+  provider: z.string(),
+  event_name: z.string(),
+  occurred_at: z.string(),
+  prompt_id: z.string().nullable(),
+  session_id: z.string().nullable(),
+  actor_account_id: z.string().nullable(),
+  actor_email: z.string().nullable(),
+  prompt_text: z.string(),
+  is_redacted: z.boolean(),
+  created_at: z.string(),
+  model: z.string().nullable(),
+  slug: z.string().nullable(),
+  originator: z.string().nullable(),
+});
+
+type PromptEvent = z.infer<typeof promptEventSchema>;
 
 function providerName(provider: string) {
   return provider === "openai" ? "OpenAI" : provider === "anthropic" ? "Anthropic" : provider;
@@ -152,7 +155,11 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
     notFound();
   }
 
-  const prompt = promptData as PromptEvent;
+  const parsedPrompt = promptEventSchema.safeParse(promptData);
+  if (!parsedPrompt.success) {
+    throw new Error("The prompt detail response did not match the expected database contract.");
+  }
+  const prompt = parsedPrompt.data;
   const conversationBeforeQuery = prompt.session_id
     ? supabase
         .from("prompt_events")
@@ -164,7 +171,8 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
         .order("occurred_at", { ascending: false })
         .order("id", { ascending: false })
         .limit(49)
-    : Promise.resolve({ data: [] as PromptEvent[], error: null });
+        .overrideTypes<PromptEvent[], { merge: false }>()
+    : Promise.resolve({ data: [], error: null });
   const conversationAfterQuery = prompt.session_id
     ? supabase
         .from("prompt_events")
@@ -176,7 +184,8 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
         .order("occurred_at", { ascending: true })
         .order("id", { ascending: true })
         .limit(50)
-    : Promise.resolve({ data: [] as PromptEvent[], error: null });
+        .overrideTypes<PromptEvent[], { merge: false }>()
+    : Promise.resolve({ data: [], error: null });
   const admin = createTelemetryAdminClient();
   const responseUsageQuery = prompt.session_id
     ? admin
@@ -190,7 +199,8 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
         .gte("received_at", prompt.occurred_at)
         .order("received_at", { ascending: true })
         .limit(100)
-    : Promise.resolve({ data: [] as ResponseUsageEvent[], error: null });
+        .overrideTypes<ResponseUsageEvent[], { merge: false }>()
+    : Promise.resolve({ data: [], error: null });
 
   const [conversationBeforeResult, conversationAfterResult, selectedBatchResult, usageResult] =
     await Promise.all([
@@ -220,16 +230,12 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
     );
   }
 
-  const conversationBefore = (conversationBeforeResult.data ?? []) as PromptEvent[];
-  const conversationAfter = (conversationAfterResult.data ?? []) as PromptEvent[];
+  const conversationBefore = conversationBeforeResult.data ?? [];
+  const conversationAfter = conversationAfterResult.data ?? [];
   const conversation = [...conversationBefore.reverse(), prompt, ...conversationAfter];
   const nextPromptOccurredAt = conversationAfter[0]?.occurred_at ?? null;
   const usage = prompt.session_id
-    ? responseUsageForPrompt(
-        (usageResult.data ?? []) as ResponseUsageEvent[],
-        prompt.occurred_at,
-        nextPromptOccurredAt,
-      )
+    ? responseUsageForPrompt(usageResult.data ?? [], prompt.occurred_at, nextPromptOccurredAt)
     : null;
   const rawMetadata = promptRecordMetadata(
     selectedBatchResult.data?.raw_payload,

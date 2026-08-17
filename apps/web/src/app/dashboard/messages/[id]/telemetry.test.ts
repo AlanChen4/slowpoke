@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { responseUsageForPrompt, type ResponseUsageEvent } from "./telemetry";
+import { promptRecordMetadata, responseUsageForPrompt, type ResponseUsageEvent } from "./telemetry";
 
 function usageEvent(overrides: Partial<ResponseUsageEvent> = {}): ResponseUsageEvent {
   return {
@@ -89,5 +89,38 @@ describe("responseUsageForPrompt", () => {
     );
 
     expect(usage?.totalTokens).toBe(42);
+  });
+});
+
+describe("promptRecordMetadata", () => {
+  it("parses supported OTLP attributes and skips malformed entries", () => {
+    const metadata = promptRecordMetadata(
+      {
+        resourceLogs: [
+          {
+            scopeLogs: [
+              {
+                logRecords: [
+                  {
+                    attributes: [
+                      { key: "model", value: { stringValue: "gpt-5" } },
+                      { key: "prompt_length", value: { intValue: "42" } },
+                      { value: { stringValue: "missing key" } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      0,
+    );
+
+    expect(metadata).toEqual({ model: "gpt-5", prompt_length: 42 });
+  });
+
+  it("returns no metadata for an invalid payload", () => {
+    expect(promptRecordMetadata("not an OTLP payload", 0)).toEqual({});
   });
 });

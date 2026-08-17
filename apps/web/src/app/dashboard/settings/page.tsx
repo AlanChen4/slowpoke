@@ -72,10 +72,10 @@ export default async function SettingsPage() {
         .select("id,created_at,revoked_at")
         .eq("organization_id", selectedOrganization.id)
         .order("created_at", { ascending: false })
-    : { data: [] as Installation[], error: null };
-  const installations = (installationsResult.data ?? []) as Installation[];
-  const email =
-    typeof claimsData.claims.email === "string" ? claimsData.claims.email : "Unavailable";
+        .overrideTypes<Installation[], { merge: false }>()
+    : { data: [], error: null };
+  const installations = installationsResult.data ?? [];
+  const email = claimsData.claims.email ?? "Unavailable";
   const dataError = organizationError ?? installationsResult.error;
 
   return (

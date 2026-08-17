@@ -31,8 +31,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     );
   }
 
-  const email =
-    typeof claimsData.claims.email === "string" ? claimsData.claims.email : "Signed-in account";
+  const email = claimsData.claims.email ?? "Signed-in account";
   const sidebarDefaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   return (

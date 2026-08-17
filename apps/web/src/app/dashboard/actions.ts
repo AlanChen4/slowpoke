@@ -13,6 +13,11 @@ export type OrganizationActionState = {
   message?: string;
 };
 
+type OrganizationUpdates = {
+  name: string;
+  logo_url?: string;
+};
+
 const organizationIdSchema = z.uuid();
 const organizationProfileSchema = z.object({
   organizationId: organizationIdSchema,
@@ -107,12 +112,14 @@ export async function updateOrganization(
     logoUrl = `${publicUrl}?v=${Date.now()}`;
   }
 
+  const updates: OrganizationUpdates = { name: result.data.name };
+  if (logoUrl) {
+    updates.logo_url = logoUrl;
+  }
+
   const { data: organization, error } = await supabase
     .from("organizations")
-    .update({
-      name: result.data.name,
-      ...(logoUrl ? { logo_url: logoUrl } : {}),
-    })
+    .update(updates)
     .eq("id", result.data.organizationId)
     .select("id")
     .maybeSingle();
