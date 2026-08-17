@@ -9,7 +9,7 @@
     "setup:codex": "node scripts/setup-local-codex.mjs",
     "dev": "bash scripts/run-local-dev.sh",
     "build": "pnpm --filter @slowpoke/web build",
-    "test": "bash scripts/run-local-supabase.sh start >/dev/null && supabase test db && bash scripts/run-backend-database-tests.sh && bash scripts/check-python-db-types.sh && (cd apps/backend && uv run pytest -m 'not database') && (cd apps/collector && uv run pytest) && pnpm test:metadata && pnpm test:setup && pnpm test:prompts",
+    "test": "bash scripts/run-local-supabase.sh start >/dev/null && supabase test db && bash scripts/run-backend-database-tests.sh && bash scripts/check-python-db-types.sh && (cd apps/backend && uv run pytest -m 'not database') && (cd apps/collector && uv run pytest) && pnpm test:metadata && pnpm test:setup && pnpm test:lint-rules && pnpm test:prompts",
     "test:e2e": "bash scripts/run-local-ingestion-e2e.sh",
     "typecheck": "pnpm --filter @slowpoke/web typecheck && (cd apps/backend && uv run pyright)",
     "lint": "oxlint --deny-warnings apps/web/src apps/web/scripts scripts apps/web/next.config.ts apps/web/postcss.config.mjs && (cd apps/backend && uv run ruff check .)",
@@ -21,6 +21,7 @@
     "check:metadata": "node scripts/check-metadata.mjs",
     "test:metadata": "node --test scripts/check-metadata.test.mjs",
     "test:setup": "node --test scripts/setup-local-codex.test.mjs",
+    "test:lint-rules": "node --test tools/oxlint/slowpoke-ui/heading-structure.test.mjs",
     "test:prompts": "pnpm --filter @slowpoke/web test"
   },
   "devDependencies": {

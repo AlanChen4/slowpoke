@@ -16,12 +16,17 @@
     ".pi/**",
     ".roo/**",
     ".windsurf/**",
-    "tools/oxlint/anti-slop/**"
+    "tools/oxlint/anti-slop/**",
+    "tools/oxlint/slowpoke-ui/**"
   ],
   "jsPlugins": [
     {
       "name": "anti-slop",
       "specifier": "./tools/oxlint/anti-slop/index.ts"
+    },
+    {
+      "name": "slowpoke-ui",
+      "specifier": "./tools/oxlint/slowpoke-ui/index.ts"
     }
   ],
   "options": {
@@ -43,6 +48,7 @@
     "anti-slop/no-unsafe-dictionary-type": "error",
     "anti-slop/no-widen-then-assert": "error",
     "anti-slop/require-safety-comment-for-type-assertion": "error",
+    "slowpoke-ui/heading-structure": "error",
     "node/no-process-env": "error",
     "react/forbid-elements": [
       "error",

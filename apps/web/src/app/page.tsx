@@ -33,6 +33,7 @@ export default async function Home() {
       </nav>
 
       <section className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col items-start justify-center gap-8 px-6 pb-24 pt-12 sm:px-10 lg:px-12">
+        {/* HEADING-REASON: Provides the public landing page's single top-level topic. */}
         <h1 className="max-w-5xl text-left text-5xl font-semibold leading-[0.96] tracking-[-0.06em] text-balance sm:text-7xl lg:text-[6.75rem]">
           Manage your company&apos;s AI usage
         </h1>

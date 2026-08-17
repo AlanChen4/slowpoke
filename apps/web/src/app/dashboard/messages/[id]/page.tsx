@@ -56,10 +56,6 @@ const promptEventSchema = z.object({
 
 type PromptEvent = z.infer<typeof promptEventSchema>;
 
-function providerName(provider: string) {
-  return provider === "openai" ? "OpenAI" : provider === "anthropic" ? "Anthropic" : provider;
-}
-
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1 border-t pt-3">
@@ -258,25 +254,18 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
         </p>
       </nav>
 
-      <header className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">{providerName(prompt.provider)}</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Message details</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          Compare the human request with the full prompt sent by the Codex harness.
-        </p>
-      </header>
-
       <section className="space-y-4" aria-labelledby="prompt-comparison-heading">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
+            {/* HEADING-REASON: Identifies the labelled section comparing human and transmitted prompts. */}
             <h2 id="prompt-comparison-heading" className="text-lg font-semibold">
               Prompt comparison
             </h2>
-            <p className="text-xs text-muted-foreground">
+            <output className="text-xs text-muted-foreground">
               {numberFormatter.format(humanText.length)} human characters ·{" "}
               {numberFormatter.format(sentText.length)} sent ·{" "}
               {numberFormatter.format(addedCharacters)} added by context
-            </p>
+            </output>
           </div>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -288,10 +277,8 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
       <section className="grid gap-6 lg:grid-cols-[1fr_2fr]">
         <div className="space-y-4 border p-5">
           <div>
+            {/* HEADING-REASON: Labels the token and cost definition list as one section. */}
             <h2 className="text-lg font-semibold">Usage and cost</h2>
-            <p className="text-xs text-muted-foreground">
-              Response usage linked by conversation and event time.
-            </p>
           </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <UsageItem label="Input tokens" value={usage?.inputTokens} />
@@ -321,10 +308,8 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
 
         <div className="space-y-4 border p-5">
           <div>
+            {/* HEADING-REASON: Labels the normalized telemetry definition list as one section. */}
             <h2 className="text-lg font-semibold">Metadata</h2>
-            <p className="text-xs text-muted-foreground">
-              Normalized prompt fields and safe OTLP attributes.
-            </p>
           </div>
           <dl className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
             <DetailItem label="Event">{prompt.event_name}</DetailItem>
@@ -347,13 +332,14 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
 
       <section className="space-y-4" aria-labelledby="conversation-heading">
         <div>
+          {/* HEADING-REASON: Identifies the labelled ordered list of surrounding messages. */}
           <h2 id="conversation-heading" className="text-lg font-semibold">
             Conversation
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <output className="text-xs text-muted-foreground">
             Showing {conversation.length} captured{" "}
             {conversation.length === 1 ? "message" : "messages"} around the selected message.
-          </p>
+          </output>
         </div>
         <ol className="divide-y border">
           {conversation.map((event, index) => {

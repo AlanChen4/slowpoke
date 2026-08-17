@@ -80,14 +80,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs font-medium text-muted-foreground">Workspace</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Manage the selected organization, its local Codex installations, and your account.
-        </p>
-      </header>
-
       {dataError ? (
         <Alert variant="destructive">
           <WarningCircleIcon />

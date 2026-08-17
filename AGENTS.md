@@ -42,6 +42,14 @@ from migrations and seed data.
 - Before a PR update, run `pnpm test`, `pnpm typecheck`, `pnpm lint`, and
   `pnpm format:check`.
 
+## UI headings
+
+- Native `h1`–`h6` elements require an immediately preceding JSX comment in
+  the form `{/* HEADING-REASON: <human-authored reason> */}`.
+- Agents must not invent, add, or edit a `HEADING-REASON` comment unless the
+  user explicitly supplies or approves the rationale.
+- Do not place a `p` element immediately above or below a native heading.
+
 ## Supabase
 
 - Read `.agents/skills/supabase/SKILL.md` for every Supabase task.
