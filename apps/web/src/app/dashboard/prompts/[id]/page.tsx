@@ -259,39 +259,14 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
     selectedBatchResult.data?.raw_payload,
     prompt.record_index,
   );
-  const sentText = prompt.is_redacted ? "Prompt content was redacted." : prompt.prompt_text;
+  const sentText = prompt.is_redacted ? "Prompt content was redacted." : prompt.prompt_text.trim();
   const promptSegments = prompt.is_redacted
     ? [{ source: "human" as const, text: sentText }]
-    : promptTextSegments(prompt.prompt_text);
-  let humanCharacters = 0;
-  let harnessCharacters = 0;
-
-  for (const segment of promptSegments) {
-    if (segment.source === "human") {
-      humanCharacters += segment.text.length;
-    } else {
-      harnessCharacters += segment.text.length;
-    }
-  }
+    : promptTextSegments(sentText);
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-      <section className="space-y-4" aria-labelledby="prompt-comparison-heading">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            {/* HEADING-REASON: Identifies the labelled section comparing human and transmitted prompts. */}
-            <h2 id="prompt-comparison-heading" className="text-lg font-semibold">
-              Prompt comparison
-            </h2>
-            <output className="text-xs text-muted-foreground">
-              {numberFormatter.format(humanCharacters)} human characters ·{" "}
-              {numberFormatter.format(sentText.length)} sent ·{" "}
-              {numberFormatter.format(harnessCharacters)} added by harness
-            </output>
-          </div>
-        </div>
-        <PromptBreakdown segments={promptSegments} />
-      </section>
+      <PromptBreakdown segments={promptSegments} />
 
       <section className="grid gap-6 lg:grid-cols-[1fr_2fr]">
         <div className="space-y-4 border p-5">
