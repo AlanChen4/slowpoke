@@ -214,6 +214,10 @@ where coalesce(model, '') <> 'codex-auto-review'
     prompt_text,
     'You are an expert at upholding safety and compliance standards for Codex ambient suggestions.'
   )
+  and not starts_with(
+    prompt_text,
+    'You write the one-line activity update displayed beneath an existing Codex task title.'
+  )
   and strpos(
     prompt_text,
     'Generate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this '

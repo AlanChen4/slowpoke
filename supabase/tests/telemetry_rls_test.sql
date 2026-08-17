@@ -104,6 +104,7 @@ values
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 5, 'openai', 'codex.user_prompt', '2026-08-10 10:05:00+00', 'safety-a', 'You are an expert at upholding safety and compliance standards for Codex ambient suggestions. Additional internal instructions.', 'gpt-5.6-luna', 'gpt-5.6-luna'),
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 6, 'openai', 'codex.user_prompt', '2026-08-10 10:06:00+00', 'suggestions-a', E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this local project: /tmp/project', 'gpt-5.6-terra', 'gpt-5.6-terra'),
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 7, 'openai', 'codex.user_prompt', '2026-08-10 10:07:00+00', 'projectless-suggestions-a', E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this Projectless task', 'gpt-5.6-terra', 'gpt-5.6-terra'),
+  ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 8, 'openai', 'codex.user_prompt', '2026-08-10 10:08:00+00', 'activity-a', E'You write the one-line activity update displayed beneath an existing Codex task title.\nFill the structured summary field with the latest task activity.', 'gpt-5.6-luna', 'gpt-5.6-luna'),
   ('20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', 0, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:00:00+00', 'conversation-b', 'organization b', null, null);
 
 set local role authenticated;
@@ -123,7 +124,8 @@ select results_eq(
     (E'You are in a fork of an existing Codex thread.\nFill the structured description field with a compact, search-oriented summary (up to 100 characters) of the thread''s current purpose.\n\nExisting thread text'::text),
     ('You are an expert at upholding safety and compliance standards for Codex ambient suggestions. Additional internal instructions.'::text),
     (E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this local project: /tmp/project'::text),
-    (E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this Projectless task'::text)
+    (E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this Projectless task'::text),
+    (E'You write the one-line activity update displayed beneath an existing Codex task title.\nFill the structured summary field with the latest task activity.'::text)
   $$,
   'an administrator sees only prompts in their organization'
 );
@@ -218,7 +220,7 @@ select throws_ok(
 
 set local role service_role;
 select results_eq(
-  $$select conversation_id, input_token_count, tool_token_count from public.codex_response_usage_events$$,
+  $$select conversation_id, input_token_count, tool_token_count from public.codex_response_usage_events where batch_id = '40000000-0000-4000-8000-000000000001'$$,
   $$values ('conversation-a'::text, '100'::text, '110'::text)$$,
   'the backend can read compact usage from eventName-only telemetry'
 );

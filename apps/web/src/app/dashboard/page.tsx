@@ -152,7 +152,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <section className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex min-w-0 flex-1">
           <FieldGroup className="max-w-2xl">
             <Field>
@@ -167,7 +167,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </Field>
           </FieldGroup>
         </div>
-        <div className="flex items-end gap-2 self-end">
+        <div className="flex shrink-0 items-end gap-2 self-end">
           <PromptScopeFilter value={scope} />
           <Link href={refreshHref} className={cn(buttonVariants({ variant: "outline" }))}>
             Refresh
