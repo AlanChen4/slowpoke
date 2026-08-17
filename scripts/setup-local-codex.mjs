@@ -243,7 +243,33 @@ function printCredentials() {
   return true;
 }
 
-function main() {
+function printHelp() {
+  console.log(`Configure Codex to send local telemetry to Slowpoke.
+
+Usage:
+  pnpm setup:codex [--dry-run]
+
+Options:
+  --dry-run   Report the planned action without changing the Codex config.
+  --help, -h  Show this help.
+
+Examples:
+  pnpm setup:codex
+  pnpm setup:codex --dry-run`);
+}
+
+function printDryRun() {
+  const { collectorUrl, configPath } = localPaths();
+  const source = existsSync(configPath) ? readFileSync(configPath, "utf8") : "";
+  const configured = configuredCredentials(source, collectorUrl) !== null;
+
+  console.log("status: dry-run");
+  console.log(`action: ${configured ? "none" : "configure"}`);
+  console.log(`config: ${configPath}`);
+  console.log(`collector_url: ${collectorUrl}`);
+}
+
+function configure() {
   const { collectorUrl, configPath, legacyStatePath } = localPaths();
   const result = installLocalCodex({
     configPath,
@@ -261,12 +287,35 @@ function main() {
   console.log("Restart Codex after the local development stack is running.");
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  if (process.argv[2] === "credentials") {
+function runCli() {
+  const argumentsToParse = process.argv.slice(2);
+  if (argumentsToParse.length === 0) {
+    configure();
+    return;
+  }
+  if (argumentsToParse.length === 1 && argumentsToParse[0] === "credentials") {
     if (!printCredentials()) {
       process.exitCode = 1;
     }
-  } else {
-    main();
+    return;
   }
+  if (
+    argumentsToParse.length === 1 &&
+    (argumentsToParse[0] === "--help" || argumentsToParse[0] === "-h")
+  ) {
+    printHelp();
+    return;
+  }
+  if (argumentsToParse.length === 1 && argumentsToParse[0] === "--dry-run") {
+    printDryRun();
+    return;
+  }
+
+  console.error(`Error: Unexpected arguments: ${argumentsToParse.join(" ")}`);
+  console.error("  Example: pnpm setup:codex --dry-run");
+  process.exitCode = 2;
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runCli();
 }

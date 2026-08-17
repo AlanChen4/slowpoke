@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateCommitMessage, validatePullRequest } from "./check-metadata.mjs";
+import { validateCommitMessage, validatePullRequest } from "../../scripts/check-metadata.mjs";
 
 const VALID_PR_BODY = `## Summary
 
@@ -13,7 +13,7 @@ Consistent history makes changes easier to scan and review.
 
 ## Validation
 
-- \`pnpm test:metadata\`
+- \`pnpm test --suite tooling\`
 `;
 
 test("accepts a terse conventional commit", () => {

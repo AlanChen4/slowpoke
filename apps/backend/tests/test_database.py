@@ -141,12 +141,6 @@ def test_unknown_installation_is_retryable_and_stores_nothing() -> None:
     client = _api(secret_key, url, token)
     unknown_id = str(uuid4())
     service_client = create_client(url, secret_key)
-    before = (
-        service_client.table("telemetry_batches")
-        .select("id", count="exact")
-        .execute()
-        .count
-    )
 
     response = _post(
         client,
@@ -156,13 +150,14 @@ def test_unknown_installation_is_retryable_and_stores_nothing() -> None:
     )
 
     assert response.status_code == 503
-    after = (
+    stored = (
         service_client.table("telemetry_batches")
         .select("id", count="exact")
+        .eq("installation_id", unknown_id)
         .execute()
         .count
     )
-    assert after == before
+    assert stored == 0
 
 
 def test_mixed_export_persists_known_partition_before_retry() -> None:

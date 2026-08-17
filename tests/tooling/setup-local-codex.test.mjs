@@ -8,7 +8,7 @@ import {
   configuredCredentials,
   installLocalCodex,
   updateCodexConfig,
-} from "./setup-local-codex.mjs";
+} from "../../scripts/setup-local-codex.mjs";
 
 const AUTHORIZATION = "Basic dGVzdDp0ZXN0";
 const COLLECTOR_URL = "http://127.0.0.1:4318";

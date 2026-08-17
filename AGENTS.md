@@ -19,7 +19,7 @@ pnpm install
 (cd apps/backend && uv sync --locked)
 (cd apps/collector && uv sync --locked)
 pnpm setup:codex
-pnpm db:reset
+pnpm db:reset --yes
 ```
 
 Run `pnpm dev` to start web, backend, Collector, and local Supabase. Services use:
@@ -32,12 +32,13 @@ Run `pnpm dev` to start web, backend, Collector, and local Supabase. Services us
 Supabase CLI provides local credentials. `pnpm setup:codex` stores machine-local
 ingestion credentials in the user's Codex telemetry exporter configuration so
 every worktree can reuse them.
-Stopping `pnpm dev` leaves Supabase running. Run `pnpm db:reset` to rebuild it
-from migrations and seed data.
+Stopping `pnpm dev` leaves Supabase running. Run `pnpm db:reset --yes` to
+rebuild it from migrations and seed data without an interactive confirmation.
 
 ## Verify
 
 - `pnpm test`: Run the default test suite.
+- `pnpm test --help`: List focused suites, examples, and dry-run support.
 - `pnpm test:e2e`: Run real Codex and Claude prompts through the local stack.
 - Before a PR update, run `pnpm test`, `pnpm typecheck`, `pnpm lint`, and
   `pnpm format:check`.

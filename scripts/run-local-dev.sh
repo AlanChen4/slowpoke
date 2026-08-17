@@ -2,6 +2,50 @@
 
 set -euo pipefail
 
+print_help() {
+  printf '%s\n' \
+    'Start the Slowpoke local development stack.' \
+    '' \
+    'Usage:' \
+    '  pnpm dev [--dry-run]' \
+    '' \
+    'Options:' \
+    '  --dry-run   Print the services without starting them.' \
+    '  --help, -h  Show this help.' \
+    '' \
+    'Examples:' \
+    '  pnpm dev' \
+    '  pnpm dev --dry-run'
+}
+
+dry_run=false
+for argument in "$@"; do
+  case "$argument" in
+    --help | -h)
+      print_help
+      exit 0
+      ;;
+    --dry-run)
+      dry_run=true
+      ;;
+    *)
+      printf 'Error: Unexpected argument: %s\n' "$argument" >&2
+      printf '  Example: pnpm dev --dry-run\n' >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "$dry_run" == true ]]; then
+  printf '%s\n' \
+    'status: dry-run' \
+    'web_url: http://127.0.0.1:3123' \
+    'backend_url: http://127.0.0.1:8000' \
+    'collector_url: http://127.0.0.1:4318' \
+    'studio_url: http://127.0.0.1:55323'
+  exit 0
+fi
+
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_root="$(cd -- "$script_dir/.." && pwd)"
 collector_name="slowpoke-collector-local-$$"
