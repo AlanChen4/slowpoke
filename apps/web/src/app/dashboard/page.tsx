@@ -8,7 +8,7 @@ import { PromptRefreshButton } from "@/app/dashboard/prompt-refresh";
 import { PromptSearch } from "@/app/dashboard/prompt-search";
 import { PromptScopeFilter, type PromptScope } from "@/app/dashboard/prompt-scope-filter";
 import { PromptTime } from "@/app/dashboard/prompt-time";
-import { ProviderIdentity } from "@/components/provider-identity";
+import { PromptSourceIdentity } from "@/components/provider-identity";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Empty,
@@ -100,7 +100,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   let promptQuery = selectedOrganization
     ? supabase
         .from(promptSource)
-        .select("id,provider,actor_email,prompt_text,is_redacted,occurred_at", {
+        .select("id,provider,event_name,actor_email,prompt_text,is_redacted,occurred_at", {
           count: "exact",
         })
         .eq("organization_id", selectedOrganization.id)
@@ -199,7 +199,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   className="grid max-w-full min-w-0 gap-3 p-4 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none sm:grid-cols-[9rem_minmax(0,1fr)] sm:p-5"
                 >
                   <div className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
-                    <ProviderIdentity
+                    <PromptSourceIdentity
+                      eventName={prompt.event_name}
                       provider={prompt.provider}
                       className="font-medium text-foreground"
                     />

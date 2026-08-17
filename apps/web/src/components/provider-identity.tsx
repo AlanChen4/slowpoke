@@ -7,6 +7,16 @@ type ProviderIdentityProps = {
   provider: string;
 };
 
+type PromptSourceIdentityProps = ProviderIdentityProps & {
+  eventName: string;
+};
+
+type IdentityProps = {
+  className?: string;
+  fallback: string;
+  identity: ReturnType<typeof providerDetails>;
+};
+
 function providerDetails(provider: string) {
   switch (provider.toLowerCase()) {
     case "anthropic":
@@ -18,9 +28,18 @@ function providerDetails(provider: string) {
   }
 }
 
-export function ProviderIdentity({ className, provider }: ProviderIdentityProps) {
-  const identity = providerDetails(provider);
+function promptSourceDetails(eventName: string, provider: string) {
+  switch (eventName.toLowerCase()) {
+    case "claude_code.user_prompt":
+      return { label: "Claude Code", logo: "/claude-logo.png" };
+    case "codex.user_prompt":
+      return { label: "Codex", logo: "/openai-logo.png" };
+    default:
+      return providerDetails(provider);
+  }
+}
 
+function Identity({ className, identity, fallback }: IdentityProps) {
   return (
     <span className={cn("inline-flex items-center gap-1.5", className)}>
       {identity ? (
@@ -33,7 +52,27 @@ export function ProviderIdentity({ className, provider }: ProviderIdentityProps)
           className="shrink-0 object-contain"
         />
       ) : null}
-      <span>{identity?.label ?? provider}</span>
+      <span>{identity?.label ?? fallback}</span>
     </span>
+  );
+}
+
+export function ProviderIdentity({ className, provider }: ProviderIdentityProps) {
+  return (
+    <Identity className={className} identity={providerDetails(provider)} fallback={provider} />
+  );
+}
+
+export function PromptSourceIdentity({
+  className,
+  eventName,
+  provider,
+}: PromptSourceIdentityProps) {
+  return (
+    <Identity
+      className={className}
+      identity={promptSourceDetails(eventName, provider)}
+      fallback={eventName}
+    />
   );
 }

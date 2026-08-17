@@ -9,7 +9,7 @@ import {
   promptTextSegments,
   type PromptTextSegment,
 } from "@/app/dashboard/human-prompt-text";
-import { ProviderIdentity } from "@/components/provider-identity";
+import { PromptSourceIdentity, ProviderIdentity } from "@/components/provider-identity";
 import { env } from "@/env";
 import { getAuthClaims } from "@/lib/auth-context";
 import { getOrganizationContext } from "@/lib/organization-context";
@@ -310,6 +310,9 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
               <time dateTime={prompt.occurred_at}>
                 {dateFormatter.format(new Date(prompt.occurred_at))}
               </time>
+            </DetailItem>
+            <DetailItem label="Tool">
+              <PromptSourceIdentity eventName={prompt.event_name} provider={prompt.provider} />
             </DetailItem>
             <DetailItem label="Provider">
               <ProviderIdentity provider={prompt.provider} />
