@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { DashboardTitle } from "@/components/dashboard-title";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -47,7 +48,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
             <div className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2 px-6 sm:px-10 lg:px-12">
               <SidebarTrigger className="md:hidden" />
               <Separator orientation="vertical" className="my-3 md:hidden" />
-              <p className="text-xs text-muted-foreground">AI activity workspace</p>
+              <DashboardTitle />
             </div>
           </header>
           <div className="flex min-w-0 flex-1 flex-col px-6 py-8 sm:px-10 lg:px-12">{children}</div>

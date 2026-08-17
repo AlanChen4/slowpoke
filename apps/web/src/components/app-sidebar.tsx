@@ -120,7 +120,7 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
                 className="h-12 w-full min-w-0"
                 aria-label="Organization"
               >
-                <Avatar className="rounded-none after:hidden">
+                <Avatar className="rounded-none after:hidden" size="sm">
                   {selectedOrganization?.logoUrl ? (
                     <AvatarImage
                       className="rounded-none"
