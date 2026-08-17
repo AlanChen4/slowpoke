@@ -4,7 +4,12 @@ import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import * as z from "zod";
 
-import { humanPromptText } from "@/app/dashboard/human-prompt-text";
+import {
+  humanPromptText,
+  promptTextSegments,
+  type PromptTextSegment,
+} from "@/app/dashboard/human-prompt-text";
+import { ProviderIdentity } from "@/components/provider-identity";
 import { env } from "@/env";
 import { getAuthClaims } from "@/lib/auth-context";
 import { getOrganizationContext } from "@/lib/organization-context";
@@ -64,12 +69,31 @@ function DetailItem({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-function PromptPanel({ label, text, tone }: { label: string; text: string; tone?: "muted" }) {
+function PromptBreakdown({ segments }: { segments: PromptTextSegment[] }) {
   return (
-    <article className={cn("min-w-0 border", tone === "muted" && "bg-muted/30")}>
-      <header className="border-b px-4 py-3 text-xs font-medium">{label}</header>
+    <article className="min-w-0 border">
+      <header className="flex flex-wrap items-center gap-4 border-b px-4 py-3 text-xs font-medium">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 bg-human-highlight" aria-hidden="true" />
+          Human input
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2.5 bg-harness-highlight" aria-hidden="true" />
+          Added by harness
+        </span>
+      </header>
       <p className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words p-4 font-mono text-xs leading-6">
-        {text}
+        {segments.map((segment, index) => (
+          <mark
+            key={`${segment.source}:${index}`}
+            className={cn(
+              "box-decoration-clone text-foreground",
+              segment.source === "human" ? "bg-human-highlight" : "bg-harness-highlight",
+            )}
+          >
+            {segment.text}
+          </mark>
+        ))}
       </p>
     </article>
   );
@@ -235,20 +259,23 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
     selectedBatchResult.data?.raw_payload,
     prompt.record_index,
   );
-  const humanText = prompt.is_redacted
-    ? "Prompt content was redacted."
-    : humanPromptText(prompt.prompt_text);
   const sentText = prompt.is_redacted ? "Prompt content was redacted." : prompt.prompt_text;
-  const addedCharacters = Math.max(0, sentText.length - humanText.length);
+  const promptSegments = prompt.is_redacted
+    ? [{ source: "human" as const, text: sentText }]
+    : promptTextSegments(prompt.prompt_text);
+  let humanCharacters = 0;
+  let harnessCharacters = 0;
+
+  for (const segment of promptSegments) {
+    if (segment.source === "human") {
+      humanCharacters += segment.text.length;
+    } else {
+      harnessCharacters += segment.text.length;
+    }
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-      <div className="flex justify-end">
-        <p className="text-xs text-muted-foreground">
-          {dateFormatter.format(new Date(prompt.occurred_at))}
-        </p>
-      </div>
-
       <section className="space-y-4" aria-labelledby="prompt-comparison-heading">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -257,16 +284,13 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
               Prompt comparison
             </h2>
             <output className="text-xs text-muted-foreground">
-              {numberFormatter.format(humanText.length)} human characters ·{" "}
+              {numberFormatter.format(humanCharacters)} human characters ·{" "}
               {numberFormatter.format(sentText.length)} sent ·{" "}
-              {numberFormatter.format(addedCharacters)} added by context
+              {numberFormatter.format(harnessCharacters)} added by harness
             </output>
           </div>
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <PromptPanel label="Human input" text={humanText} />
-          <PromptPanel label="Actually sent" text={sentText} tone="muted" />
-        </div>
+        <PromptBreakdown segments={promptSegments} />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1fr_2fr]">
@@ -307,6 +331,14 @@ export default async function MessageDetailPage({ params, searchParams }: Messag
             <h2 className="text-lg font-semibold">Metadata</h2>
           </div>
           <dl className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+            <DetailItem label="Occurred at">
+              <time dateTime={prompt.occurred_at}>
+                {dateFormatter.format(new Date(prompt.occurred_at))}
+              </time>
+            </DetailItem>
+            <DetailItem label="Provider">
+              <ProviderIdentity provider={prompt.provider} />
+            </DetailItem>
             <DetailItem label="Event">{prompt.event_name}</DetailItem>
             <DetailItem label="Model">{prompt.model}</DetailItem>
             <DetailItem label="Originator">{prompt.originator}</DetailItem>

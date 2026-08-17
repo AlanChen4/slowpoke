@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { humanPromptText } from "./human-prompt-text";
+import { humanPromptText, promptTextSegments } from "./human-prompt-text";
 
 describe("humanPromptText", () => {
   it("extracts the request after ambient browser context", () => {
@@ -55,5 +55,36 @@ Generated browser context
 
   it("preserves an unwrapped prompt", () => {
     expect(humanPromptText("  Explain this query.  ")).toBe("Explain this query.");
+  });
+
+  it("marks an unwrapped prompt as human input", () => {
+    expect(promptTextSegments("  Explain this query.  ")).toEqual([
+      { source: "human", text: "  Explain this query.  " },
+    ]);
+  });
+
+  it("separates harness context from every human-authored part", () => {
+    const prompt = `# Browser comments:
+
+## User Comment 1
+Comment:
+Fix the title
+
+## User Comment 2
+Comment:
+Remove the button
+
+<in-app-browser-context source="ambient-ui-state">
+Generated browser context
+</in-app-browser-context>
+
+## My request:
+Please ship both changes`;
+    const segments = promptTextSegments(prompt);
+
+    expect(segments.map((segment) => segment.text).join("")).toBe(prompt);
+    expect(
+      segments.filter((segment) => segment.source === "human").map((segment) => segment.text),
+    ).toEqual(["Fix the title", "Remove the button", "Please ship both changes"]);
   });
 });

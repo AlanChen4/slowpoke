@@ -36,7 +36,7 @@ function browserCommentTexts(promptText: string) {
     .filter(Boolean);
 }
 
-export function humanPromptText(promptText: string) {
+function humanPromptParts(promptText: string) {
   const parts = browserCommentTexts(promptText);
   const request = requestText(promptText);
 
@@ -44,5 +44,48 @@ export function humanPromptText(promptText: string) {
     parts.push(request);
   }
 
+  return parts;
+}
+
+export function humanPromptText(promptText: string) {
+  const parts = humanPromptParts(promptText);
+
   return parts.length > 0 ? parts.join("\n\n") : promptText.trim();
+}
+
+export type PromptTextSegment = {
+  source: "harness" | "human";
+  text: string;
+};
+
+export function promptTextSegments(promptText: string): PromptTextSegment[] {
+  const humanParts = humanPromptParts(promptText);
+
+  if (humanParts.length === 0) {
+    return promptText ? [{ source: "human", text: promptText }] : [];
+  }
+
+  const segments: PromptTextSegment[] = [];
+  let cursor = 0;
+
+  for (const part of humanParts) {
+    const start = promptText.indexOf(part, cursor);
+
+    if (start === -1) {
+      return [{ source: "harness", text: promptText }];
+    }
+
+    if (start > cursor) {
+      segments.push({ source: "harness", text: promptText.slice(cursor, start) });
+    }
+
+    segments.push({ source: "human", text: part });
+    cursor = start + part.length;
+  }
+
+  if (cursor < promptText.length) {
+    segments.push({ source: "harness", text: promptText.slice(cursor) });
+  }
+
+  return segments;
 }

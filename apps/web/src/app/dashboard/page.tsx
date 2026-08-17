@@ -8,6 +8,7 @@ import { PromptRefreshButton } from "@/app/dashboard/prompt-refresh";
 import { PromptSearch } from "@/app/dashboard/prompt-search";
 import { PromptScopeFilter, type PromptScope } from "@/app/dashboard/prompt-scope-filter";
 import { PromptTime } from "@/app/dashboard/prompt-time";
+import { ProviderIdentity } from "@/components/provider-identity";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Empty,
@@ -32,10 +33,6 @@ import { cn } from "@/lib/utils";
 
 const promptsPerPage = 25;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
-
-function providerName(provider: string) {
-  return provider === "openai" ? "OpenAI" : provider;
-}
 
 function pageHref(scope: PromptScope, page: number, searchQuery: string) {
   const params = new URLSearchParams();
@@ -202,7 +199,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   className="grid max-w-full min-w-0 gap-3 p-4 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none sm:grid-cols-[9rem_minmax(0,1fr)] sm:p-5"
                 >
                   <div className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
-                    <p className="font-medium text-foreground">{providerName(prompt.provider)}</p>
+                    <ProviderIdentity
+                      provider={prompt.provider}
+                      className="font-medium text-foreground"
+                    />
                     <p>{prompt.actor_email ?? "Unknown user"}</p>
                     <PromptTime occurredAt={prompt.occurred_at} />
                   </div>
