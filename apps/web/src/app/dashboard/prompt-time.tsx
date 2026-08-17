@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { usePromptRefresh } from "@/app/dashboard/prompt-refresh";
+
 const relativeTimeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 const dateFormatter = new Intl.DateTimeFormat("en", {
   dateStyle: "medium",
@@ -29,6 +31,7 @@ function promptDate(occurredAt: string, now: number) {
 }
 
 export function PromptTime({ occurredAt }: { occurredAt: string }) {
+  const { refreshVersion } = usePromptRefresh();
   const absoluteDate = dateFormatter.format(new Date(occurredAt));
   const [label, setLabel] = useState(absoluteDate);
 
@@ -41,7 +44,7 @@ export function PromptTime({ occurredAt }: { occurredAt: string }) {
     const interval = window.setInterval(updateLabel, 60_000);
 
     return () => window.clearInterval(interval);
-  }, [occurredAt]);
+  }, [occurredAt, refreshVersion]);
 
   return (
     <time dateTime={occurredAt} title={absoluteDate}>

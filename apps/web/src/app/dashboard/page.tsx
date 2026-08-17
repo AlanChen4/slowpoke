@@ -4,11 +4,11 @@ import { WarningCircleIcon } from "@phosphor-icons/react/dist/ssr";
 import { Fragment } from "react";
 
 import { humanPromptText } from "@/app/dashboard/human-prompt-text";
+import { PromptRefreshButton } from "@/app/dashboard/prompt-refresh";
 import { PromptSearch } from "@/app/dashboard/prompt-search";
 import { PromptScopeFilter, type PromptScope } from "@/app/dashboard/prompt-scope-filter";
 import { PromptTime } from "@/app/dashboard/prompt-time";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { buttonVariants } from "@/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -143,7 +143,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const promptRows = prompts ?? [];
-  const refreshHref = pageHref(scope, currentPage, searchQuery);
   const visiblePages = paginationPages(currentPage, totalPages);
   const promptsErrorMessage =
     promptsError?.code === "PGRST303"
@@ -169,9 +168,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </div>
         <div className="flex shrink-0 items-end gap-2 self-end">
           <PromptScopeFilter value={scope} />
-          <Link href={refreshHref} className={cn(buttonVariants({ variant: "outline" }))}>
-            Refresh
-          </Link>
+          <PromptRefreshButton />
         </div>
       </div>
 

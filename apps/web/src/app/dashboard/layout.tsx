@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { PromptRefreshProvider } from "@/app/dashboard/prompt-refresh";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardTitle } from "@/components/dashboard-title";
 import { Separator } from "@/components/ui/separator";
@@ -51,7 +52,11 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
               <DashboardTitle />
             </div>
           </header>
-          <div className="flex min-w-0 flex-1 flex-col px-6 py-8 sm:px-10 lg:px-12">{children}</div>
+          <PromptRefreshProvider>
+            <div className="flex min-w-0 flex-1 flex-col px-6 py-8 sm:px-10 lg:px-12">
+              {children}
+            </div>
+          </PromptRefreshProvider>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
