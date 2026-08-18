@@ -1,0 +1,21 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // uv is a required system binary, not an npm dependency.
+  "ignoreBinaries": ["uv"],
+  // Shell scripts invoke the local Supabase CLI, which Knip cannot trace.
+  "ignoreDependencies": ["supabase"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs", "tests/**/*.test.mjs", "tools/oxlint/*/index.ts"],
+      "project": ["scripts/**/*.mjs", "tests/**/*.mjs", "tools/oxlint/**/*.ts"],
+      "ignoreExportsUsedInFile": true,
+    },
+    "apps/web": {
+      // shadcn components intentionally expose reusable component APIs.
+      "ignoreIssues": {
+        "src/components/ui/**": ["exports", "types"],
+      },
+      "ignoreExportsUsedInFile": true,
+    },
+  },
+}

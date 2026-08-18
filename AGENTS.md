@@ -40,8 +40,10 @@ rebuild it from migrations and seed data without an interactive confirmation.
 - `pnpm test`: Run the default test suite.
 - `pnpm test --help`: List focused suites, examples, and dry-run support.
 - `pnpm test:e2e`: Run real Codex and Claude prompts through the local stack.
+- `pnpm knip`: Find unused JavaScript and TypeScript files, dependencies, and exports.
+- `pnpm deptry`: Find missing, transitive, and unused Python dependencies.
 - Before a PR update, run `pnpm test`, `pnpm typecheck`, `pnpm lint`, and
-  `pnpm format:check`.
+  `pnpm format:check`, plus `pnpm knip` and `pnpm deptry`.
 
 ## UI headings
 

@@ -16,16 +16,19 @@
     "lint:fix": "pnpm lint:js:fix && pnpm lint:python:fix",
     "lint:js": "oxlint --deny-warnings",
     "lint:js:fix": "oxlint --fix --deny-warnings",
-    "lint:python": "cd apps/backend && uv run ruff check .",
-    "lint:python:fix": "cd apps/backend && uv run ruff check --fix .",
-    "format": "oxfmt && (cd apps/backend && uv run ruff format .)",
-    "format:check": "oxfmt --check && (cd apps/backend && uv run ruff format --check .)",
+    "lint:python": "(cd apps/backend && uv run ruff check .) && (cd apps/collector && uv run ruff check .)",
+    "lint:python:fix": "(cd apps/backend && uv run ruff check --fix .) && (cd apps/collector && uv run ruff check --fix .)",
+    "knip": "knip --treat-config-hints-as-errors",
+    "deptry": "cd apps/backend && uv run deptry . && cd ../collector && uv run deptry .",
+    "format": "oxfmt && (cd apps/backend && uv run ruff format .) && (cd apps/collector && uv run ruff format .)",
+    "format:check": "oxfmt --check && (cd apps/backend && uv run ruff format --check .) && (cd apps/collector && uv run ruff format --check .)",
     "db:reset": "bash scripts/reset-local-database.sh",
     "db:types": "bash scripts/generate-python-db-types.sh > apps/backend/slowpoke_backend/database_types.py",
     "check:metadata": "node scripts/check-metadata.mjs"
   },
   "devDependencies": {
     "@oxlint/plugins": "1.78.0",
+    "knip": "6.32.2",
     "oxfmt": "^0.61.0",
     "oxlint": "1.78.0",
     "supabase": "^2.110.0"
