@@ -55,7 +55,7 @@ function Progress({ current }: { current: number }) {
             className={`h-1 ${index + 1 <= current ? "bg-primary" : "bg-border"}`}
             aria-hidden="true"
           />
-          <span className="truncate text-[10px] text-muted-foreground">{label}</span>
+          <span className="truncate text-center text-[10px] text-muted-foreground">{label}</span>
         </li>
       ))}
     </ol>
@@ -159,7 +159,7 @@ function OrganizationStep({
             ))}
           </div>
         ) : null}
-        <form action={action} className="flex flex-col gap-4 border-t pt-5">
+        <form action={action} className="flex flex-col gap-4">
           <Input type="hidden" name="idempotencyKey" value={idempotencyKey} />
           <FieldGroup>
             <Field>
@@ -168,10 +168,7 @@ function OrganizationStep({
             </Field>
           </FieldGroup>
           {state.error ? <FieldError>{state.error}</FieldError> : null}
-          <div className="flex items-center justify-between">
-            <Link href="/" className={buttonVariants({ variant: "outline" })}>
-              Back
-            </Link>
+          <div className="flex justify-end">
             <Button type="submit" disabled={pending}>
               {pending ? "Creating…" : "Create organization"}
             </Button>

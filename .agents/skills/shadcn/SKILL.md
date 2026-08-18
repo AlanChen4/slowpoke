@@ -68,6 +68,7 @@ These rules are **always enforced**. Each links to a file with Incorrect/Correct
   Base UI projects. Use `toast()` from `sonner` for Radix and React Aria
   projects.
 - **Use `Separator`** instead of `<hr>` or `<div className="border-t">`.
+- **Avoid ornamental one-sided borders.** Do not add `border-t` or `border-b` only to create visual separation inside a card, form, or section. Prefer spacing and grouping; use `Separator` only for a meaningful structural boundary.
 - **Use `Skeleton`** for loading placeholders. No custom `animate-pulse` divs.
 - **Use `Badge`** instead of custom styled spans.
 
