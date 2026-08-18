@@ -16,6 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: write
   contents: write
   id-token: write
   pull-requests: write
@@ -64,3 +65,13 @@ jobs:
           - `pnpm --filter @slowpokeai/setup test`
           - Changesets version calculation
           EOF
+      - name: Check release pull request
+        if: steps.changesets.outputs.pr-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PR: ${{ steps.changesets.outputs.pr-number }}
+        run: |
+          gh workflow run ci.yml --ref changeset-release/main
+          gh workflow run metadata.yml \
+            --ref changeset-release/main \
+            -f pull_request_number="$RELEASE_PR"

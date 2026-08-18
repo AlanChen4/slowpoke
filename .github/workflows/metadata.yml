@@ -3,15 +3,23 @@ name: Git metadata
 on:
   pull_request:
     types: [edited, opened, reopened, synchronize]
+  workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: Pull request number to validate
+        required: true
+        type: string
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   validate:
     name: Validate commits and PR
     # The release workflow replaces the Changesets body immediately after opening its PR.
     if: >-
+      github.event_name == 'workflow_dispatch' ||
       github.event.action != 'opened' ||
       github.head_ref != 'changeset-release/main' ||
       github.actor != 'github-actions[bot]' ||
@@ -22,6 +30,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/head', inputs.pull_request_number) || github.sha }}
 
       - name: Validate metadata
-        run: node scripts/check-metadata.mjs event "$GITHUB_EVENT_PATH"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            pull_request_file="$(mktemp)"
+            event_file="$(mktemp)"
+            gh api "repos/$GITHUB_REPOSITORY/pulls/${{ inputs.pull_request_number }}" > "$pull_request_file"
+            jq --slurpfile pull_request "$pull_request_file" \
+              '{pull_request: $pull_request[0]}' > "$event_file"
+            node scripts/check-metadata.mjs event "$event_file"
+          else
+            node scripts/check-metadata.mjs event "$GITHUB_EVENT_PATH"
+          fi
