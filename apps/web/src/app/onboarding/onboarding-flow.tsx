@@ -23,7 +23,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Field,
-  FieldContent,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -210,19 +209,17 @@ function ToolStep({
                     aria-label={label}
                     className="size-4"
                   />
-                  <FieldContent>
-                    <FieldTitle>
-                      <Image
-                        src={logo}
-                        alt=""
-                        aria-hidden="true"
-                        width={18}
-                        height={18}
-                        className="shrink-0 object-contain"
-                      />
-                      {label}
-                    </FieldTitle>
-                  </FieldContent>
+                  <FieldTitle>
+                    <Image
+                      src={logo}
+                      alt=""
+                      aria-hidden="true"
+                      width={18}
+                      height={18}
+                      className="shrink-0 object-contain"
+                    />
+                    {label}
+                  </FieldTitle>
                 </Field>
               </FieldLabel>
             ))}
