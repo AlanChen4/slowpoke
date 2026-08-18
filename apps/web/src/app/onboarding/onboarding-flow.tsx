@@ -3,7 +3,7 @@
 /* CardTitle renders a div so onboarding can provide accessible headings without native heading elements. */
 /* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
-import { CheckCircleIcon, CircleNotchIcon, ClipboardIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleNotchIcon } from "@phosphor-icons/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +18,7 @@ import {
   declineInvitation,
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
+import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -308,7 +309,6 @@ function ConnectionStep({
   onBack: () => void;
   onCheck: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
   return (
     <Card>
       <CardHeader>
@@ -317,25 +317,7 @@ function ConnectionStep({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="relative border bg-foreground p-4 pr-12 text-background">
-          <code className="block overflow-x-auto whitespace-nowrap font-mono text-xs">
-            {command}
-          </code>
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon-sm"
-            className="absolute right-2 top-2"
-            aria-label="Copy setup command"
-            onClick={async () => {
-              await navigator.clipboard.writeText(command);
-              setCopied(true);
-            }}
-          >
-            <ClipboardIcon />
-          </Button>
-        </div>
-        <output className="sr-only">{copied ? "Command copied." : ""}</output>
+        <EnrollmentCodeBlock command={command} />
       </CardContent>
       <CardFooter className="justify-between">
         <Button type="button" variant="outline" onClick={onBack}>
