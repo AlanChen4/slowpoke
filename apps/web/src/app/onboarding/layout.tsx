@@ -2,15 +2,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { logout } from "@/app/auth/actions";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { getAuthClaims } from "@/lib/auth-context";
+import { getOrganizationContext } from "@/lib/organization-context";
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const { data, error } = await getAuthClaims();
   if (error || !data?.claims) {
     redirect("/login");
   }
+  const { selectedOrganization } = await getOrganizationContext();
+  const canReturnToDashboard = selectedOrganization?.completed === true;
 
   return (
     <main className="flex min-h-screen flex-col bg-muted/30">
@@ -26,13 +28,14 @@ export default async function OnboardingLayout({ children }: { children: React.R
               priority
             />
           </Link>
-          <div className="ml-auto flex items-center gap-3">
-            <form action={logout}>
-              <Button type="submit" variant="ghost" size="sm">
-                Log out
-              </Button>
-            </form>
-          </div>
+          {canReturnToDashboard ? (
+            <Link
+              href="/dashboard"
+              className={buttonVariants({ variant: "ghost", size: "sm", className: "ml-auto" })}
+            >
+              Go back
+            </Link>
+          ) : null}
         </div>
       </nav>
       <div className="mx-auto flex w-full max-w-3xl flex-1 items-start px-5 py-10 sm:px-8 sm:py-16">
