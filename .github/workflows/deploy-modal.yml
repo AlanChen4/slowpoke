@@ -18,8 +18,101 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy production
+  changes:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.services.outputs.backend }}
+      collector: ${{ steps.services.outputs.collector }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed services
+        id: services
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          backend=false
+          collector=false
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            backend=true
+            collector=true
+          else
+            shared_paths=(scripts/sync-modal-secrets.sh .github/workflows/deploy-modal.yml)
+            if ! git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- apps/backend "${shared_paths[@]}"; then
+              backend=true
+            fi
+            if ! git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- apps/collector "${shared_paths[@]}"; then
+              collector=true
+            fi
+          fi
+
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "collector=$collector" >> "$GITHUB_OUTPUT"
+
+  deploy-backend:
+    name: Deploy backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: Production
+      url: ${{ vars.SLOWPOKE_BACKEND_URL }}
+    env:
+      DOPPLER_CONFIG: ${{ vars.DOPPLER_CONFIG }}
+      DOPPLER_PROJECT: ${{ vars.DOPPLER_PROJECT }}
+      DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+      MODAL_ENVIRONMENT: ${{ vars.MODAL_ENVIRONMENT }}
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/backend/uv.lock
+
+      - name: Install Doppler CLI
+        uses: DopplerHQ/cli-action@014df23b1329b615816a38eb5f473bb9000700b1 # v3
+
+      - name: Install backend dependencies
+        run: uv sync --locked
+        working-directory: apps/backend
+
+      - name: Test backend
+        run: uv run pytest
+        working-directory: apps/backend
+
+      - name: Sync backend secrets to Modal
+        run: bash scripts/sync-modal-secrets.sh --service backend
+
+      - name: Deploy backend
+        run: uv run modal deploy --env "$MODAL_ENVIRONMENT" modal_app.py
+        working-directory: apps/backend
+
+      - name: Refresh backend containers
+        run: uv run modal app rollover --env "$MODAL_ENVIRONMENT" slowpoke-backend
+        working-directory: apps/backend
+
+      - name: Check backend health
+        run: curl --fail --retry 5 --retry-all-errors --max-time 90 "$SLOWPOKE_BACKEND_URL/healthz"
+        env:
+          SLOWPOKE_BACKEND_URL: ${{ vars.SLOWPOKE_BACKEND_URL }}
+
+  deploy-collector:
+    name: Deploy Collector
+    needs: changes
+    if: needs.changes.outputs.collector == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
@@ -41,49 +134,26 @@ jobs:
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
-          cache-dependency-glob: |
-            apps/backend/uv.lock
-            apps/collector/uv.lock
+          cache-dependency-glob: apps/collector/uv.lock
 
       - name: Install Doppler CLI
         uses: DopplerHQ/cli-action@014df23b1329b615816a38eb5f473bb9000700b1 # v3
 
-      - name: Install backend dependencies
-        run: uv sync --locked
-        working-directory: apps/backend
-
-      - name: Install collector dependencies
+      - name: Install Collector dependencies
         run: uv sync --locked
         working-directory: apps/collector
 
-      - name: Test backend
-        run: uv run pytest
-        working-directory: apps/backend
-
-      - name: Test collector
+      - name: Test Collector
         run: uv run pytest
         working-directory: apps/collector
 
-      - name: Sync Doppler secrets to Modal
-        run: bash scripts/sync-modal-secrets.sh
+      - name: Sync Collector secrets to Modal
+        run: bash scripts/sync-modal-secrets.sh --service collector
 
-      - name: Deploy backend
-        run: uv run modal deploy --env "$MODAL_ENVIRONMENT" modal_app.py
-        working-directory: apps/backend
-
-      - name: Refresh backend containers
-        run: uv run modal app rollover --env "$MODAL_ENVIRONMENT" slowpoke-backend
-        working-directory: apps/backend
-
-      - name: Deploy collector
+      - name: Deploy Collector
         run: uv run modal deploy --env "$MODAL_ENVIRONMENT" modal_app.py
         working-directory: apps/collector
 
-      - name: Refresh collector containers
+      - name: Refresh Collector containers
         run: uv run modal app rollover --env "$MODAL_ENVIRONMENT" slowpoke-collector
         working-directory: apps/collector
-
-      - name: Check backend health
-        run: curl --fail --retry 5 --retry-all-errors --max-time 90 "$SLOWPOKE_BACKEND_URL/healthz"
-        env:
-          SLOWPOKE_BACKEND_URL: ${{ vars.SLOWPOKE_BACKEND_URL }}
