@@ -438,12 +438,14 @@ export function OnboardingFlow({
       ) : checking ? (
         <Card>
           <CardHeader>
-            <div className="mb-2 flex size-8 animate-spin items-center justify-center text-primary">
-              <CircleNotchIcon />
+            <div className="flex items-center gap-2">
+              <div className="flex size-4 animate-spin items-center justify-center text-primary">
+                <CircleNotchIcon />
+              </div>
+              <CardTitle role="heading" aria-level={1} className="text-base">
+                Waiting for the verification event
+              </CardTitle>
             </div>
-            <CardTitle role="heading" aria-level={1} className="text-base">
-              Checking the connection
-            </CardTitle>
           </CardHeader>
           {checkError ? (
             <CardContent>
