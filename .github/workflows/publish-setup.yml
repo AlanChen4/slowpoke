@@ -2,8 +2,15 @@ name: Publish setup package
 
 on:
   push:
-    tags:
-      - "setup-v*"
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-setup.yml"
+      - "packages/setup/**"
+
+concurrency:
+  group: publish-setup
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -22,8 +29,10 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-          cache: pnpm
+          package-manager-cache: false
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @slowpoke/setup test
-      - run: npm publish --provenance --access public
+      - run: pnpm --filter @slowpokeai/setup test
+      - run: npm publish --access public
         working-directory: packages/setup
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

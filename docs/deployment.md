@@ -56,9 +56,20 @@ re-enrollment window before changing the key or key ID.
 
 ## Setup package publishing
 
-The `Publish setup package` workflow runs for tags that match `setup-v*`. The
-`npm` GitHub environment must be an approved trusted publisher for
-`@slowpoke/setup`. The workflow publishes with npm provenance and public access.
+The `Publish setup package` workflow publishes `@slowpokeai/setup` after a
+change to the package reaches `main`. Increase the version in
+`packages/setup/package.json` for each release.
+
+Create the `slowpokeai` organization on npm before the first release. Create a
+GitHub environment named `npm`, then add an `NPM_TOKEN` environment secret that
+can publish public packages in the `@slowpokeai` scope. The first merge publishes
+the package with public access.
+
+After the first release, configure `@slowpokeai/setup` to trust the GitHub
+Actions workflow `publish-setup.yml` in `AlanChen4/slowpoke`. Set the environment
+name to `npm` and allow `npm publish`. Trusted publishing uses the workflow's
+OpenID Connect identity and adds npm provenance. Remove `NPM_TOKEN` after the
+trusted publisher succeeds.
 
 The web deployment also requires `SLOWPOKE_SETUP_SERVER`. Set it to the public
 HTTPS backend origin used by the setup command.

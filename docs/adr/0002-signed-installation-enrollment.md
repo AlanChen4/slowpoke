@@ -50,7 +50,7 @@ from revoked installations.
 
 ### Configure tools with one setup package
 
-`@slowpoke/setup` writes each token only to its tool's user configuration. It
+`@slowpokeai/setup` writes each token only to its tool's user configuration. It
 preserves unrelated Codex TOML and Claude Code JSON settings. Writes are atomic,
 files use private permissions, and each existing file gets one backup.
 

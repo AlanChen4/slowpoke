@@ -109,7 +109,7 @@ function verificationPayload() {
         resource: { attributes: [] },
         scopeLogs: [
           {
-            scope: { name: "@slowpoke/setup" },
+            scope: { name: "@slowpokeai/setup" },
             logRecords: [{ body: { stringValue: "slowpoke.setup.verification" } }],
           },
         ],

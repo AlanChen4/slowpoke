@@ -1,7 +1,7 @@
 import { CodeBlock } from "@/components/ui/code-block";
 
 function EnrollmentCodeBlock({ command }: { command: string }) {
-  const npxPrefix = "npx @slowpoke/setup ";
+  const npxPrefix = "npx @slowpokeai/setup ";
   const enrollmentArguments = command.startsWith(npxPrefix)
     ? command.slice(npxPrefix.length)
     : command;
@@ -13,17 +13,17 @@ function EnrollmentCodeBlock({ command }: { command: string }) {
         { filename: "npx", code: command, language: "bash" },
         {
           filename: "pnpm",
-          code: `pnpm dlx @slowpoke/setup ${enrollmentArguments}`,
+          code: `pnpm dlx @slowpokeai/setup ${enrollmentArguments}`,
           language: "bash",
         },
         {
           filename: "yarn",
-          code: `yarn dlx @slowpoke/setup ${enrollmentArguments}`,
+          code: `yarn dlx @slowpokeai/setup ${enrollmentArguments}`,
           language: "bash",
         },
         {
           filename: "bun",
-          code: `bunx @slowpoke/setup ${enrollmentArguments}`,
+          code: `bunx @slowpokeai/setup ${enrollmentArguments}`,
           language: "bash",
         },
       ]}

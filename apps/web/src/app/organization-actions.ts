@@ -284,7 +284,7 @@ export async function createInstallationSetupSession(
       message: "Setup command created.",
       setupSessionId: setupSession.id,
       organizationId: parsed.data.organizationId,
-      setupCommand: `npx @slowpoke/setup enroll --code ${code} --server ${env.SLOWPOKE_SETUP_SERVER}`,
+      setupCommand: `npx @slowpokeai/setup enroll --code ${code} --server ${env.SLOWPOKE_SETUP_SERVER}`,
     };
   } catch (error) {
     return actionError(error instanceof Error ? error : new Error("Unknown setup session error"));

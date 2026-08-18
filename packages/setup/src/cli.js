@@ -7,17 +7,17 @@ import { applyConfigurationPlans, planConfigurations } from "./config.js";
 export const ROOT_HELP = `Connect AI tools to Slowpoke.
 
 Usage:
-  npx @slowpoke/setup enroll [options]
+  npx @slowpokeai/setup enroll [options]
 
 Commands:
   enroll  Connect the AI tools selected in Slowpoke
 
-Run "npx @slowpoke/setup enroll --help" for enrollment options and examples.`;
+Run "npx @slowpokeai/setup enroll --help" for enrollment options and examples.`;
 
 export const ENROLL_HELP = `Connect this computer to Slowpoke.
 
 Usage:
-  npx @slowpoke/setup enroll --code <code> --server <url> [options]
+  npx @slowpokeai/setup enroll --code <code> --server <url> [options]
 
 Required:
   --code <code>             Short-lived setup code from Slowpoke
@@ -29,9 +29,9 @@ Options:
   --help, -h                Show this help
 
 Examples:
-  npx @slowpoke/setup enroll --code abc123 --server https://app.slowpoke.dev
-  npx @slowpoke/setup enroll --code abc123 --server https://app.slowpoke.dev --computer-name "Ada's laptop"
-  npx @slowpoke/setup enroll --code abc123 --server https://app.slowpoke.dev --dry-run`;
+  npx @slowpokeai/setup enroll --code abc123 --server https://app.slowpoke.dev
+  npx @slowpokeai/setup enroll --code abc123 --server https://app.slowpoke.dev --computer-name "Ada's laptop"
+  npx @slowpokeai/setup enroll --code abc123 --server https://app.slowpoke.dev --dry-run`;
 
 function parseEnrollArguments(argumentsToParse) {
   const options = { dryRun: false };

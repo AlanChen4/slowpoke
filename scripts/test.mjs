@@ -53,7 +53,7 @@ const suites = new Map([
     "setup",
     {
       description: "public setup package tests",
-      steps: [{ command: "pnpm", args: ["--filter", "@slowpoke/setup", "test"] }],
+      steps: [{ command: "pnpm", args: ["--filter", "@slowpokeai/setup", "test"] }],
     },
   ],
   [
