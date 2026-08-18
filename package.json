@@ -21,7 +21,7 @@
     "format": "oxfmt && (cd apps/backend && uv run ruff format .)",
     "format:check": "oxfmt --check && (cd apps/backend && uv run ruff format --check .)",
     "db:reset": "bash scripts/reset-local-database.sh",
-    "db:types": "supabase gen types --lang=python --local --schema public > apps/backend/slowpoke_backend/database_types.py",
+    "db:types": "bash scripts/generate-python-db-types.sh > apps/backend/slowpoke_backend/database_types.py",
     "check:metadata": "node scripts/check-metadata.mjs"
   },
   "devDependencies": {
