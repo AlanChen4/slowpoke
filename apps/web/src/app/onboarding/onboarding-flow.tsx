@@ -49,10 +49,10 @@ function OrganizationChoiceRow({
   name: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 border p-4 sm:flex-row sm:items-center">
-      <div className="min-w-0 flex-1">
+    <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         <div className="font-medium">{name}</div>
-        <div className="mt-1 flex items-center gap-2 text-muted-foreground">{children}</div>
+        <div className="flex items-center gap-2 text-muted-foreground">{children}</div>
       </div>
       <div className="flex gap-2">{actions}</div>
     </div>
@@ -140,7 +140,7 @@ function UnfinishedOrganizationChoice({
     <OrganizationChoiceRow
       name={organization.name}
       actions={
-        <Button type="button" onClick={() => onContinue(organization)}>
+        <Button type="button" variant="secondary" onClick={() => onContinue(organization)}>
           Continue setup
         </Button>
       }
@@ -180,7 +180,6 @@ function OrganizationStep({
       <CardContent className="flex flex-col gap-6">
         {unfinishedOrganizations.length > 0 ? (
           <div className="flex flex-col gap-3">
-            <div className="font-medium">Unfinished organizations</div>
             {unfinishedOrganizations.map((organization) => (
               <UnfinishedOrganizationChoice
                 key={organization.id}
