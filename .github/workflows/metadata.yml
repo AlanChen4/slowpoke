@@ -40,7 +40,7 @@ jobs:
             pull_request_file="$(mktemp)"
             event_file="$(mktemp)"
             gh api "repos/$GITHUB_REPOSITORY/pulls/${{ inputs.pull_request_number }}" > "$pull_request_file"
-            jq --slurpfile pull_request "$pull_request_file" \
+            jq -n --slurpfile pull_request "$pull_request_file" \
               '{pull_request: $pull_request[0]}' > "$event_file"
             node scripts/check-metadata.mjs event "$event_file"
           else
