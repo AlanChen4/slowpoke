@@ -28,6 +28,7 @@ import {
   FieldGroup,
   FieldLabel,
   FieldLegend,
+  FieldSeparator,
   FieldSet,
   FieldTitle,
 } from "@/components/ui/field";
@@ -49,7 +50,7 @@ function OrganizationChoiceRow({
   name: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-3 py-2 sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <div className="font-medium">{name}</div>
         <div className="flex items-center gap-2 text-muted-foreground">{children}</div>
@@ -178,16 +179,23 @@ function OrganizationStep({
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
-        {unfinishedOrganizations.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            {unfinishedOrganizations.map((organization) => (
-              <UnfinishedOrganizationChoice
-                key={organization.id}
-                organization={organization}
-                onContinue={onOrganization}
-              />
-            ))}
-          </div>
+        <form action={action} className="flex flex-col gap-4">
+          <Input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="new-organization-name">Organization name</FieldLabel>
+              <div className="flex items-end gap-2">
+                <Input id="new-organization-name" name="name" maxLength={80} required />
+                <Button type="submit" disabled={pending}>
+                  {pending ? "Creating…" : "Create organization"}
+                </Button>
+              </div>
+            </Field>
+          </FieldGroup>
+          {state.error ? <FieldError>{state.error}</FieldError> : null}
+        </form>
+        {unfinishedOrganizations.length > 0 || invitations.length > 0 ? (
+          <FieldSeparator>or</FieldSeparator>
         ) : null}
         {invitations.length > 0 ? (
           <div className="flex flex-col gap-3">
@@ -202,21 +210,17 @@ function OrganizationStep({
             ))}
           </div>
         ) : null}
-        <form action={action} className="flex flex-col gap-4">
-          <Input type="hidden" name="idempotencyKey" value={idempotencyKey} />
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="new-organization-name">Organization name</FieldLabel>
-              <Input id="new-organization-name" name="name" maxLength={80} required />
-            </Field>
-          </FieldGroup>
-          {state.error ? <FieldError>{state.error}</FieldError> : null}
-          <div className="flex justify-end">
-            <Button type="submit" disabled={pending}>
-              {pending ? "Creating…" : "Create organization"}
-            </Button>
+        {unfinishedOrganizations.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {unfinishedOrganizations.map((organization) => (
+              <UnfinishedOrganizationChoice
+                key={organization.id}
+                organization={organization}
+                onContinue={onOrganization}
+              />
+            ))}
           </div>
-        </form>
+        ) : null}
       </CardContent>
     </Card>
   );
