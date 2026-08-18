@@ -3,12 +3,7 @@
 /* CardTitle renders a div so onboarding can provide accessible headings without native heading elements. */
 /* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
-import {
-  CheckCircleIcon,
-  CircleNotchIcon,
-  ClipboardIcon,
-  DesktopIcon,
-} from "@phosphor-icons/react";
+import { CheckCircleIcon, CircleNotchIcon, ClipboardIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useCallback, useEffect, useState } from "react";
@@ -173,7 +168,10 @@ function OrganizationStep({
             </Field>
           </FieldGroup>
           {state.error ? <FieldError>{state.error}</FieldError> : null}
-          <div>
+          <div className="flex items-center justify-between">
+            <Link href="/" className={buttonVariants({ variant: "outline" })}>
+              Back
+            </Link>
             <Button type="submit" disabled={pending}>
               {pending ? "Creating…" : "Create organization"}
             </Button>
@@ -186,9 +184,11 @@ function OrganizationStep({
 
 function ToolStep({
   organization,
+  onBack,
   onEnrollment,
 }: {
   organization: OrganizationChoice;
+  onBack: () => void;
   onEnrollment: (state: OrganizationFlowActionState) => void;
 }) {
   const [state, action, pending] = useActionState(createInstallationEnrollment, initialState);
@@ -235,7 +235,10 @@ function ToolStep({
             ))}
           </FieldSet>
           {state.error ? <FieldError>{state.error}</FieldError> : null}
-          <div>
+          <div className="flex items-center justify-between">
+            <Button type="button" variant="outline" onClick={onBack}>
+              Back
+            </Button>
             <Button type="submit" disabled={pending}>
               {pending ? "Creating command…" : "Continue"}
             </Button>
@@ -249,10 +252,12 @@ function ToolStep({
 function ConnectionStep({
   command,
   checking,
+  onBack,
   onCheck,
 }: {
   command: string;
   checking: boolean;
+  onBack: () => void;
   onCheck: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -290,7 +295,10 @@ function ConnectionStep({
           {copied ? "Command copied." : "The code is used only to create this installation."}
         </output>
       </CardContent>
-      <CardFooter className="justify-end">
+      <CardFooter className="justify-between">
+        <Button type="button" variant="outline" onClick={onBack}>
+          Back
+        </Button>
         <Button type="button" onClick={onCheck} disabled={checking}>
           {checking ? "Checking…" : "I've run the command"}
         </Button>
@@ -320,6 +328,9 @@ export function OnboardingFlow({
   const chooseOrganization = useCallback(
     (choice: OrganizationChoice) => {
       setOrganization(choice);
+      setInvitations((current) =>
+        current.filter((invitation) => invitation.organizationId !== choice.id),
+      );
       router.replace(`/onboarding?organization=${choice.id}`);
     },
     [router],
@@ -411,18 +422,41 @@ export function OnboardingFlow({
               <FieldError>{checkError}</FieldError>
             </CardContent>
           ) : null}
+          <CardFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setCheckError(undefined);
+                setChecking(false);
+              }}
+            >
+              Back
+            </Button>
+          </CardFooter>
         </Card>
       ) : enrollment?.setupCommand ? (
         <ConnectionStep
           command={enrollment.setupCommand}
           checking={checking}
+          onBack={() => {
+            setCheckError(undefined);
+            setEnrollment(undefined);
+          }}
           onCheck={() => {
             setCheckError(undefined);
             setChecking(true);
           }}
         />
       ) : organization ? (
-        <ToolStep organization={organization} onEnrollment={setEnrollment} />
+        <ToolStep
+          organization={organization}
+          onBack={() => {
+            setOrganization(null);
+            router.replace("/onboarding?create=1");
+          }}
+          onEnrollment={setEnrollment}
+        />
       ) : (
         <OrganizationStep
           idempotencyKey={idempotencyKey}
@@ -433,10 +467,6 @@ export function OnboardingFlow({
           }
         />
       )}
-      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <DesktopIcon />
-        You can connect more computers later from Settings.
-      </div>
     </div>
   );
 }

@@ -11,12 +11,11 @@ export default async function OnboardingLayout({ children }: { children: React.R
   if (error || !data?.claims) {
     redirect("/login");
   }
-  const email = data.claims.email ?? "Signed-in account";
 
   return (
     <main className="flex min-h-screen flex-col bg-muted/30">
-      <nav className="border-b bg-background">
-        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-5 sm:px-8">
+      <nav className="bg-background">
+        <div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-4 px-5 sm:px-8">
           <Link href="/" aria-label="Slowpoke home">
             <Image
               src="/wordmark.svg"
@@ -28,7 +27,6 @@ export default async function OnboardingLayout({ children }: { children: React.R
             />
           </Link>
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-xs text-muted-foreground sm:inline">{email}</span>
             <form action={logout}>
               <Button type="submit" variant="ghost" size="sm">
                 Log out
