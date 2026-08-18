@@ -14,7 +14,7 @@ export default async function OnboardingLayout({ children }: { children: React.R
 
   return (
     <main className="flex min-h-screen flex-col bg-muted/30">
-      <nav className="bg-background">
+      <nav className="bg-muted/30">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-4 px-5 sm:px-8">
           <Link href="/" aria-label="Slowpoke home">
             <Image
