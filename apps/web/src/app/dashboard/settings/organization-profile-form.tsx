@@ -26,7 +26,7 @@ function SaveButton() {
 
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Save organization"}
+      {pending ? "Saving…" : "Save"}
     </Button>
   );
 }
@@ -68,12 +68,12 @@ export function OrganizationProfileForm({ organization }: OrganizationProfileFor
                 variant="ghost"
                 size="icon-lg"
                 aria-label="Change organization logo"
-                className="group/logo size-12"
+                className="group/logo size-14"
                 onClick={() => logoInputRef.current?.click()}
               />
             }
           >
-            <Avatar className="size-12 rounded-none after:hidden">
+            <Avatar className="size-14 rounded-none after:hidden">
               {logoPreviewUrl || organization.logoUrl ? (
                 <AvatarImage
                   className="rounded-none"

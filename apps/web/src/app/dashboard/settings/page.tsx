@@ -1,5 +1,4 @@
 import { WarningCircleIcon } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { logout } from "@/app/auth/actions";
@@ -263,15 +262,6 @@ export default async function SettingsPage() {
               </div>
             )}
           </CardContent>
-          <CardFooter>
-            <Button
-              variant="secondary"
-              nativeButton={false}
-              render={<Link href="/onboarding?create=1" />}
-            >
-              Create another organization
-            </Button>
-          </CardFooter>
         </Card>
       </section>
 
