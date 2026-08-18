@@ -4,6 +4,7 @@
 /* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 import { CheckCircleIcon, CircleNotchIcon, ClipboardIcon } from "@phosphor-icons/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useCallback, useEffect, useState } from "react";
@@ -30,7 +31,6 @@ import {
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -211,9 +211,9 @@ function ToolStep({
           <FieldSet className="grid gap-3 sm:grid-cols-2">
             <FieldLegend className="sr-only">AI tools</FieldLegend>
             {[
-              ["codex", "Codex", "OpenAI Codex prompts and activity"],
-              ["claude_code", "Claude Code", "Anthropic Claude Code prompts and activity"],
-            ].map(([value, label, description]) => (
+              ["codex", "Codex", "/openai-logo.png"],
+              ["claude_code", "Claude Code", "/claude-logo.png"],
+            ].map(([value, label, logo]) => (
               <FieldLabel key={value} className="cursor-pointer">
                 <Field orientation="horizontal">
                   <Input
@@ -224,8 +224,17 @@ function ToolStep({
                     className="size-4"
                   />
                   <FieldContent>
-                    <FieldTitle>{label}</FieldTitle>
-                    <FieldDescription>{description}</FieldDescription>
+                    <FieldTitle>
+                      <Image
+                        src={logo}
+                        alt=""
+                        aria-hidden="true"
+                        width={18}
+                        height={18}
+                        className="shrink-0 object-contain"
+                      />
+                      {label}
+                    </FieldTitle>
                   </FieldContent>
                 </Field>
               </FieldLabel>
