@@ -7,6 +7,7 @@ import { CheckCircleIcon, CircleNotchIcon, ClipboardIcon } from "@phosphor-icons
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ReactNode } from "react";
 import { useActionState, useCallback, useEffect, useState } from "react";
 
 import {
@@ -37,6 +38,26 @@ const initialState: OrganizationFlowActionState = {};
 const stepLabels = ["Organization", "AI tools", "Connect", "Check", "Complete"];
 
 type OrganizationChoice = { id: string; name: string };
+
+function OrganizationChoiceRow({
+  actions,
+  children,
+  name,
+}: {
+  actions: ReactNode;
+  children: ReactNode;
+  name: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3 border p-4 sm:flex-row sm:items-center">
+      <div className="min-w-0 flex-1">
+        <div className="font-medium">{name}</div>
+        <div className="mt-1 flex items-center gap-2 text-muted-foreground">{children}</div>
+      </div>
+      <div className="flex gap-2">{actions}</div>
+    </div>
+  );
+}
 
 function Progress({ current }: { current: number }) {
   return (
@@ -78,54 +99,76 @@ function InvitationChoice({
   }, [declineState.message, invitation.id, onDeclined]);
 
   return (
-    <div className="flex flex-col gap-3 border p-4 sm:flex-row sm:items-center">
-      <div className="min-w-0 flex-1">
-        <div className="font-medium">{invitation.organizationName}</div>
-        <div className="mt-1 flex items-center gap-2 text-muted-foreground">
-          <Badge variant="outline">
-            {invitation.role === "admin" ? "Administrator" : "Member"}
-          </Badge>
-          <span>Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <form action={declineAction}>
-          <Input type="hidden" name="invitationId" value={invitation.id} />
-          <Button type="submit" variant="outline" disabled={declining || accepting}>
-            {declining ? "Declining…" : "Decline"}
-          </Button>
-        </form>
-        <form action={acceptAction}>
-          <Input type="hidden" name="invitationId" value={invitation.id} />
-          <Button type="submit" disabled={accepting || declining}>
-            {accepting ? "Accepting…" : "Accept"}
-          </Button>
-        </form>
-      </div>
+    <div className="flex flex-col gap-2">
+      <OrganizationChoiceRow
+        name={invitation.organizationName}
+        actions={
+          <>
+            <form action={declineAction}>
+              <Input type="hidden" name="invitationId" value={invitation.id} />
+              <Button type="submit" variant="outline" disabled={declining || accepting}>
+                {declining ? "Declining…" : "Decline"}
+              </Button>
+            </form>
+            <form action={acceptAction}>
+              <Input type="hidden" name="invitationId" value={invitation.id} />
+              <Button type="submit" disabled={accepting || declining}>
+                {accepting ? "Accepting…" : "Accept"}
+              </Button>
+            </form>
+          </>
+        }
+      >
+        <Badge variant="outline">{invitation.role === "admin" ? "Administrator" : "Member"}</Badge>
+        <span>Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+      </OrganizationChoiceRow>
       {acceptState.error || declineState.error ? (
-        <FieldError className="sm:basis-full">{acceptState.error ?? declineState.error}</FieldError>
+        <FieldError>{acceptState.error ?? declineState.error}</FieldError>
       ) : null}
     </div>
+  );
+}
+
+function UnfinishedOrganizationChoice({
+  organization,
+  onContinue,
+}: {
+  organization: OrganizationChoice;
+  onContinue: (organization: OrganizationChoice) => void;
+}) {
+  return (
+    <OrganizationChoiceRow
+      name={organization.name}
+      actions={
+        <Button type="button" onClick={() => onContinue(organization)}>
+          Continue setup
+        </Button>
+      }
+    >
+      <Badge variant="outline">Unfinished</Badge>
+    </OrganizationChoiceRow>
   );
 }
 
 function OrganizationStep({
   idempotencyKey,
   invitations,
+  unfinishedOrganizations,
   onOrganization,
   onInvitationDeclined,
 }: {
   idempotencyKey: string;
   invitations: PendingInvitation[];
+  unfinishedOrganizations: OrganizationChoice[];
   onOrganization: (organization: OrganizationChoice) => void;
   onInvitationDeclined: (invitationId: string) => void;
 }) {
   const [state, action, pending] = useActionState(createOrganization, initialState);
   useEffect(() => {
-    if (state.organizationId) {
-      onOrganization({ id: state.organizationId, name: "Your organization" });
+    if (state.organizationId && state.organizationName) {
+      onOrganization({ id: state.organizationId, name: state.organizationName });
     }
-  }, [onOrganization, state.organizationId]);
+  }, [onOrganization, state.organizationId, state.organizationName]);
 
   return (
     <Card>
@@ -135,6 +178,18 @@ function OrganizationStep({
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
+        {unfinishedOrganizations.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <div className="font-medium">Unfinished organizations</div>
+            {unfinishedOrganizations.map((organization) => (
+              <UnfinishedOrganizationChoice
+                key={organization.id}
+                organization={organization}
+                onContinue={onOrganization}
+              />
+            ))}
+          </div>
+        ) : null}
         {invitations.length > 0 ? (
           <div className="flex flex-col gap-3">
             <div className="font-medium">Pending invitations</div>
@@ -294,16 +349,21 @@ function ConnectionStep({
 export function OnboardingFlow({
   idempotencyKey,
   initialOrganization,
+  unfinishedOrganizations: initialUnfinishedOrganizations,
   invitations: initialInvitations,
   loadError,
 }: {
   idempotencyKey: string;
   initialOrganization: OrganizationChoice | null;
+  unfinishedOrganizations: OrganizationChoice[];
   invitations: PendingInvitation[];
   loadError?: string;
 }) {
   const router = useRouter();
   const [organization, setOrganization] = useState(initialOrganization);
+  const [unfinishedOrganizations, setUnfinishedOrganizations] = useState(
+    initialUnfinishedOrganizations,
+  );
   const [invitations, setInvitations] = useState(initialInvitations);
   const [enrollment, setEnrollment] = useState<OrganizationFlowActionState>();
   const [checking, setChecking] = useState(false);
@@ -312,6 +372,11 @@ export function OnboardingFlow({
   const chooseOrganization = useCallback(
     (choice: OrganizationChoice) => {
       setOrganization(choice);
+      setUnfinishedOrganizations((current) =>
+        current.some((organization) => organization.id === choice.id)
+          ? current
+          : [...current, choice],
+      );
       setInvitations((current) =>
         current.filter((invitation) => invitation.organizationId !== choice.id),
       );
@@ -439,6 +504,7 @@ export function OnboardingFlow({
         <OrganizationStep
           idempotencyKey={idempotencyKey}
           invitations={invitations}
+          unfinishedOrganizations={unfinishedOrganizations}
           onOrganization={chooseOrganization}
           onInvitationDeclined={(invitationId) =>
             setInvitations((current) => current.filter((item) => item.id !== invitationId))

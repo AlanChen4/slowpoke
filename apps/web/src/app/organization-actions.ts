@@ -27,6 +27,7 @@ export type OrganizationFlowActionState = {
   invitationId?: string;
   message?: string;
   organizationId?: string;
+  organizationName?: string;
   setupCommand?: string;
 };
 
@@ -111,6 +112,7 @@ export async function createOrganization(
     return {
       message: "Organization created.",
       organizationId: organization.id,
+      organizationName: organization.name,
     };
   } catch (error) {
     return actionError(error instanceof Error ? error : new Error("Unknown organization error"));

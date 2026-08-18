@@ -41,6 +41,9 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           ? null
           : { id: selectedOrganization.id, name: selectedOrganization.name }
       }
+      unfinishedOrganizations={organizationContext.organizations
+        .filter((organization) => !organization.completed)
+        .map((organization) => ({ id: organization.id, name: organization.name }))}
       invitations={invitations}
       loadError={organizationContext.error?.message ?? invitationError?.message}
     />
