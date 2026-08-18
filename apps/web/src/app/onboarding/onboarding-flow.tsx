@@ -297,9 +297,7 @@ function ConnectionStep({
             <ClipboardIcon />
           </Button>
         </div>
-        <output className="mt-2 block text-xs text-muted-foreground">
-          {copied ? "Command copied." : "The code is used only to create this installation."}
-        </output>
+        <output className="sr-only">{copied ? "Command copied." : ""}</output>
       </CardContent>
       <CardFooter className="justify-between">
         <Button type="button" variant="outline" onClick={onBack}>
