@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
 
-from .domain import Partition, Prompt, Provider, Signal
+from .domain import Partition, Prompt, Provider, Signal, Tool
 from .errors import InvalidPayloadError
 
 _RESOURCE_FIELD: dict[Signal, str] = {
@@ -58,21 +58,24 @@ def partition_export(payload: object, signal: Signal) -> tuple[Partition, ...]:
     if not isinstance(groups, list):
         raise InvalidPayloadError(f"{resource_field} must be an array")
 
-    grouped: dict[UUID, list[dict[str, object]]] = {}
+    grouped: dict[tuple[UUID, Tool], list[dict[str, object]]] = {}
     for group in groups:
         if not isinstance(group, dict):
             raise InvalidPayloadError("resource groups must be JSON objects")
-        installation_id = _installation_id(group)
-        grouped.setdefault(installation_id, []).append(cast(dict[str, object], group))
+        installation_id, tool = _installation_identity(group)
+        grouped.setdefault((installation_id, tool), []).append(
+            cast(dict[str, object], group)
+        )
 
     partitions = []
-    for installation_id, tenant_groups in grouped.items():
+    for (installation_id, tool), tenant_groups in grouped.items():
         partition_payload: dict[str, object] = {resource_field: tenant_groups}
         encoded = canonical_json(partition_payload)
         prompts = _extract_prompts(tenant_groups) if signal == "logs" else ()
         partitions.append(
             Partition(
                 installation_id=installation_id,
+                tool=tool,
                 signal=signal,
                 payload=partition_payload,
                 content_sha256=hashlib.sha256(encoded).hexdigest(),
@@ -82,13 +85,13 @@ def partition_export(payload: object, signal: Signal) -> tuple[Partition, ...]:
     return tuple(partitions)
 
 
-def _installation_id(group: Mapping[str, object]) -> UUID:
+def _installation_identity(group: Mapping[str, object]) -> tuple[UUID, Tool]:
     resource = group.get("resource", {})
     if not isinstance(resource, dict):
         raise InvalidPayloadError("resource must be a JSON object")
     attributes = _string_attributes(
         resource.get("attributes", []),
-        frozenset({"slowpoke.installation.id"}),
+        frozenset({"slowpoke.installation.id", "slowpoke.installation.tool"}),
     )
     installation_id = attributes.get("slowpoke.installation.id")
     if installation_id is None or not installation_id.strip():
@@ -96,9 +99,16 @@ def _installation_id(group: Mapping[str, object]) -> UUID:
             "every resource group requires slowpoke.installation.id"
         )
     try:
-        return UUID(installation_id)
+        parsed_id = UUID(installation_id)
     except ValueError as error:
         raise InvalidPayloadError("slowpoke.installation.id must be a UUID") from error
+
+    tool = attributes.get("slowpoke.installation.tool")
+    if tool not in ("codex", "claude_code"):
+        raise InvalidPayloadError(
+            "every resource group requires a valid slowpoke.installation.tool"
+        )
+    return parsed_id, cast(Tool, tool)
 
 
 def _string_attributes(value: object, keys: frozenset[str]) -> dict[str, str]:

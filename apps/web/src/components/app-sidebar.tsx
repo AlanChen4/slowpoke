@@ -1,12 +1,13 @@
 "use client";
 
-import { ChatsCircleIcon, GearIcon, WaveformIcon } from "@phosphor-icons/react";
+import { ChatsCircleIcon, GearIcon, PlusIcon, WaveformIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { selectOrganization } from "@/app/dashboard/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 
 export type SidebarOrganization = {
+  completed: boolean;
   id: string;
   name: string;
   logoUrl: string | null;
@@ -97,6 +99,12 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
         return;
       }
 
+      const organization = organizations.find((candidate) => candidate.id === organizationId);
+      if (organization && !organization.completed) {
+        router.push(`/onboarding?organization=${organization.id}`);
+        return;
+      }
+      router.push("/dashboard");
       router.refresh();
     });
   }
@@ -136,7 +144,7 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
                   <SelectValue className="truncate font-medium" placeholder="No organization" />
                 </div>
               </SelectTrigger>
-              <SelectContent align="start" alignItemWithTrigger={false}>
+              <SelectContent className="min-w-72" align="start" alignItemWithTrigger={false}>
                 <SelectGroup>
                   <SelectLabel>Organizations</SelectLabel>
                   {organizations.map((organization) => (
@@ -150,9 +158,24 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
                         </AvatarFallback>
                       </Avatar>
                       <span>{organization.name}</span>
+                      {!organization.completed ? (
+                        <span className="ml-auto text-muted-foreground">Setup required</span>
+                      ) : null}
                     </SelectItem>
                   ))}
                 </SelectGroup>
+                <div className="border-t p-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => router.push("/onboarding?create=1")}
+                  >
+                    <PlusIcon />
+                    Create organization
+                  </Button>
+                </div>
               </SelectContent>
             </Select>
             <output className="sr-only">

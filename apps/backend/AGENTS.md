@@ -2,7 +2,7 @@
 
 ## Service
 
-The Collector stamps OTLP/JSON with an installation ID. The backend validates
+The Collector stamps OTLP/JSON with an installation ID and AI tool. The backend validates
 each export, stores raw telemetry batches, and extracts user prompts into
 Supabase.
 

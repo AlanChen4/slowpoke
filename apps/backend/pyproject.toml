@@ -4,10 +4,12 @@ version = "0.1.0"
 description = "Slowpoke's OTLP ingestion API"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+  "cryptography>=45,<47",
   "fastapi>=0.116,<1",
   "modal==1.5.2",
   "pydantic>=2.10,<3",
   "pydantic-settings>=2.10,<3",
+  "pyjwt[crypto]>=2.10,<3",
   "starlette>=0.47,<1",
   "supabase>=2.18,<3",
   "uvicorn[standard]>=0.35,<1",
@@ -58,7 +60,7 @@ exclude = ["slowpoke_backend/database_types.py"]
 [tool.vulture]
 exclude = ["*database_types.py"]
 ignore_decorators = ["@app.get"]
-ignore_names = ["model_config", "pytestmark", "should_exit"]
+ignore_names = ["collector_url", "enroll", "model_config", "pytestmark", "should_exit"]
 min_confidence = 60
 
 [tool.uv]

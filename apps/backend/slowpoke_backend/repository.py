@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from typing import Any, Protocol, cast
 from uuid import UUID
 
@@ -11,14 +12,16 @@ from .database_types import (
     PublicPromptEventsInsert,
     PublicTelemetryBatchesInsert,
 )
-from .domain import Installation, Partition
-from .errors import RepositoryError, UnknownInstallationError
+from .domain import Installation, Partition, Tool
+from .errors import RepositoryError, RevokedInstallationError, UnknownInstallationError
 
 logger = logging.getLogger(__name__)
 
 
 class IngestionRepository(Protocol):
     def resolve_installation(self, installation_id: UUID) -> Installation: ...
+
+    def mark_seen(self, installation: Installation) -> bool: ...
 
     def persist(self, partition: Partition, installation: Installation) -> None: ...
 
@@ -31,24 +34,53 @@ class SupabaseRepository:
         try:
             response = (
                 self._client.table("installations")
-                .select("id,organization_id,created_at,revoked_at")
+                .select(
+                    "id,organization_id,created_at,revoked_at,created_by_user_id,"
+                    "tool,computer_name,enrollment_id,verified_at,last_seen_at"
+                )
                 .eq("id", str(installation_id))
-                .is_("revoked_at", "null")
                 .limit(1)
                 .execute()
             )
             if not response.data:
                 raise UnknownInstallationError({installation_id})
             row = PublicInstallations.model_validate(response.data[0])
+            if row.revoked_at is not None:
+                raise RevokedInstallationError
             return Installation(
                 id=row.id,
                 organization_id=row.organization_id,
+                tool=cast(Tool, row.tool),
             )
-        except UnknownInstallationError:
+        except (RevokedInstallationError, UnknownInstallationError):
             raise
         except Exception as error:
             logger.exception("Failed to resolve telemetry installation")
             raise RepositoryError("failed to resolve installation") from error
+
+    def mark_seen(self, installation: Installation) -> bool:
+        timestamp = datetime.now(UTC).isoformat()
+        try:
+            (
+                self._client.table("installations")
+                .update({"verified_at": timestamp})
+                .eq("id", str(installation.id))
+                .is_("verified_at", "null")
+                .is_("revoked_at", "null")
+                .execute()
+            )
+            response = (
+                self._client.table("installations")
+                .update({"last_seen_at": timestamp})
+                .eq("id", str(installation.id))
+                .is_("revoked_at", "null")
+                .select("id")
+                .execute()
+            )
+            return bool(response.data)
+        except Exception as error:
+            logger.exception("Failed to update installation verification timestamps")
+            raise RepositoryError("failed to update installation timestamps") from error
 
     def persist(self, partition: Partition, installation: Installation) -> None:
         try:

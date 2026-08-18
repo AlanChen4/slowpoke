@@ -13,7 +13,10 @@ create table public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(trim(name)) between 1 and 80),
   created_at timestamptz not null default now(),
-  logo_url text check (logo_url is null or char_length(logo_url) <= 2048)
+  logo_url text check (logo_url is null or char_length(logo_url) <= 2048),
+  created_by_user_id uuid not null references auth.users (id),
+  idempotency_key uuid not null,
+  unique (created_by_user_id, idempotency_key)
 );
 
 create table public.organization_members (
@@ -31,16 +34,82 @@ create index organization_members_admin_lookup_idx
   on public.organization_members (user_id, organization_id)
   where role = 'admin';
 
+create table public.organization_invitations (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations (id) on delete cascade,
+  normalized_email text not null check (
+    normalized_email = lower(trim(normalized_email))
+    and char_length(normalized_email) between 3 and 320
+  ),
+  role text not null check (role in ('admin', 'member')),
+  invited_by_user_id uuid not null references auth.users (id),
+  expires_at timestamptz not null default (now() + interval '7 days'),
+  accepted_at timestamptz,
+  declined_at timestamptz,
+  canceled_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (num_nonnulls(accepted_at, declined_at, canceled_at) <= 1)
+);
+
+create index organization_invitations_organization_id_idx
+  on public.organization_invitations (organization_id);
+
+create index organization_invitations_invited_by_user_id_idx
+  on public.organization_invitations (invited_by_user_id);
+
+create unique index organization_invitations_pending_email_idx
+  on public.organization_invitations (organization_id, normalized_email)
+  where accepted_at is null and declined_at is null and canceled_at is null;
+
+create table public.installation_enrollments (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations (id) on delete cascade,
+  created_by_user_id uuid not null references auth.users (id),
+  code_digest text not null unique check (code_digest ~ '^[0-9a-f]{64}$'),
+  selected_tools text[] not null check (
+    selected_tools = array['codex']::text[]
+    or selected_tools = array['claude_code']::text[]
+    or selected_tools = array['codex', 'claude_code']::text[]
+  ),
+  expires_at timestamptz not null,
+  redeemed_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (id, organization_id)
+);
+
+create index installation_enrollments_organization_id_idx
+  on public.installation_enrollments (organization_id);
+
+create index installation_enrollments_created_by_user_id_idx
+  on public.installation_enrollments (created_by_user_id);
+
 create table public.installations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations (id) on delete cascade,
   created_at timestamptz not null default now(),
   revoked_at timestamptz,
-  unique (id, organization_id)
+  created_by_user_id uuid not null references auth.users (id),
+  tool text not null check (tool in ('codex', 'claude_code')),
+  computer_name text not null check (char_length(trim(computer_name)) between 1 and 255),
+  enrollment_id uuid not null,
+  verified_at timestamptz,
+  last_seen_at timestamptz,
+  foreign key (enrollment_id, organization_id)
+    references public.installation_enrollments (id, organization_id),
+  unique (id, organization_id),
+  unique (enrollment_id, tool)
 );
 
 create index installations_organization_id_idx
   on public.installations (organization_id);
+
+create index installations_created_by_user_organization_idx
+  on public.installations (created_by_user_id, organization_id);
+
+create index installations_active_owner_organization_idx
+  on public.installations (created_by_user_id, organization_id)
+  where verified_at is not null and revoked_at is null;
 
 create table public.telemetry_batches (
   id uuid primary key default gen_random_uuid(),
@@ -106,9 +175,32 @@ create index prompt_events_prompt_text_trgm_idx
 
 alter table public.organizations enable row level security;
 alter table public.organization_members enable row level security;
+alter table public.organization_invitations enable row level security;
+alter table public.installation_enrollments enable row level security;
 alter table public.installations enable row level security;
 alter table public.telemetry_batches enable row level security;
 alter table public.prompt_events enable row level security;
+
+create policy "clients cannot access organization invitations"
+  on public.organization_invitations
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
+
+create policy "clients cannot access installation enrollments"
+  on public.installation_enrollments
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
+
+create policy "clients cannot access raw telemetry"
+  on public.telemetry_batches
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
 
 create policy "members can read their organizations"
   on public.organizations
@@ -123,48 +215,30 @@ create policy "members can read their organizations"
     )
   );
 
-create policy "admins can update their organizations"
-  on public.organizations
-  for update
-  to authenticated
-  using (
-    exists (
-      select 1
-      from public.organization_members as membership
-      where membership.organization_id = organizations.id
-        and membership.user_id = (select auth.uid())
-        and membership.role = 'admin'
-    )
-  )
-  with check (
-    exists (
-      select 1
-      from public.organization_members as membership
-      where membership.organization_id = organizations.id
-        and membership.user_id = (select auth.uid())
-        and membership.role = 'admin'
-    )
-  );
-
 create policy "members can read their memberships"
   on public.organization_members
   for select
   to authenticated
   using (user_id = (select auth.uid()));
 
-create policy "members can read organization installations"
+create policy "members can read allowed installations"
   on public.installations
   for select
   to authenticated
   using (
-    organization_id in (
-      select membership.organization_id
+    exists (
+      select 1
       from public.organization_members as membership
-      where membership.user_id = (select auth.uid())
+      where membership.organization_id = installations.organization_id
+        and membership.user_id = (select auth.uid())
+        and (
+          membership.role = 'admin'
+          or installations.created_by_user_id = (select auth.uid())
+        )
     )
   );
 
-create policy "admins can read organization prompts"
+create policy "members can read allowed prompts"
   on public.prompt_events
   for select
   to authenticated
@@ -174,7 +248,16 @@ create policy "admins can read organization prompts"
       from public.organization_members as membership
       where membership.organization_id = prompt_events.organization_id
         and membership.user_id = (select auth.uid())
-        and membership.role = 'admin'
+        and (
+          membership.role = 'admin'
+          or exists (
+            select 1
+            from public.installations as installation
+            where installation.id = prompt_events.installation_id
+              and installation.organization_id = prompt_events.organization_id
+              and installation.created_by_user_id = (select auth.uid())
+          )
+        )
     )
   );
 
@@ -290,6 +373,8 @@ where batch.signal = 'logs'
 
 revoke all on table public.organizations from anon, authenticated, service_role;
 revoke all on table public.organization_members from anon, authenticated, service_role;
+revoke all on table public.organization_invitations from anon, authenticated, service_role;
+revoke all on table public.installation_enrollments from anon, authenticated, service_role;
 revoke all on table public.installations from anon, authenticated, service_role;
 revoke all on table public.telemetry_batches from anon, authenticated, service_role;
 revoke all on table public.prompt_events from anon, authenticated, service_role;
@@ -297,7 +382,6 @@ revoke all on table public.human_prompt_events from anon, authenticated, service
 revoke all on table public.codex_response_usage_events from anon, authenticated, service_role;
 
 grant select on table public.organizations to authenticated;
-grant update (name, logo_url) on table public.organizations to authenticated;
 grant select on table public.organization_members to authenticated;
 grant select on table public.installations to authenticated;
 grant select on table public.prompt_events to authenticated;
@@ -305,6 +389,8 @@ grant select on table public.human_prompt_events to authenticated;
 
 grant select, insert, update, delete on table public.organizations to service_role;
 grant select, insert, update, delete on table public.organization_members to service_role;
+grant select, insert, update, delete on table public.organization_invitations to service_role;
+grant select, insert, update, delete on table public.installation_enrollments to service_role;
 grant select, insert, update, delete on table public.installations to service_role;
 grant select, insert, update, delete on table public.telemetry_batches to service_role;
 grant select, insert, update, delete on table public.prompt_events to service_role;

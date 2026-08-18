@@ -53,8 +53,11 @@ values (
 )
 on conflict (provider_id, provider) do nothing;
 
-insert into public.organizations (name)
-select 'Slowpoke'
+insert into public.organizations (name, created_by_user_id, idempotency_key)
+select
+  'Slowpoke',
+  '00000000-0000-4000-8000-000000000002',
+  '00000000-0000-4000-8000-000000000003'
 where not exists (
   select 1
   from public.organizations
@@ -72,11 +75,49 @@ order by organization.id
 limit 1
 on conflict (organization_id, user_id) do nothing;
 
--- Stable local installation used by the development Collector credentials.
-insert into public.installations (id, organization_id)
+-- Stable local enrollment and installation used by development tooling.
+insert into public.installation_enrollments (
+  id,
+  organization_id,
+  created_by_user_id,
+  code_digest,
+  selected_tools,
+  expires_at,
+  redeemed_at
+)
+select
+  '00000000-0000-4000-8000-000000000004',
+  organization.id,
+  '00000000-0000-4000-8000-000000000002',
+  repeat('0', 64),
+  array['codex']::text[],
+  '2100-01-01 00:00:00+00',
+  now()
+from public.organizations as organization
+where organization.name = 'Slowpoke'
+order by organization.id
+limit 1
+on conflict (id) do nothing;
+
+insert into public.installations (
+  id,
+  organization_id,
+  created_by_user_id,
+  tool,
+  computer_name,
+  enrollment_id,
+  verified_at,
+  last_seen_at
+)
 select
   '00000000-0000-4000-8000-000000000001',
-  organization.id
+  organization.id,
+  '00000000-0000-4000-8000-000000000002',
+  'codex',
+  'local-development',
+  '00000000-0000-4000-8000-000000000004',
+  now(),
+  now()
 from public.organizations as organization
 where organization.name = 'Slowpoke'
 order by organization.id

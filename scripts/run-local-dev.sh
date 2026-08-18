@@ -142,31 +142,17 @@ restart_local_postgrest() {
   docker restart "$container_id" >/dev/null
 }
 
-for command in docker pnpm uv; do
+for command in curl docker pnpm uv; do
   if ! command -v "$command" >/dev/null 2>&1; then
     printf 'Missing required command: %s\n' "$command" >&2
     exit 1
   fi
 done
 
-read_credential_value() {
-  local name="$1"
-
-  printf '%s\n' "$codex_credentials" |
-    sed -n "s/^${name}='\([^']*\)'$/\1/p"
-}
-
-if ! codex_credentials="$(node "$project_root/scripts/setup-local-codex.mjs" credentials)"; then
-  exit 1
-fi
-
-SLOWPOKE_INGEST_TOKEN="$(read_credential_value SLOWPOKE_INGEST_TOKEN)"
-SLOWPOKE_OTLP_HTPASSWD="$(read_credential_value SLOWPOKE_OTLP_HTPASSWD)"
-if [[ -z "$SLOWPOKE_INGEST_TOKEN" || -z "$SLOWPOKE_OTLP_HTPASSWD" ]]; then
-  printf 'Invalid Slowpoke credentials in the Codex config. Run: pnpm setup:codex\n' >&2
-  exit 1
-fi
-export SLOWPOKE_INGEST_TOKEN SLOWPOKE_OTLP_HTPASSWD
+SLOWPOKE_INGEST_TOKEN="$(
+  node -e 'const { randomBytes } = require("node:crypto"); process.stdout.write(randomBytes(32).toString("base64url"));'
+)"
+export SLOWPOKE_INGEST_TOKEN
 
 cd "$project_root"
 
@@ -188,12 +174,17 @@ if [[ -z "$supabase_url" || -z "$supabase_secret_key" || -z "$supabase_publishab
   exit 1
 fi
 
+installation_signing_private_key="$(
+  node -e 'const { generateKeyPairSync } = require("node:crypto"); const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 }); process.stdout.write(privateKey.export({ type: "pkcs8", format: "pem" }));'
+)"
+
 trap stop_services EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
 (
   export SUPABASE_SECRET_KEY="$supabase_secret_key"
+  export SLOWPOKE_SETUP_SERVER="http://127.0.0.1:${backend_port}"
   export NEXT_PUBLIC_SUPABASE_URL="$supabase_url"
   export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$supabase_publishable_key"
   exec pnpm --filter @slowpoke/web dev
@@ -203,6 +194,11 @@ pids+=("$!")
 (
   export SUPABASE_URL="$supabase_url"
   export SUPABASE_SECRET_KEY="$supabase_secret_key"
+  export SLOWPOKE_INSTALLATION_ISSUER="http://host.docker.internal:${backend_port}"
+  export SLOWPOKE_COLLECTOR_AUDIENCE="slowpoke-collector"
+  export SLOWPOKE_COLLECTOR_URL="http://127.0.0.1:${collector_port}"
+  export SLOWPOKE_INSTALLATION_SIGNING_PRIVATE_KEY="$installation_signing_private_key"
+  export SLOWPOKE_INSTALLATION_SIGNING_KID="local-development"
   cd apps/backend
   exec uv run uvicorn slowpoke_backend:create_app \
       --factory \
@@ -212,11 +208,15 @@ pids+=("$!")
 pids+=("$!")
 
 (
+  until curl --fail --silent "http://127.0.0.1:${backend_port}/healthz" >/dev/null; do
+    sleep 0.25
+  done
   exec docker run --rm \
       --name "$collector_name" \
       --publish "127.0.0.1:${collector_port}:4318" \
-      --env SLOWPOKE_OTLP_HTPASSWD \
       --env SLOWPOKE_INGEST_TOKEN \
+      --env "SLOWPOKE_INSTALLATION_ISSUER=http://host.docker.internal:${backend_port}" \
+      --env "SLOWPOKE_COLLECTOR_AUDIENCE=slowpoke-collector" \
       --env "SLOWPOKE_INGEST_URL=http://host.docker.internal:${backend_port}/api/internal/telemetry" \
       --volume "$project_root/apps/collector/otelcol.yaml:/etc/otelcol-contrib/config.yaml:ro" \
       ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.157.0 \

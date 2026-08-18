@@ -46,7 +46,7 @@ jobs:
         run: pnpm typecheck:web
 
       - name: Test web and tooling
-        run: pnpm test --suite tooling --suite web
+        run: pnpm test --suite setup --suite tooling --suite web
 
   backend:
     name: Backend

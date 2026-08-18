@@ -3,8 +3,31 @@ from __future__ import annotations
 from collections.abc import Mapping
 from uuid import UUID
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+
 from slowpoke_backend.domain import Installation, Partition
 from slowpoke_backend.errors import UnknownInstallationError
+
+TEST_INSTALLATION_ISSUER = "https://issuer.example.test"
+TEST_COLLECTOR_AUDIENCE = "https://collector.example.test"
+TEST_COLLECTOR_URL = "https://collector.example.test"
+TEST_SIGNING_KID = "test-installation-key"
+
+
+def new_signing_private_key() -> str:
+    return (
+        rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        .private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        .decode()
+    )
+
+
+TEST_SIGNING_PRIVATE_KEY = new_signing_private_key()
 
 
 def attribute(key: str, value: object) -> dict[str, object]:
@@ -26,12 +49,14 @@ def resource_group(
     slug: str | None = None,
     originator: str | None = None,
     service_name: str = "test",
+    tool: str = "codex",
 ) -> dict[str, object]:
     installation_id = str(installation_id)
     group: dict[str, object] = {
         "resource": {
             "attributes": [
                 attribute("slowpoke.installation.id", installation_id),
+                attribute("slowpoke.installation.tool", tool),
                 attribute("service.name", service_name),
             ]
         },
@@ -73,12 +98,17 @@ class FakeRepository:
         self.persist_calls: list[Partition] = []
         self.batch_keys: set[tuple[UUID, str, str]] = set()
         self.prompt_keys: set[tuple[UUID, str, int]] = set()
+        self.mark_seen_calls: list[UUID] = []
 
     def resolve_installation(self, installation_id: UUID) -> Installation:
         self.resolve_calls.append(installation_id)
         if installation_id not in self.known:
             raise UnknownInstallationError({installation_id})
         return self.known[installation_id]
+
+    def mark_seen(self, installation: Installation) -> bool:
+        self.mark_seen_calls.append(installation.id)
+        return True
 
     def persist(
         self,

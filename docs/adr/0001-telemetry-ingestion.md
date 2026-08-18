@@ -6,26 +6,26 @@ Accepted for the ingestion MVP.
 
 ## Context
 
-The Collector authenticates installations, stamps OTLP resource groups with
-`slowpoke.installation.id`, and sends OTLP/JSON to the backend. Batching can
-combine installations in one export. Slowpoke must retain source telemetry for
-reprocessing and expose prompts through row-level security (RLS).
+The Collector authenticates installations and stamps OTLP resource groups with
+`slowpoke.installation.id` and `slowpoke.installation.tool`. It sends OTLP/JSON
+to the backend. Batching can combine installations in one export. Slowpoke must
+retain source telemetry for reprocessing and expose prompts through row-level
+security (RLS).
 
 ## Decision
 
 ### Partition exports
 
-The backend partitions exports by installation ID. It stores valid partitions,
-then returns `503` if any installation is unknown or revoked. The Collector
-retries the full export; existing rows deduplicate.
+The backend partitions exports by installation ID and tool. It stores valid
+partitions, then returns `503` if any installation is unknown. It discards
+telemetry from revoked installations. The Collector retries the full export;
+existing rows deduplicate.
 
-### Use one installation identity
+### Authenticate installation identity
 
 Application-owned IDs use UUIDs from `gen_random_uuid()`. The installation UUID
-also serves as the username for HTTP Basic authentication and
-`slowpoke.installation.id`. This removes a lookup key and prevents sequential
-IDs from revealing approximate row counts. The password authenticates the
-installation; its UUID is public identity data.
+is the signed token subject and the value of `slowpoke.installation.id`. ADR
+0002 defines token enrollment, per-tool identity, and revocation.
 
 ### Store raw and derived data
 
@@ -37,9 +37,10 @@ complete attributes for reprocessing.
 
 ### Limit data access
 
-All public tables use RLS and explicit grants. Organization admins may read only
-their prompt events. Installations and raw batches have no frontend grants. Only
-the backend receives the Supabase secret key.
+All public tables use RLS and explicit grants. Organization administrators may
+read all prompts and installations in their organization. Members may read
+prompts and installations that they own. Raw batches have no frontend grants.
+Only server code receives the Supabase secret key.
 
 ### Share ingestion logic
 
@@ -57,4 +58,4 @@ zero warm containers.
 - Collector retries are safe after ambiguous failures.
 - Raw storage grows without bound until a retention policy is added.
 
-Deployment, retention, and frontend query design remain outside this decision.
+Deployment and retention remain outside this decision.

@@ -7,8 +7,10 @@ dependencies = ["modal==1.5.2"]
 
 [dependency-groups]
 dev = [
+  "cryptography>=45,<47",
   "deptry==0.25.1",
   "opentelemetry-proto==1.37.0",
+  "pyjwt[crypto]>=2.10,<3",
   "pytest==8.4.2",
   "ruff>=0.12,<1",
   "vulture==2.16",

@@ -5,19 +5,31 @@ import os
 import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
-from uuid import uuid4
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from supabase import Client, create_client
 
 from slowpoke_backend.app import create_app
+from slowpoke_backend.enrollment import SupabaseEnrollmentRepository
+from slowpoke_backend.errors import ExpiredEnrollmentCodeError
 from slowpoke_backend.repository import SupabaseRepository
 from slowpoke_backend.settings import Settings
 
-from .helpers import resource_group
+from .helpers import (
+    TEST_COLLECTOR_AUDIENCE,
+    TEST_COLLECTOR_URL,
+    TEST_INSTALLATION_ISSUER,
+    TEST_SIGNING_KID,
+    TEST_SIGNING_PRIVATE_KEY,
+    resource_group,
+)
 
 pytestmark = pytest.mark.database
+
+LOCAL_USER_ID = "00000000-0000-4000-8000-000000000002"
 
 
 def _credentials() -> tuple[str, str]:
@@ -35,14 +47,42 @@ def _database_fixture() -> Iterator[tuple[Client, str, str]]:
     suffix = secrets.token_hex(8)
     organization = (
         client.table("organizations")
-        .insert({"name": f"Database test {suffix}"})
+        .insert(
+            {
+                "name": f"Database test {suffix}",
+                "created_by_user_id": LOCAL_USER_ID,
+                "idempotency_key": str(uuid4()),
+            }
+        )
         .execute()
         .data[0]
     )
     organization_id = str(organization["id"])
+    enrollment = (
+        client.table("installation_enrollments")
+        .insert(
+            {
+                "organization_id": organization_id,
+                "created_by_user_id": LOCAL_USER_ID,
+                "code_digest": secrets.token_hex(32),
+                "selected_tools": ["codex"],
+                "expires_at": (datetime.now(UTC) + timedelta(minutes=10)).isoformat(),
+            }
+        )
+        .execute()
+        .data[0]
+    )
     installation = (
         client.table("installations")
-        .insert({"organization_id": organization_id})
+        .insert(
+            {
+                "organization_id": organization_id,
+                "created_by_user_id": LOCAL_USER_ID,
+                "tool": "codex",
+                "computer_name": "Backend database test",
+                "enrollment_id": enrollment["id"],
+            }
+        )
         .execute()
         .data[0]
     )
@@ -58,8 +98,54 @@ def _api(secret_key: str, url: str, collector_token: str) -> TestClient:
         SLOWPOKE_INGEST_TOKEN=collector_token,
         SUPABASE_URL=url,
         SUPABASE_SECRET_KEY=secret_key,
+        SLOWPOKE_INSTALLATION_ISSUER=TEST_INSTALLATION_ISSUER,
+        SLOWPOKE_COLLECTOR_AUDIENCE=TEST_COLLECTOR_AUDIENCE,
+        SLOWPOKE_COLLECTOR_URL=TEST_COLLECTOR_URL,
+        SLOWPOKE_INSTALLATION_SIGNING_PRIVATE_KEY=TEST_SIGNING_PRIVATE_KEY,
+        SLOWPOKE_INSTALLATION_SIGNING_KID=TEST_SIGNING_KID,
     )
     return TestClient(create_app(settings, SupabaseRepository(url, secret_key)))
+
+
+@contextmanager
+def _enrollment_fixture(
+    selected_tools: list[str], expires_at: datetime
+) -> Iterator[tuple[Client, str, str, str]]:
+    url, secret_key = _credentials()
+    client = create_client(url, secret_key)
+    suffix = secrets.token_hex(8)
+    organization = (
+        client.table("organizations")
+        .insert(
+            {
+                "name": f"Enrollment test {suffix}",
+                "created_by_user_id": LOCAL_USER_ID,
+                "idempotency_key": str(uuid4()),
+            }
+        )
+        .execute()
+        .data[0]
+    )
+    organization_id = str(organization["id"])
+    digest = secrets.token_hex(32)
+    enrollment = (
+        client.table("installation_enrollments")
+        .insert(
+            {
+                "organization_id": organization_id,
+                "created_by_user_id": LOCAL_USER_ID,
+                "code_digest": digest,
+                "selected_tools": selected_tools,
+                "expires_at": expires_at.isoformat(),
+            }
+        )
+        .execute()
+        .data[0]
+    )
+    try:
+        yield client, organization_id, digest, str(enrollment["id"])
+    finally:
+        client.table("organizations").delete().eq("id", organization_id).execute()
 
 
 def _post(client: TestClient, signal: str, payload: object, token: str):
@@ -133,6 +219,28 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
                 "originator": "Codex_Desktop",
             }
         ]
+        timestamps = (
+            service_client.table("installations")
+            .select("verified_at,last_seen_at")
+            .eq("id", installation_id)
+            .single()
+            .execute()
+            .data
+        )
+        assert timestamps["verified_at"] is not None
+        assert timestamps["last_seen_at"] is not None
+
+        assert _post(client, "logs", payloads["logs"], token).status_code == 200
+        after_replay = (
+            service_client.table("installations")
+            .select("verified_at,last_seen_at")
+            .eq("id", installation_id)
+            .single()
+            .execute()
+            .data
+        )
+        assert after_replay["verified_at"] == timestamps["verified_at"]
+        assert after_replay["last_seen_at"] >= timestamps["last_seen_at"]
 
 
 def test_unknown_installation_is_retryable_and_stores_nothing() -> None:
@@ -195,3 +303,53 @@ def test_mixed_export_persists_known_partition_before_retry() -> None:
                 "installation_id": installation_id,
             }
         ]
+
+
+def test_enrollment_redeem_is_idempotent_for_each_selected_tool() -> None:
+    url, secret_key = _credentials()
+    now = datetime.now(UTC)
+    with _enrollment_fixture(["codex", "claude_code"], now + timedelta(minutes=10)) as (
+        client,
+        organization_id,
+        digest,
+        enrollment_id,
+    ):
+        repository = SupabaseEnrollmentRepository(url, secret_key)
+
+        first = repository.redeem(digest, "Test laptop", now)
+        second = repository.redeem(
+            digest, "Ignored retry name", now + timedelta(seconds=1)
+        )
+        stored = (
+            client.table("installations")
+            .select("*")
+            .eq("enrollment_id", enrollment_id)
+            .execute()
+            .data
+        )
+
+        assert [installation.tool for installation in first] == ["codex", "claude_code"]
+        assert [installation.id for installation in second] == [
+            installation.id for installation in first
+        ]
+        assert {installation.organization_id for installation in first} == {
+            UUID(organization_id)
+        }
+        assert len(stored) == 2
+        assert {row["computer_name"] for row in stored} == {"Test laptop"}
+        assert all("token" not in row for row in stored)
+
+
+def test_enrollment_rejects_expired_code() -> None:
+    url, secret_key = _credentials()
+    now = datetime.now(UTC)
+    with _enrollment_fixture(["codex"], now - timedelta(seconds=1)) as (
+        _client,
+        _organization_id,
+        digest,
+        _enrollment_id,
+    ):
+        repository = SupabaseEnrollmentRepository(url, secret_key)
+
+        with pytest.raises(ExpiredEnrollmentCodeError):
+            repository.redeem(digest, "Test laptop", now)

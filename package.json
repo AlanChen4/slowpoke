@@ -6,7 +6,6 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "prepare": "bash scripts/install-git-hooks.sh",
-    "setup:codex": "node scripts/setup-local-codex.mjs",
     "dev": "bash scripts/run-local-dev.sh",
     "build": "pnpm --filter @slowpoke/web build",
     "test": "node scripts/test.mjs",

@@ -1,0 +1,27 @@
+{
+  "name": "@slowpoke/setup",
+  "version": "0.1.0",
+  "description": "Connect Codex and Claude Code installations to Slowpoke",
+  "license": "UNLICENSED",
+  "bin": {
+    "slowpoke-setup": "bin/slowpoke-setup.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

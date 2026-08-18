@@ -6,8 +6,9 @@ Slowpoke Collector is a public OTLP/HTTP gateway built with OpenTelemetry
 Collector Contrib. It must:
 
 - Receive logs, metrics, and traces on port `4318`.
-- Authenticate installations with HTTP Basic authentication.
-- Stamp the authenticated username as `slowpoke.installation.id`.
+- Authenticate installations with signed OIDC bearer tokens.
+- Stamp the authenticated subject and tool claim as
+  `slowpoke.installation.id` and `slowpoke.installation.tool`.
 - Apply memory limits, batching, retry, and an in-memory sending queue.
 - Send OTLP/JSON to the authenticated backend endpoint.
 
@@ -15,8 +16,8 @@ The backend owns vendor normalization and database writes.
 
 ## Configuration
 
-- `SLOWPOKE_OTLP_HTPASSWD`: Newline-separated htpasswd entries. Each username
-  must match an installation UUID.
+- `SLOWPOKE_INSTALLATION_ISSUER`: Backend OIDC issuer URL.
+- `SLOWPOKE_COLLECTOR_AUDIENCE`: Required installation-token audience.
 - `SLOWPOKE_INGEST_URL`: Backend URL ending in `/api/internal/telemetry`.
 - `SLOWPOKE_INGEST_TOKEN`: Shared backend bearer token.
 

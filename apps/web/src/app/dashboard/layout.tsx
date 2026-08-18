@@ -32,6 +32,12 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     );
   }
 
+  if (!selectedOrganization?.completed) {
+    redirect(
+      selectedOrganization ? `/onboarding?organization=${selectedOrganization.id}` : "/onboarding",
+    );
+  }
+
   const email = claimsData.claims.email ?? "Signed-in account";
   const sidebarDefaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
