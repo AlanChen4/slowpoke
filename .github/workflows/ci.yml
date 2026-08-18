@@ -48,6 +48,10 @@ jobs:
       - name: Test web and tooling
         run: pnpm test --suite setup --suite tooling --suite web
 
+      - name: Check package release notes
+        if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+        run: pnpm changeset status --since=${{ github.event.pull_request.base.sha }}
+
   backend:
     name: Backend
     runs-on: ubuntu-latest

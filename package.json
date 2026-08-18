@@ -38,9 +38,12 @@
     "format:collector:check": "cd apps/collector && uv run ruff format --check .",
     "db:reset": "bash scripts/reset-local-database.sh",
     "db:types": "bash scripts/generate-python-db-types.sh > apps/backend/slowpoke_backend/database_types.py",
-    "check:metadata": "node scripts/check-metadata.mjs"
+    "check:metadata": "node scripts/check-metadata.mjs",
+    "changeset": "changeset",
+    "release": "changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.0",
     "@oxlint/plugins": "1.78.0",
     "knip": "6.32.2",
     "oxfmt": "^0.61.0",

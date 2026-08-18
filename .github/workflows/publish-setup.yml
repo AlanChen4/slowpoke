@@ -5,16 +5,20 @@ on:
     branches:
       - main
     paths:
+      - ".changeset/**"
       - ".github/workflows/publish-setup.yml"
+      - "package.json"
       - "packages/setup/**"
+      - "pnpm-lock.yaml"
 
 concurrency:
   group: publish-setup
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
+  pull-requests: write
 
 jobs:
   publish:
@@ -32,7 +36,33 @@ jobs:
           package-manager-cache: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @slowpokeai/setup test
-      - run: npm publish --access public
-        working-directory: packages/setup
+      - name: Create release pull request or publish
+        id: changesets
+        uses: changesets/action@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
+        with:
+          publish-script: pnpm release
+          commit-message: "chore(setup): release package"
+          pr-title: "chore(setup): release package"
+          create-github-releases: true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Format release pull request
+        if: steps.changesets.outputs.pr-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PR: ${{ steps.changesets.outputs.pr-number }}
+        run: |
+          gh pr edit "$RELEASE_PR" --body-file - <<'EOF'
+          ## Summary
+
+          - Publish the pending Slowpoke setup package changes.
+
+          ## Why
+
+          Package consumers need a versioned release that includes each approved changeset.
+
+          ## Validation
+
+          - `pnpm --filter @slowpokeai/setup test`
+          - Changesets version calculation
+          EOF

@@ -56,14 +56,16 @@ re-enrollment window before changing the key or key ID.
 
 ## Setup package publishing
 
-The `Publish setup package` workflow publishes `@slowpokeai/setup` after a
-change to the package reaches `main`. Increase the version in
-`packages/setup/package.json` for each release.
+Add a Changeset when a pull request changes `@slowpokeai/setup`. Select a patch,
+minor, or major release and describe the user-visible change. After the change
+reaches `main`, the `Publish setup package` workflow creates or updates a release
+pull request. Merging the release pull request updates the package version,
+publishes it to npm, creates a Git tag, and creates a GitHub release.
 
 Create the `slowpokeai` organization on npm before the first release. Create a
 GitHub environment named `npm`, then add an `NPM_TOKEN` environment secret that
-can publish public packages in the `@slowpokeai` scope. The first merge publishes
-the package with public access.
+can publish public packages in the `@slowpokeai` scope. Merging the first release
+pull request publishes version `0.1.0` with public access.
 
 After the first release, configure `@slowpokeai/setup` to trust the GitHub
 Actions workflow `publish-setup.yml` in `AlanChen4/slowpoke`. Set the environment
