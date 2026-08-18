@@ -1,6 +1,6 @@
 {
   "name": "@slowpokeai/setup",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Connect Codex and Claude Code installations to Slowpoke",
   "homepage": "https://github.com/AlanChen4/slowpoke#readme",
   "bugs": {
