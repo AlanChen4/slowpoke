@@ -25,6 +25,9 @@ class Prompt:
     session_id: str | None
     actor_account_id: str | None
     actor_email: str | None
+    model: str | None
+    slug: str | None
+    originator: str | None
     prompt_text: str
     is_redacted: bool
 

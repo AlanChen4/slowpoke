@@ -20,7 +20,7 @@ values (
   '00000000-0000-0000-0000-000000000000',
   'authenticated',
   'authenticated',
-  'dev@slowblink.ai',
+  'dev@slowpoke.ai',
   now(),
   '',
   '',
@@ -45,7 +45,7 @@ insert into auth.identities (
 values (
   '00000000-0000-4000-8000-000000000002',
   '00000000-0000-4000-8000-000000000002',
-  '{"sub": "00000000-0000-4000-8000-000000000002", "email": "dev@slowblink.ai", "email_verified": true}'::jsonb,
+  '{"sub": "00000000-0000-4000-8000-000000000002", "email": "dev@slowpoke.ai", "email_verified": true}'::jsonb,
   'email',
   now(),
   now(),
@@ -54,11 +54,11 @@ values (
 on conflict (provider_id, provider) do nothing;
 
 insert into public.organizations (name)
-select 'Slowblink'
+select 'Slowpoke'
 where not exists (
   select 1
   from public.organizations
-  where name = 'Slowblink'
+  where name = 'Slowpoke'
 );
 
 insert into public.organization_members (organization_id, user_id, role)
@@ -67,7 +67,7 @@ select
   '00000000-0000-4000-8000-000000000002',
   'admin'
 from public.organizations as organization
-where organization.name = 'Slowblink'
+where organization.name = 'Slowpoke'
 order by organization.id
 limit 1
 on conflict (organization_id, user_id) do nothing;
@@ -78,7 +78,7 @@ select
   '00000000-0000-4000-8000-000000000001',
   organization.id
 from public.organizations as organization
-where organization.name = 'Slowblink'
+where organization.name = 'Slowpoke'
 order by organization.id
 limit 1
 on conflict (id) do nothing;

@@ -28,9 +28,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 
 COLLECTOR_ROOT = Path(__file__).resolve().parents[1]
-MODAL_URL_PATTERN = re.compile(
-    r"https://[a-zA-Z0-9.-]+\.modal\.(?:direct|host|run)"
-)
+MODAL_URL_PATTERN = re.compile(r"https://[a-zA-Z0-9.-]+\.modal\.(?:direct|host|run)")
 ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 INSTALLATION_ID = "slowpoke-e2e"
 INSTALLATION_PASSWORD = "slowpoke-e2e-password"
@@ -83,7 +81,7 @@ class ModalServe:
         while time.monotonic() < deadline:
             remaining = deadline - time.monotonic()
             try:
-                clean_line = self._line_queue.get(timeout=min(0.5, remaining))
+                self._line_queue.get(timeout=min(0.5, remaining))
             except queue.Empty:
                 if self.process.poll() is not None:
                     break
@@ -320,8 +318,7 @@ def test_modal_collector_forwards_all_otlp_signals():
         ]
         assert resources
         assert all(
-            attributes["slowpoke.installation.id"]["stringValue"]
-            == INSTALLATION_ID
+            attributes["slowpoke.installation.id"]["stringValue"] == INSTALLATION_ID
             for attributes in resources
         )
     finally:

@@ -89,6 +89,9 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
                         installation_id,
                         prompt_event="codex.user_prompt",
                         prompt_text="database prompt",
+                        model="gpt-5.6-sol",
+                        slug="gpt-5.6-sol",
+                        originator="Codex_Desktop",
                     )
                 ]
             },
@@ -109,7 +112,7 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
         )
         prompts = (
             service_client.table("prompt_events")
-            .select("organization_id,installation_id,prompt_text")
+            .select("organization_id,installation_id,prompt_text,model,slug,originator")
             .eq("organization_id", organization_id)
             .execute()
             .data
@@ -125,6 +128,9 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
                 "organization_id": organization_id,
                 "installation_id": installation_id,
                 "prompt_text": "database prompt",
+                "model": "gpt-5.6-sol",
+                "slug": "gpt-5.6-sol",
+                "originator": "Codex_Desktop",
             }
         ]
 
@@ -135,12 +141,6 @@ def test_unknown_installation_is_retryable_and_stores_nothing() -> None:
     client = _api(secret_key, url, token)
     unknown_id = str(uuid4())
     service_client = create_client(url, secret_key)
-    before = (
-        service_client.table("telemetry_batches")
-        .select("id", count="exact")
-        .execute()
-        .count
-    )
 
     response = _post(
         client,
@@ -150,13 +150,14 @@ def test_unknown_installation_is_retryable_and_stores_nothing() -> None:
     )
 
     assert response.status_code == 503
-    after = (
+    stored = (
         service_client.table("telemetry_batches")
         .select("id", count="exact")
+        .eq("installation_id", unknown_id)
         .execute()
         .count
     )
-    assert after == before
+    assert stored == 0
 
 
 def test_mixed_export_persists_known_partition_before_retry() -> None:

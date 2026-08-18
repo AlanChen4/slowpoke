@@ -22,6 +22,9 @@ def resource_group(
     *,
     prompt_event: str | None = None,
     prompt_text: str | None = None,
+    model: str | None = None,
+    slug: str | None = None,
+    originator: str | None = None,
     service_name: str = "test",
 ) -> dict[str, object]:
     installation_id = str(installation_id)
@@ -42,6 +45,12 @@ def resource_group(
         ]
         if prompt_text is not None:
             record_attributes.append(attribute("prompt", prompt_text))
+        if model is not None:
+            record_attributes.append(attribute("model", model))
+        if slug is not None:
+            record_attributes.append(attribute("slug", slug))
+        if originator is not None:
+            record_attributes.append(attribute("originator", originator))
         group["scopeLogs"] = [
             {
                 "scope": {"name": service_name},

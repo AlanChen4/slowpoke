@@ -92,6 +92,9 @@ class SupabaseRepository:
                         "session_id": prompt.session_id,
                         "actor_account_id": prompt.actor_account_id,
                         "actor_email": prompt.actor_email,
+                        "model": prompt.model,
+                        "slug": prompt.slug,
+                        "originator": prompt.originator,
                         "prompt_text": prompt.prompt_text,
                         "is_redacted": prompt.is_redacted,
                     }

@@ -22,9 +22,10 @@ const initialState: AuthActionState = {};
 
 type MagicLinkFormProps = React.ComponentProps<"div"> & {
   authError?: string;
+  showOAuth: boolean;
 };
 
-export function MagicLinkForm({ authError, className, ...props }: MagicLinkFormProps) {
+export function MagicLinkForm({ authError, showOAuth, className, ...props }: MagicLinkFormProps) {
   const [state, formAction, pending] = useActionState(continueWithEmail, initialState);
 
   return (
@@ -56,25 +57,29 @@ export function MagicLinkForm({ authError, className, ...props }: MagicLinkFormP
               {pending ? "Continuing…" : "Continue"}
             </Button>
           </Field>
-          <FieldSeparator>Or</FieldSeparator>
-          <Field className="grid gap-4 sm:grid-cols-2">
-            <Link
-              href="/auth/oauth?provider=github"
-              prefetch={false}
-              className={buttonVariants({ variant: "secondary" })}
-            >
-              <GitHubLogo data-icon="inline-start" />
-              Continue with GitHub
-            </Link>
-            <Link
-              href="/auth/oauth?provider=google"
-              prefetch={false}
-              className={buttonVariants({ variant: "secondary" })}
-            >
-              <GoogleLogo className="size-4" data-icon="inline-start" />
-              Continue with Google
-            </Link>
-          </Field>
+          {showOAuth ? (
+            <>
+              <FieldSeparator>Or</FieldSeparator>
+              <Field className="grid gap-4 sm:grid-cols-2">
+                <Link
+                  href="/auth/oauth?provider=github"
+                  prefetch={false}
+                  className={buttonVariants({ variant: "secondary" })}
+                >
+                  <GitHubLogo data-icon="inline-start" />
+                  Continue with GitHub
+                </Link>
+                <Link
+                  href="/auth/oauth?provider=google"
+                  prefetch={false}
+                  className={buttonVariants({ variant: "secondary" })}
+                >
+                  <GoogleLogo className="size-4" data-icon="inline-start" />
+                  Continue with Google
+                </Link>
+              </Field>
+            </>
+          ) : null}
         </FieldGroup>
       </form>
       <FieldDescription className="px-6 text-center">

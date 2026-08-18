@@ -2,9 +2,16 @@
 
 set -euo pipefail
 
-exec doppler run \
-  --no-fallback \
-  --project frontend \
-  --config dev \
-  --only-secrets SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID,SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET,SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID,SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET \
-  -- pnpm exec supabase "$@"
+# Supabase requires values for enabled OAuth providers even when local development
+# uses the seeded email account. Real values can still be supplied explicitly.
+: "${SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID:=local-oauth-disabled}"
+: "${SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET:=local-oauth-disabled}"
+: "${SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID:=local-oauth-disabled}"
+: "${SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET:=local-oauth-disabled}"
+
+export SUPABASE_AUTH_EXTERNAL_GITHUB_CLIENT_ID
+export SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET
+export SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID
+export SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET
+
+exec pnpm exec supabase "$@"

@@ -24,9 +24,12 @@ _PROMPT_ATTRIBUTE_KEYS = frozenset(
         "conversation.id",
         "event.name",
         "event.timestamp",
+        "model",
+        "originator",
         "prompt",
         "prompt.id",
         "session.id",
+        "slug",
         "user.account_id",
         "user.account_uuid",
         "user.email",
@@ -185,6 +188,9 @@ def _extract_prompt(
         actor_account_id=attributes.get("user.account_uuid")
         or attributes.get("user.account_id"),
         actor_email=attributes.get("user.email"),
+        model=attributes.get("model"),
+        slug=attributes.get("slug"),
+        originator=attributes.get("originator"),
         prompt_text=prompt_value if prompt_value is not None else "<REDACTED>",
         is_redacted=is_redacted,
     )

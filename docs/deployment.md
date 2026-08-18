@@ -1,9 +1,10 @@
 # Deploy backend and Collector
 
-After relevant changes reach `main`, GitHub Actions tests both apps, syncs
-secrets, deploys and rolls over each app, then checks backend health. Run the
-`Deploy Modal` workflow manually when only secrets have changed. Deploy database
-migrations separately.
+After relevant changes reach `main`, GitHub Actions deploys only the changed
+Modal app. Each app has its own test, secret sync, deployment, and rollover job;
+the backend job also checks backend health. Run the `Deploy Modal` workflow
+manually to deploy both apps after secrets change. Deploy database migrations
+separately.
 
 ## Secret ownership
 
@@ -18,8 +19,9 @@ filtered copy for each app:
 | `SLOWPOKE_OTLP_HTPASSWD` | No                 | Yes                  |
 | `SLOWPOKE_INGEST_URL`    | No                 | Yes                  |
 
-`scripts/sync-modal-secrets.sh` enforces this allowlist. Keep application secrets
-in Doppler. GitHub stores only Doppler and Modal credentials.
+`scripts/sync-modal-secrets.sh --service <backend|collector>` enforces this
+allowlist. Keep application secrets in Doppler. GitHub stores only Doppler and
+Modal credentials.
 
 ## GitHub Production environment
 
