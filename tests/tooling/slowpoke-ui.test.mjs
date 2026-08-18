@@ -49,3 +49,39 @@ test("allows full borders and semantic page chrome", () => {
 
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
+
+test("rejects card descriptions without an explicit rationale", () => {
+  const result = lintFixture(`
+    import { CardDescription, CardHeader, CardTitle } from "./card";
+
+    export function Example() {
+      return (
+        <CardHeader>
+          <CardTitle>Organization</CardTitle>
+          <CardDescription>Update the name shown throughout this workspace.</CardDescription>
+        </CardHeader>
+      );
+    }
+  `);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout + result.stderr, /slowpoke-ui\(card-description-reason\)/u);
+});
+
+test("allows a card description with a meaningful rationale", () => {
+  const result = lintFixture(`
+    import { CardDescription, CardHeader, CardTitle } from "./card";
+
+    export function Example() {
+      return (
+        <CardHeader>
+          <CardTitle>Security</CardTitle>
+          {/* CARD-DESCRIPTION-REASON: Explains the irreversible effect before the user acts. */}
+          <CardDescription>Deleting this key immediately disables every connected client.</CardDescription>
+        </CardHeader>
+      );
+    }
+  `);
+
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});

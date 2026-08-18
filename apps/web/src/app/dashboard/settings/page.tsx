@@ -12,14 +12,7 @@ import { RevokeInstallationButton } from "@/app/dashboard/settings/revoke-instal
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -156,11 +149,6 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Organization</CardTitle>
-            <CardDescription>
-              {selectedOrganization?.role === "admin"
-                ? "Update the name and logo shown throughout this workspace."
-                : "Details for the organization selected in the sidebar."}
-            </CardDescription>
           </CardHeader>
           <CardContent>
             {!selectedOrganization ? (
@@ -195,9 +183,6 @@ export default async function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Invitations</CardTitle>
-              <CardDescription>
-                Invite members or administrators. Invitations expire after seven days.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <InvitationSettings
@@ -213,10 +198,6 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Installations</CardTitle>
-            <CardDescription>
-              Each installation connects one AI tool on one computer. Administrators see the entire
-              organization; members see only their installations.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             {installations.length === 0 ? (
@@ -294,7 +275,6 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Account</CardTitle>
-            <CardDescription>The Supabase Auth identity used for this session.</CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="flex flex-col gap-3">
