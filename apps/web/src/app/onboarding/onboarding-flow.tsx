@@ -452,7 +452,7 @@ export function OnboardingFlow({
               <FieldError>{checkError}</FieldError>
             </CardContent>
           ) : null}
-          <CardFooter>
+          <CardFooter className="justify-between">
             <Button
               type="button"
               variant="outline"
@@ -462,6 +462,19 @@ export function OnboardingFlow({
               }}
             >
               Back
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setCheckError(undefined);
+                setChecking(false);
+                setSetupSession(undefined);
+                setOrganization(null);
+                router.replace("/onboarding?create=1");
+              }}
+            >
+              Skip
             </Button>
           </CardFooter>
         </Card>
