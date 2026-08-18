@@ -18,7 +18,6 @@ Install Docker Desktop, pnpm, and uv. Configure the workspace once:
 pnpm install
 (cd apps/backend && uv sync --locked)
 (cd apps/collector && uv sync --locked)
-pnpm setup:codex
 pnpm db:reset --yes
 ```
 
@@ -29,9 +28,8 @@ Run `pnpm dev` to start web, backend, Collector, and local Supabase. Services us
 - Collector: `http://127.0.0.1:4318`
 - Supabase Studio: `http://127.0.0.1:55323`
 
-Supabase CLI provides local credentials. `pnpm setup:codex` stores machine-local
-ingestion credentials in the user's Codex telemetry exporter configuration so
-every worktree can reuse them.
+Supabase CLI provides local credentials. The onboarding command stores a signed
+installation token in each selected AI tool's user configuration.
 Stopping `pnpm dev` leaves Supabase running. Run `pnpm db:reset --yes` to
 rebuild it from migrations and seed data without an interactive confirmation.
 

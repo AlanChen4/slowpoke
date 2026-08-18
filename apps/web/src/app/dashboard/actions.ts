@@ -6,6 +6,7 @@ import * as z from "zod";
 
 import { env } from "@/env";
 import { ORGANIZATION_COOKIE } from "@/lib/organization-context";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type OrganizationActionState = {
@@ -72,10 +73,17 @@ export async function updateOrganization(
   }
 
   const supabase = await createClient();
-  const { data: membership, error: membershipError } = await supabase
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    return { error: "Sign in again to update organization settings." };
+  }
+
+  const admin = createAdminClient();
+  const { data: membership, error: membershipError } = await admin
     .from("organization_members")
     .select("role")
     .eq("organization_id", result.data.organizationId)
+    .eq("user_id", userData.user.id)
     .maybeSingle();
 
   if (membershipError || membership?.role !== "admin") {
@@ -117,7 +125,7 @@ export async function updateOrganization(
     updates.logo_url = logoUrl;
   }
 
-  const { data: organization, error } = await supabase
+  const { data: organization, error } = await admin
     .from("organizations")
     .update(updates)
     .eq("id", result.data.organizationId)

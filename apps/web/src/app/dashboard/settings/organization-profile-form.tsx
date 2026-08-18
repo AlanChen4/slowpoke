@@ -26,7 +26,7 @@ function SaveButton() {
 
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Save organization"}
+      {pending ? "Saving…" : "Save"}
     </Button>
   );
 }
@@ -59,7 +59,7 @@ export function OrganizationProfileForm({ organization }: OrganizationProfileFor
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <Input type="hidden" name="organizationId" value={organization.id} />
-      <div className="flex items-center gap-3">
+      <div className="flex items-end gap-3">
         <Tooltip>
           <TooltipTrigger
             render={
@@ -68,12 +68,12 @@ export function OrganizationProfileForm({ organization }: OrganizationProfileFor
                 variant="ghost"
                 size="icon-lg"
                 aria-label="Change organization logo"
-                className="group/logo size-12"
+                className="group/logo size-14"
                 onClick={() => logoInputRef.current?.click()}
               />
             }
           >
-            <Avatar className="size-12 rounded-none after:hidden">
+            <Avatar className="size-14 rounded-none after:hidden">
               {logoPreviewUrl || organization.logoUrl ? (
                 <AvatarImage
                   className="rounded-none"
@@ -103,23 +103,20 @@ export function OrganizationProfileForm({ organization }: OrganizationProfileFor
           className="sr-only"
           onChange={(event) => previewLogo(event.target.files?.[0])}
         />
-        <div className="flex flex-col gap-0.5">
-          <p className="text-sm font-medium">{name || organization.name}</p>
-        </div>
+        <FieldGroup className="flex-1">
+          <Field>
+            <FieldLabel htmlFor="organization-name">Name</FieldLabel>
+            <Input
+              id="organization-name"
+              name="name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={80}
+              required
+            />
+          </Field>
+        </FieldGroup>
       </div>
-      <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="organization-name">Name</FieldLabel>
-          <Input
-            id="organization-name"
-            name="name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            maxLength={80}
-            required
-          />
-        </Field>
-      </FieldGroup>
       {state.error ? <FieldError>{state.error}</FieldError> : null}
       {state.message ? (
         <output className="text-xs text-muted-foreground">{state.message}</output>

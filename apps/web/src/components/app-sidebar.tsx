@@ -1,12 +1,13 @@
 "use client";
 
-import { ChatsCircleIcon, GearIcon, WaveformIcon } from "@phosphor-icons/react";
+import { ChatsCircleIcon, GearIcon, PlusIcon, WaveformIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { selectOrganization } from "@/app/dashboard/actions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -19,7 +20,6 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/sidebar";
 
 export type SidebarOrganization = {
+  completed: boolean;
   id: string;
   name: string;
   logoUrl: string | null;
@@ -38,7 +39,6 @@ export type SidebarOrganization = {
 };
 
 type AppSidebarProps = {
-  email: string;
   organizations: SidebarOrganization[];
   selectedOrganizationId: string | null;
 };
@@ -59,29 +59,13 @@ const navigation = [
   },
 ] as const;
 
-function accountInitials(email: string) {
-  const localPart = email.split("@")[0] ?? "";
-  const parts = localPart.split(/[._-]/).filter(Boolean);
-  const initials = parts
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2);
-
-  return initials.toUpperCase() || "U";
-}
-
-export function AppSidebar({ email, organizations, selectedOrganizationId }: AppSidebarProps) {
+export function AppSidebar({ organizations, selectedOrganizationId }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [switchError, setSwitchError] = useState<string>();
   const [isSwitching, startSwitchTransition] = useTransition();
   const selectedOrganization =
     organizations.find((organization) => organization.id === selectedOrganizationId) ?? null;
-  const roleLabel = !selectedOrganization
-    ? "No organization"
-    : selectedOrganization.role === "admin"
-      ? "Administrator"
-      : "Member";
 
   function changeOrganization(organizationId: string | null) {
     if (!organizationId) {
@@ -97,6 +81,12 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
         return;
       }
 
+      const organization = organizations.find((candidate) => candidate.id === organizationId);
+      if (organization && !organization.completed) {
+        router.push(`/onboarding?organization=${organization.id}`);
+        return;
+      }
+      router.push("/dashboard");
       router.refresh();
     });
   }
@@ -136,7 +126,7 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
                   <SelectValue className="truncate font-medium" placeholder="No organization" />
                 </div>
               </SelectTrigger>
-              <SelectContent align="start" alignItemWithTrigger={false}>
+              <SelectContent className="min-w-72" align="start" alignItemWithTrigger={false}>
                 <SelectGroup>
                   <SelectLabel>Organizations</SelectLabel>
                   {organizations.map((organization) => (
@@ -150,9 +140,24 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
                         </AvatarFallback>
                       </Avatar>
                       <span>{organization.name}</span>
+                      {!organization.completed ? (
+                        <span className="ml-auto text-muted-foreground">Setup required</span>
+                      ) : null}
                     </SelectItem>
                   ))}
                 </SelectGroup>
+                <div className="p-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => router.push("/onboarding?create=1")}
+                  >
+                    <PlusIcon />
+                    Create organization
+                  </Button>
+                </div>
               </SelectContent>
             </Select>
             <output className="sr-only">
@@ -184,26 +189,6 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              tooltip={{ children: email }}
-              render={<Link href="/dashboard/settings#account" />}
-            >
-              <Avatar size="sm">
-                <AvatarFallback>{accountInitials(email)}</AvatarFallback>
-              </Avatar>
-              <div className="flex min-w-0 flex-1 flex-col text-left leading-tight">
-                <span className="truncate font-medium">{email}</span>
-                <span className="truncate text-muted-foreground">{roleLabel}</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </Sidebar>
   );
 }

@@ -95,15 +95,32 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function FieldLabel({ className, ...props }: React.ComponentProps<typeof Label>) {
+const fieldLabelVariants = cva(
+  "group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col has-[>[data-slot=field]]:rounded-none *:data-[slot=field]:p-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "has-data-checked:border-primary/30 has-data-checked:bg-primary/5 has-[>[data-slot=field]]:border dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
+
+function FieldLabel({
+  className,
+  variant = "default",
+  ...props
+}: React.ComponentProps<typeof Label> & VariantProps<typeof fieldLabelVariants>) {
   return (
     <Label
       data-slot="field-label"
-      className={cn(
-        "group/field-label peer/field-label flex w-fit gap-2 leading-snug group-data-[disabled=true]/field:opacity-50 has-data-checked:border-primary/30 has-data-checked:bg-primary/5 has-[>[data-slot=field]]:rounded-none has-[>[data-slot=field]]:border *:data-[slot=field]:p-2 dark:has-data-checked:border-primary/20 dark:has-data-checked:bg-primary/10",
-        "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col",
-        className,
-      )}
+      className={cn(fieldLabelVariants({ variant }), className)}
       {...props}
     />
   );
@@ -154,7 +171,7 @@ function FieldSeparator({
       )}
       {...props}
     >
-      <Separator className="absolute inset-0 top-1/2" />
+      <Separator className="absolute inset-x-0 top-1/2 -translate-y-1/2" />
       {children && (
         <span
           className="relative mx-auto block w-fit bg-background px-2 text-muted-foreground"

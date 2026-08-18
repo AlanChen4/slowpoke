@@ -3,6 +3,15 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { env } from "@/env";
 
+function redirectWithCookies(request: NextRequest, pathname: string, cookieSource: NextResponse) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  const response = NextResponse.redirect(url);
+  cookieSource.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+  return response;
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -25,20 +34,20 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const { data, error } = await supabase.auth.getClaims();
-  const isAuthenticated = !error && Boolean(data?.claims);
+  const { data, error } = await supabase.auth.getUser();
+  const isAuthenticated = !error && Boolean(data.user);
   const isAuthPage = request.nextUrl.pathname === "/login";
+  const isProtectedPage =
+    request.nextUrl.pathname.startsWith("/dashboard") ||
+    request.nextUrl.pathname.startsWith("/onboarding");
 
-  if (!isAuthenticated && request.nextUrl.pathname.startsWith("/dashboard")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  if (!isAuthenticated && isProtectedPage) {
+    await supabase.auth.signOut({ scope: "local" });
+    return redirectWithCookies(request, "/login", supabaseResponse);
   }
 
   if (isAuthenticated && isAuthPage) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+    return redirectWithCookies(request, "/dashboard", supabaseResponse);
   }
 
   return supabaseResponse;

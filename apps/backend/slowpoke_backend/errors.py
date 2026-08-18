@@ -16,7 +16,19 @@ class PayloadTooLargeError(IngestionError):
 class UnknownInstallationError(IngestionError):
     def __init__(self, installation_ids: set[UUID]):
         self.installation_ids = installation_ids
-        super().__init__("unknown or revoked installation")
+        super().__init__("unknown installation")
+
+
+class RevokedInstallationError(IngestionError):
+    """Telemetry from a revoked installation must be discarded."""
+
+
+class InvalidEnrollmentCodeError(Exception):
+    """The enrollment code is unknown."""
+
+
+class ExpiredEnrollmentCodeError(Exception):
+    """The enrollment code has expired."""
 
 
 class RepositoryError(IngestionError):

@@ -1,6 +1,6 @@
 begin;
 
-select plan(24);
+select plan(35);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass),
@@ -9,6 +9,14 @@ select ok(
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.organization_members'::regclass),
   'organization_members has RLS enabled'
+);
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.organization_invitations'::regclass),
+  'organization_invitations has RLS enabled'
+);
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.installation_setup_sessions'::regclass),
+  'installation_setup_sessions has RLS enabled'
 );
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.installations'::regclass),
@@ -32,23 +40,48 @@ insert into auth.users (id, email)
 values
   ('10000000-0000-0000-0000-000000000001', 'admin-a@example.test'),
   ('10000000-0000-0000-0000-000000000002', 'member-a@example.test'),
-  ('10000000-0000-0000-0000-000000000003', 'admin-b@example.test');
+  ('10000000-0000-0000-0000-000000000003', 'admin-b@example.test'),
+  ('10000000-0000-0000-0000-000000000004', 'member-without-installation@example.test');
 
-insert into public.organizations (id, name)
+insert into public.organizations (id, name, created_by_user_id, idempotency_key)
 values
-  ('20000000-0000-4000-8000-000000000001', 'Organization A'),
-  ('20000000-0000-4000-8000-000000000002', 'Organization B');
+  ('20000000-0000-4000-8000-000000000001', 'Organization A', '10000000-0000-0000-0000-000000000001', '21000000-0000-4000-8000-000000000001'),
+  ('20000000-0000-4000-8000-000000000002', 'Organization B', '10000000-0000-0000-0000-000000000003', '21000000-0000-4000-8000-000000000002');
 
 insert into public.organization_members (organization_id, user_id, role)
 values
   ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', 'admin'),
   ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000002', 'member'),
+  ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000004', 'member'),
   ('20000000-0000-4000-8000-000000000002', '10000000-0000-0000-0000-000000000003', 'admin');
 
-insert into public.installations (id, organization_id)
+insert into public.organization_invitations (
+  id, organization_id, normalized_email, role, invited_by_user_id, expires_at
+)
+values (
+  '22000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000001',
+  'invitee@example.test',
+  'member',
+  '10000000-0000-0000-0000-000000000001',
+  '2026-08-24 10:00:00+00'
+);
+
+insert into public.installation_setup_sessions (
+  id, organization_id, created_by_user_id, code_digest, selected_tools, expires_at, redeemed_at
+)
 values
-  ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001'),
-  ('30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002');
+  ('31000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000002', repeat('1', 64), array['codex']::text[], '2026-08-24 10:00:00+00', '2026-08-17 10:00:00+00'),
+  ('31000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', repeat('2', 64), array['claude_code']::text[], '2026-08-24 10:00:00+00', '2026-08-17 10:00:00+00'),
+  ('31000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', '10000000-0000-0000-0000-000000000003', repeat('3', 64), array['claude_code']::text[], '2026-08-24 10:00:00+00', '2026-08-17 10:00:00+00');
+
+insert into public.installations (
+  id, organization_id, created_by_user_id, tool, computer_name, setup_session_id, verified_at, last_seen_at
+)
+values
+  ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000002', 'codex', 'Member laptop', '31000000-0000-4000-8000-000000000001', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00'),
+  ('30000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', 'claude_code', 'Admin laptop', '31000000-0000-4000-8000-000000000002', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00'),
+  ('30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '10000000-0000-0000-0000-000000000003', 'claude_code', 'Other tenant laptop', '31000000-0000-4000-8000-000000000003', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00');
 
 insert into public.telemetry_batches (
   id, organization_id, installation_id, signal, content_sha256, raw_payload
@@ -80,7 +113,8 @@ values
     }
     $json$::jsonb
   ),
-  ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'logs', repeat('b', 64), '{"resourceLogs": []}');
+  ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'logs', repeat('b', 64), '{"resourceLogs": []}'),
+  ('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', 'logs', repeat('c', 64), '{"resourceLogs": []}');
 
 insert into public.prompt_events (
   organization_id,
@@ -105,6 +139,7 @@ values
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 6, 'openai', 'codex.user_prompt', '2026-08-10 10:06:00+00', 'suggestions-a', E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this local project: /tmp/project', 'gpt-5.6-terra', 'gpt-5.6-terra'),
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 7, 'openai', 'codex.user_prompt', '2026-08-10 10:07:00+00', 'projectless-suggestions-a', E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this Projectless task', 'gpt-5.6-terra', 'gpt-5.6-terra'),
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 8, 'openai', 'codex.user_prompt', '2026-08-10 10:08:00+00', 'activity-a', E'You write the one-line activity update displayed beneath an existing Codex task title.\nFill the structured summary field with the latest task activity.', 'gpt-5.6-luna', 'gpt-5.6-luna'),
+  ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000003', 0, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:09:00+00', 'admin-owned-a', 'organization a admin-owned', null, null),
   ('20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', 0, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:00:00+00', 'conversation-b', 'organization b', null, null);
 
 set local role authenticated;
@@ -118,6 +153,7 @@ select results_eq(
   'select prompt_text from public.prompt_events order by record_index',
   $$values
     ('organization a'::text),
+    ('organization a admin-owned'::text),
     ('organization a follow-up'::text),
     ('organization a review'::text),
     (E'You are a helpful assistant. You will be presented with a user prompt, and your job is to provide a short title for a task that will be created from that prompt.\nThe tasks typically have to do with coding-related tasks, for example requests for bug fixes or questions about a codebase. The title you generate will be shown in the UI to represent the prompt.\n\nUser prompt:\norganization a'::text),
@@ -131,7 +167,7 @@ select results_eq(
 );
 select results_eq(
   'select prompt_text from public.human_prompt_events order by prompt_text',
-  $$values ('organization a'::text), ('organization a follow-up'::text)$$,
+  $$values ('organization a'::text), ('organization a admin-owned'::text), ('organization a follow-up'::text)$$,
   'the human-prompt view keeps every user turn and removes known internal prompts'
 );
 select results_eq(
@@ -151,18 +187,55 @@ select throws_ok(
   'permission denied for view codex_response_usage_events',
   'compact response usage remains backend-only'
 );
+select throws_ok(
+  'select * from public.organization_invitations',
+  '42501',
+  'permission denied for table organization_invitations',
+  'invitations are server-only'
+);
+select throws_ok(
+  'select * from public.installation_setup_sessions',
+  '42501',
+  'permission denied for table installation_setup_sessions',
+  'enrollment codes are server-only'
+);
 select results_eq(
   'select id from public.installations order by id',
-  $$values ('30000000-0000-4000-8000-000000000001'::uuid)$$,
+  $$values
+    ('30000000-0000-4000-8000-000000000001'::uuid),
+    ('30000000-0000-4000-8000-000000000003'::uuid)
+  $$,
   'an administrator sees only installations in their organization'
 );
-select lives_ok(
-  $$update public.organizations set name = 'Renamed Organization A', logo_url = 'https://example.test/a.png' where id = '20000000-0000-4000-8000-000000000001'$$,
-  'an administrator can update their organization profile'
+select throws_ok(
+  $$update public.organizations set name = 'Forbidden direct update' where id = '20000000-0000-4000-8000-000000000001'$$,
+  '42501',
+  'permission denied for table organizations',
+  'organization writes are server-only'
 );
-select is_empty(
-  $$update public.organizations set name = 'Forbidden Organization B' where id = '20000000-0000-4000-8000-000000000002' returning id$$,
-  'an administrator cannot update another organization'
+select throws_ok(
+  $$insert into public.organizations (name, created_by_user_id, idempotency_key) values ('Direct insert', '10000000-0000-0000-0000-000000000001', '21000000-0000-4000-8000-000000000099')$$,
+  '42501',
+  'permission denied for table organizations',
+  'authenticated clients cannot insert organizations directly'
+);
+select throws_ok(
+  $$insert into public.organization_invitations (organization_id, normalized_email, role, invited_by_user_id) values ('20000000-0000-4000-8000-000000000001', 'direct@example.test', 'member', '10000000-0000-0000-0000-000000000001')$$,
+  '42501',
+  'permission denied for table organization_invitations',
+  'authenticated clients cannot insert invitations directly'
+);
+select throws_ok(
+  $$insert into public.installation_setup_sessions (organization_id, created_by_user_id, code_digest, selected_tools, expires_at) values ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', repeat('9', 64), array['codex']::text[], now() + interval '10 minutes')$$,
+  '42501',
+  'permission denied for table installation_setup_sessions',
+  'authenticated clients cannot insert enrollments directly'
+);
+select throws_ok(
+  $$insert into public.installations (organization_id, created_by_user_id, tool, computer_name, setup_session_id) values ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', 'codex', 'Direct', '31000000-0000-4000-8000-000000000001')$$,
+  '42501',
+  'permission denied for table installations',
+  'authenticated clients cannot insert installations directly'
 );
 select lives_ok(
   $$insert into storage.objects (bucket_id, name, owner_id) values ('organization-logos', '20000000-0000-4000-8000-000000000001/logo', '10000000-0000-0000-0000-000000000001') on conflict (bucket_id, name) do update set metadata = '{"mimetype":"image/png"}'::jsonb returning name$$,
@@ -180,28 +253,54 @@ select set_config(
   '10000000-0000-0000-0000-000000000002',
   true
 );
-select is_empty(
-  'select * from public.prompt_events',
-  'a non-admin cannot read prompt rows'
+select is(
+  (select count(*) from public.prompt_events),
+  9::bigint,
+  'a member can read every prompt from their own installation'
 );
 select is_empty(
-  'select * from public.human_prompt_events',
-  'a non-admin cannot read human-prompt rows'
+  $$select * from public.prompt_events where installation_id <> '30000000-0000-4000-8000-000000000001'$$,
+  'a member cannot read prompts from installations they do not own'
+);
+select results_eq(
+  'select prompt_text from public.human_prompt_events order by prompt_text',
+  $$values ('organization a'::text), ('organization a follow-up'::text)$$,
+  'a member can read human prompts from their own installation'
 );
 select results_eq(
   'select id from public.installations order by id',
   $$values ('30000000-0000-4000-8000-000000000001'::uuid)$$,
   'a member sees only installations in their organization'
 );
-select is_empty(
-  $$update public.organizations set name = 'Forbidden member rename' where id = '20000000-0000-4000-8000-000000000001' returning id$$,
-  'a non-admin cannot update an organization'
+select throws_ok(
+  $$update public.organizations set name = 'Forbidden member rename' where id = '20000000-0000-4000-8000-000000000001'$$,
+  '42501',
+  'permission denied for table organizations',
+  'a non-admin cannot update an organization directly'
 );
 select throws_ok(
   $$insert into storage.objects (bucket_id, name, owner_id) values ('organization-logos', '20000000-0000-4000-8000-000000000001/member-logo', '10000000-0000-0000-0000-000000000002')$$,
   '42501',
   'new row violates row-level security policy for table "objects"',
   'a non-admin cannot upload an organization logo'
+);
+
+select set_config(
+  'request.jwt.claim.sub',
+  '10000000-0000-0000-0000-000000000004',
+  true
+);
+select is_empty(
+  'select * from public.prompt_events',
+  'a member without an installation cannot read prompt rows'
+);
+select is_empty(
+  'select * from public.human_prompt_events',
+  'a member without an installation cannot read human-prompt rows'
+);
+select is_empty(
+  'select * from public.installations',
+  'a member without an installation cannot read installation rows'
 );
 
 set local role anon;

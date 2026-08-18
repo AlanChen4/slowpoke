@@ -3,7 +3,8 @@ import modal
 from collector import register_collector
 
 SECRET_ENV_KEYS = [
-    "SLOWPOKE_OTLP_HTPASSWD",
+    "SLOWPOKE_INSTALLATION_ISSUER",
+    "SLOWPOKE_COLLECTOR_AUDIENCE",
     "SLOWPOKE_INGEST_URL",
     "SLOWPOKE_INGEST_TOKEN",
 ]

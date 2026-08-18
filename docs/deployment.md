@@ -11,13 +11,17 @@ separately.
 Doppler project `backend`, config `prd`, is the source of truth. Modal stores a
 filtered copy for each app:
 
-| Doppler variable         | `slowpoke-backend` | `slowpoke-collector` |
-| ------------------------ | ------------------ | -------------------- |
-| `SLOWPOKE_INGEST_TOKEN`  | Yes                | Yes                  |
-| `SUPABASE_URL`           | Yes                | No                   |
-| `SUPABASE_SECRET_KEY`    | Yes                | No                   |
-| `SLOWPOKE_OTLP_HTPASSWD` | No                 | Yes                  |
-| `SLOWPOKE_INGEST_URL`    | No                 | Yes                  |
+| Doppler variable                            | Backend | Collector |
+| ------------------------------------------- | ------- | --------- |
+| `SLOWPOKE_INGEST_TOKEN`                     | Yes     | Yes       |
+| `SUPABASE_URL`                              | Yes     | No        |
+| `SUPABASE_SECRET_KEY`                       | Yes     | No        |
+| `SLOWPOKE_INSTALLATION_ISSUER`              | Yes     | Yes       |
+| `SLOWPOKE_COLLECTOR_AUDIENCE`               | Yes     | Yes       |
+| `SLOWPOKE_COLLECTOR_URL`                    | Yes     | No        |
+| `SLOWPOKE_INSTALLATION_SIGNING_PRIVATE_KEY` | Yes     | No        |
+| `SLOWPOKE_INSTALLATION_SIGNING_KID`         | Yes     | No        |
+| `SLOWPOKE_INGEST_URL`                       | No      | Yes       |
 
 `scripts/sync-modal-secrets.sh --service <backend|collector>` enforces this
 allowlist. Keep application secrets in Doppler. GitHub stores only Doppler and
@@ -31,3 +35,43 @@ Modal credentials.
 
 Doppler changes do not update Modal immediately. Run the deployment workflow to
 copy new values and replace running containers.
+
+## Installation signing configuration
+
+Set `SLOWPOKE_INSTALLATION_ISSUER` to the public HTTPS backend origin. Set
+`SLOWPOKE_COLLECTOR_URL` to the public HTTPS OTLP origin. Use one stable value
+for `SLOWPOKE_COLLECTOR_AUDIENCE` in both services.
+
+Generate an RSA private key in a secure environment. Store the PKCS8 PEM value
+only in Doppler as `SLOWPOKE_INSTALLATION_SIGNING_PRIVATE_KEY`. Set a stable,
+non-secret key ID in `SLOWPOKE_INSTALLATION_SIGNING_KID`. The backend publishes
+only the public key through JWKS.
+
+Deploy the backend before the Collector. Confirm that the discovery document
+and JWKS use the production issuer. Then deploy the Collector and run a new
+installation through onboarding.
+
+Replacing the signing key invalidates existing installation tokens. Plan a
+re-enrollment window before changing the key or key ID.
+
+## Setup package publishing
+
+Add a Changeset when a pull request changes `@slowpokeai/setup`. Select a patch,
+minor, or major release and describe the user-visible change. After the change
+reaches `main`, the `Publish setup package` workflow creates or updates a release
+pull request. Merging the release pull request updates the package version,
+publishes it to npm, creates a Git tag, and creates a GitHub release.
+
+Create the `slowpokeai` organization on npm before the first release. Create a
+GitHub environment named `npm`, then add an `NPM_TOKEN` environment secret that
+can publish public packages in the `@slowpokeai` scope. Merging the first release
+pull request publishes version `0.1.0` with public access.
+
+After the first release, configure `@slowpokeai/setup` to trust the GitHub
+Actions workflow `publish-setup.yml` in `AlanChen4/slowpoke`. Set the environment
+name to `npm` and allow `npm publish`. Trusted publishing uses the workflow's
+OpenID Connect identity and adds npm provenance. Remove `NPM_TOKEN` after the
+trusted publisher succeeds.
+
+The web deployment also requires `SLOWPOKE_SETUP_SERVER`. Set it to the public
+HTTPS backend origin used by the setup command.

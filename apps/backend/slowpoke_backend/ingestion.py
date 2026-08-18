@@ -9,6 +9,7 @@ from .domain import Signal
 from .errors import (
     InvalidPayloadError,
     PayloadTooLargeError,
+    RevokedInstallationError,
     UnknownInstallationError,
 )
 from .otlp import partition_export
@@ -43,6 +44,17 @@ def ingest(
             installation = repository.resolve_installation(partition.installation_id)
         except UnknownInstallationError:
             unknown_installations.add(partition.installation_id)
+            continue
+        except RevokedInstallationError:
+            continue
+        if partition.tool != installation.tool:
+            raise InvalidPayloadError("installation tool does not match token claims")
+        expected_provider = "openai" if installation.tool == "codex" else "anthropic"
+        if any(prompt.provider != expected_provider for prompt in partition.prompts):
+            raise InvalidPayloadError(
+                "telemetry source does not match installation tool"
+            )
+        if not repository.mark_seen(installation):
             continue
         repository.persist(partition, installation)
 

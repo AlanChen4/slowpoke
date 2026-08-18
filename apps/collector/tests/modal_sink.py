@@ -7,12 +7,13 @@ import time
 import modal
 
 INGEST_TOKEN_ENV = "SLOWPOKE_E2E_INGEST_TOKEN"
+JWKS_ENV = "SLOWPOKE_E2E_JWKS"
 SINK_PORT = 8000
 
 app = modal.App("slowpoke-collector-e2e-sink")
 
 if modal.is_local():
-    sink_secret = modal.Secret.from_local_environ([INGEST_TOKEN_ENV])
+    sink_secret = modal.Secret.from_local_environ([INGEST_TOKEN_ENV, JWKS_ENV])
 else:
     sink_secret = modal.Secret.from_dict({})
 
@@ -60,6 +61,26 @@ def sink():
             self._respond(200, content_type="application/x-protobuf")
 
         def do_GET(self):
+            if self.path == "/.well-known/openid-configuration":
+                issuer = f"https://{self.headers['host']}"
+                body = json.dumps(
+                    {
+                        "issuer": issuer,
+                        "jwks_uri": f"{issuer}/.well-known/jwks.json",
+                        "response_types_supported": ["none"],
+                        "subject_types_supported": ["public"],
+                        "id_token_signing_alg_values_supported": ["RS256"],
+                    }
+                ).encode()
+                self._respond(200, body, "application/json")
+                return
+            if self.path == "/.well-known/jwks.json":
+                self._respond(
+                    200,
+                    os.environ[JWKS_ENV].encode(),
+                    "application/json",
+                )
+                return
             if self.path != "/captures":
                 self._respond(404)
                 return

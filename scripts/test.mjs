@@ -50,6 +50,13 @@ const suites = new Map([
     },
   ],
   [
+    "setup",
+    {
+      description: "public setup package tests",
+      steps: [{ command: "pnpm", args: ["--filter", "@slowpokeai/setup", "test"] }],
+    },
+  ],
+  [
     "tooling",
     {
       description: "repository metadata and local Codex setup tests",
@@ -72,7 +79,7 @@ const suites = new Map([
   ],
 ]);
 
-const defaultSuites = ["database", "backend", "collector", "tooling", "web"];
+const defaultSuites = ["database", "backend", "collector", "setup", "tooling", "web"];
 
 function printHelp() {
   console.log(`Run Slowpoke tests without interactive prompts.

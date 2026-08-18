@@ -32,14 +32,18 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     );
   }
 
-  const email = claimsData.claims.email ?? "Signed-in account";
+  if (!selectedOrganization?.completed) {
+    redirect(
+      selectedOrganization ? `/onboarding?organization=${selectedOrganization.id}` : "/onboarding",
+    );
+  }
+
   const sidebarDefaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   return (
     <TooltipProvider>
       <SidebarProvider defaultOpen={sidebarDefaultOpen}>
         <AppSidebar
-          email={email}
           organizations={organizations}
           selectedOrganizationId={selectedOrganization?.id ?? null}
         />

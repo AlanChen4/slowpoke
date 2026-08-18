@@ -13,10 +13,19 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+)
 from google.protobuf import json_format
+from jwt.algorithms import RSAAlgorithm
 from opentelemetry.proto.collector.logs.v1.logs_service_pb2 import (
     ExportLogsServiceRequest,
 )
@@ -31,7 +40,9 @@ COLLECTOR_ROOT = Path(__file__).resolve().parents[1]
 MODAL_URL_PATTERN = re.compile(r"https://[a-zA-Z0-9.-]+\.modal\.(?:direct|host|run)")
 ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 INSTALLATION_ID = "slowpoke-e2e"
-INSTALLATION_PASSWORD = "slowpoke-e2e-password"
+INSTALLATION_TOOL = "codex"
+COLLECTOR_AUDIENCE = "slowpoke-collector-e2e"
+SIGNING_KEY_ID = "slowpoke-e2e-key"
 SIGNAL_REQUEST_TYPES = {
     "logs": ExportLogsServiceRequest,
     "metrics": ExportMetricsServiceRequest,
@@ -125,7 +136,7 @@ def _http_json(url: str) -> dict[str, object]:
         return json.loads(response.read())
 
 
-def _warm_collector(url: str, basic_authorization: str):
+def _warm_collector(url: str, authorization: str):
     deadline = time.monotonic() + 120
     while time.monotonic() < deadline:
         try:
@@ -133,7 +144,7 @@ def _warm_collector(url: str, basic_authorization: str):
                 url,
                 "logs",
                 ExportLogsServiceRequest(),
-                basic_authorization,
+                authorization,
             )
             return
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
@@ -146,13 +157,13 @@ def _post_otlp(
     collector_url: str,
     signal: str,
     message,
-    basic_authorization: str,
+    authorization: str,
 ):
     request = urllib.request.Request(
         f"{collector_url}/v1/{signal}",
         data=message.SerializeToString(),
         headers={
-            "Authorization": basic_authorization,
+            "Authorization": authorization,
             "Content-Type": "application/x-protobuf",
         },
         method="POST",
@@ -190,32 +201,56 @@ def _resource_attributes(request) -> list[dict[str, object]]:
     return resources
 
 
-def _test_credentials() -> tuple[str, str, str]:
+def _test_signing_material() -> tuple[str, bytes, str]:
     ingest_token = secrets.token_urlsafe(24)
-    digest = base64.b64encode(
-        hashlib.sha1(INSTALLATION_PASSWORD.encode()).digest()
-    ).decode("ascii")
-    htpasswd = f"{INSTALLATION_ID}:{{SHA}}{digest}"
-    authorization = "Basic " + base64.b64encode(
-        f"{INSTALLATION_ID}:{INSTALLATION_PASSWORD}".encode()
-    ).decode("ascii")
-    return ingest_token, htpasswd, authorization
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_key_pem = private_key.private_bytes(
+        Encoding.PEM,
+        PrivateFormat.PKCS8,
+        NoEncryption(),
+    )
+    public_jwk = RSAAlgorithm.to_jwk(private_key.public_key(), as_dict=True)
+    public_jwk.update({"alg": "RS256", "kid": SIGNING_KEY_ID, "use": "sig"})
+    return ingest_token, private_key_pem, json.dumps({"keys": [public_jwk]})
+
+
+def _authorization(private_key_pem: bytes, issuer: str) -> str:
+    now = datetime.now(UTC)
+    token = jwt.encode(
+        {
+            "iss": issuer,
+            "sub": INSTALLATION_ID,
+            "aud": COLLECTOR_AUDIENCE,
+            "organization_id": "slowpoke-e2e-organization",
+            "tool": INSTALLATION_TOOL,
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+        },
+        private_key_pem,
+        algorithm="RS256",
+        headers={"kid": SIGNING_KEY_ID},
+    )
+    return f"Bearer {token}"
 
 
 def _start_test_servers(
     ingest_token: str,
-    htpasswd: str,
+    jwks: str,
 ) -> tuple[ModalServe, ModalServe]:
     sink_server = ModalServe(
         COLLECTOR_ROOT / "tests" / "modal_sink.py",
-        {"SLOWPOKE_E2E_INGEST_TOKEN": ingest_token},
+        {
+            "SLOWPOKE_E2E_INGEST_TOKEN": ingest_token,
+            "SLOWPOKE_E2E_JWKS": jwks,
+        },
         "sink",
     )
     try:
         collector_server = ModalServe(
             COLLECTOR_ROOT / "tests" / "modal_collector.py",
             {
-                "SLOWPOKE_OTLP_HTPASSWD": htpasswd,
+                "SLOWPOKE_INSTALLATION_ISSUER": sink_server.url,
+                "SLOWPOKE_COLLECTOR_AUDIENCE": COLLECTOR_AUDIENCE,
                 "SLOWPOKE_INGEST_URL": sink_server.url,
                 "SLOWPOKE_INGEST_TOKEN": ingest_token,
             },
@@ -277,8 +312,9 @@ def test_modal_collector_forwards_all_otlp_signals():
     if os.environ.get("SLOWPOKE_RUN_MODAL_E2E") != "1":
         pytest.skip("set SLOWPOKE_RUN_MODAL_E2E=1 to run Modal collector test")
 
-    ingest_token, htpasswd, authorization = _test_credentials()
-    sink_server, collector_server = _start_test_servers(ingest_token, htpasswd)
+    ingest_token, private_key_pem, jwks = _test_signing_material()
+    sink_server, collector_server = _start_test_servers(ingest_token, jwks)
+    authorization = _authorization(private_key_pem, sink_server.url)
     try:
         _warm_collector(collector_server.url, authorization)
         for signal, request in _synthetic_requests().items():
@@ -319,6 +355,10 @@ def test_modal_collector_forwards_all_otlp_signals():
         assert resources
         assert all(
             attributes["slowpoke.installation.id"]["stringValue"] == INSTALLATION_ID
+            for attributes in resources
+        )
+        assert all(
+            attributes["slowpoke.installation.tool"]["stringValue"] == INSTALLATION_TOOL
             for attributes in resources
         )
     finally:

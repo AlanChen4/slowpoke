@@ -1,7 +1,8 @@
 extensions:
-  basicauth/server:
-    htpasswd:
-      inline: ${env:SLOWPOKE_OTLP_HTPASSWD}
+  oidc:
+    providers:
+      - issuer_url: ${env:SLOWPOKE_INSTALLATION_ISSUER}
+        audience: ${env:SLOWPOKE_COLLECTOR_AUDIENCE}
   health_check:
     endpoint: 0.0.0.0:13133
 
@@ -11,7 +12,7 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
         auth:
-          authenticator: basicauth/server
+          authenticator: oidc
 
 processors:
   memory_limiter:
@@ -22,7 +23,10 @@ processors:
     attributes:
       - key: slowpoke.installation.id
         action: upsert
-        from_context: auth.username
+        from_context: auth.subject
+      - key: slowpoke.installation.tool
+        action: upsert
+        from_context: auth.claims.tool
   batch:
     timeout: 5s
     send_batch_size: 64
@@ -46,7 +50,7 @@ exporters:
       max_elapsed_time: 5m
 
 service:
-  extensions: [basicauth/server, health_check]
+  extensions: [oidc, health_check]
   pipelines:
     logs:
       receivers: [otlp]

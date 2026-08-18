@@ -10,6 +10,12 @@ permissions:
 jobs:
   validate:
     name: Validate commits and PR
+    # The release workflow replaces the Changesets body immediately after opening its PR.
+    if: >-
+      github.event.action != 'opened' ||
+      github.head_ref != 'changeset-release/main' ||
+      github.actor != 'github-actions[bot]' ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Check out the pull request

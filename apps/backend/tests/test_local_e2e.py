@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import socket
@@ -11,10 +11,12 @@ import subprocess
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.request
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 import uvicorn
@@ -27,14 +29,18 @@ from slowpoke_backend.app import create_app
 from slowpoke_backend.repository import SupabaseRepository
 from slowpoke_backend.settings import Settings
 
+from .helpers import new_signing_private_key
+
 pytestmark = pytest.mark.local_e2e
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 COLLECTOR_ROOT = REPOSITORY_ROOT / "apps" / "collector"
+SETUP_CLI = REPOSITORY_ROOT / "packages" / "setup" / "bin" / "slowpoke-setup.js"
 COLLECTOR_IMAGE = (
     "ghcr.io/open-telemetry/opentelemetry-collector-releases/"
     "opentelemetry-collector-contrib:0.157.0"
 )
+LOCAL_USER_ID = "00000000-0000-4000-8000-000000000002"
 CODEX_PROMPT = "Reply with exactly SLOWPOKE_CODEX_OTLP_OK. Do not use tools."
 CLAUDE_PROMPT = "Reply with exactly SLOWPOKE_CLAUDE_OTLP_OK. Do not use tools."
 
@@ -46,7 +52,7 @@ def _require_environment() -> tuple[str, str]:
     secret_key = os.environ.get("SUPABASE_SECRET_KEY")
     if not url or not secret_key:
         pytest.fail("SUPABASE_URL and SUPABASE_SECRET_KEY are required")
-    for executable in ("docker", "codex", "claude"):
+    for executable in ("docker", "node", "codex", "claude"):
         if shutil.which(executable) is None:
             pytest.fail(f"{executable} is required")
     return url, secret_key
@@ -59,8 +65,7 @@ def _free_port() -> int:
 
 
 @contextmanager
-def _backend_server(settings: Settings) -> Iterator[int]:
-    port = _free_port()
+def _backend_server(settings: Settings, port: int) -> Iterator[None]:
     server = uvicorn.Server(
         uvicorn.Config(
             create_app(
@@ -83,20 +88,20 @@ def _backend_server(settings: Settings) -> Iterator[int]:
     if not server.started:
         pytest.fail("local FastAPI backend did not start")
     try:
-        yield port
+        yield
     finally:
         server.should_exit = True
         thread.join(timeout=10)
 
 
 @contextmanager
-def _collector(backend_port: int, installation_id: str, token: str) -> Iterator[int]:
-    password = secrets.token_urlsafe(18)
-    digest = base64.b64encode(hashlib.sha1(password.encode()).digest()).decode()
-    htpasswd = f"{installation_id}:{{SHA}}{digest}"
-    collector_port = _free_port()
+def _collector(
+    backend_port: int,
+    collector_port: int,
+    ingest_token: str,
+) -> Iterator[None]:
     container_name = f"slowpoke-local-e2e-{secrets.token_hex(6)}"
-
+    issuer = f"http://host.docker.internal:{backend_port}"
     subprocess.run(
         [
             "docker",
@@ -110,12 +115,14 @@ def _collector(backend_port: int, installation_id: str, token: str) -> Iterator[
             "--publish",
             f"127.0.0.1:{collector_port}:4318",
             "--env",
-            f"SLOWPOKE_OTLP_HTPASSWD={htpasswd}",
+            f"SLOWPOKE_INSTALLATION_ISSUER={issuer}",
+            "--env",
+            "SLOWPOKE_COLLECTOR_AUDIENCE=slowpoke-collector-e2e",
             "--env",
             "SLOWPOKE_INGEST_URL="
             f"http://host.docker.internal:{backend_port}/api/internal/telemetry",
             "--env",
-            f"SLOWPOKE_INGEST_TOKEN={token}",
+            f"SLOWPOKE_INGEST_TOKEN={ingest_token}",
             "--volume",
             f"{COLLECTOR_ROOT / 'otelcol.yaml'}:/etc/otelcol-contrib/config.yaml:ro",
             COLLECTOR_IMAGE,
@@ -126,15 +133,10 @@ def _collector(backend_port: int, installation_id: str, token: str) -> Iterator[
         text=True,
         timeout=30,
     )
-    authorization = (
-        "Basic " + base64.b64encode(f"{installation_id}:{password}".encode()).decode()
-    )
     try:
-        _wait_for_collector(collector_port, authorization)
-        os.environ["SLOWPOKE_E2E_BASIC_AUTHORIZATION"] = authorization
-        yield collector_port
+        _wait_for_collector(collector_port)
+        yield
     finally:
-        os.environ.pop("SLOWPOKE_E2E_BASIC_AUTHORIZATION", None)
         subprocess.run(
             ["docker", "stop", "--time", "10", container_name],
             check=False,
@@ -143,28 +145,30 @@ def _collector(backend_port: int, installation_id: str, token: str) -> Iterator[
         )
 
 
-def _wait_for_collector(port: int, authorization: str) -> None:
+def _wait_for_collector(port: int) -> None:
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         request = urllib.request.Request(
             f"http://127.0.0.1:{port}/v1/logs",
             data=ExportLogsServiceRequest().SerializeToString(),
             headers={
-                "Authorization": authorization,
+                "Authorization": "Bearer invalid-readiness-token",
                 "Content-Type": "application/x-protobuf",
             },
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=2) as response:
-                if response.status == 200:
-                    return
+            urllib.request.urlopen(request, timeout=2)
+        except urllib.error.HTTPError as error:
+            if error.code == 401:
+                return
         except (OSError, TimeoutError):
-            time.sleep(0.25)
+            pass
+        time.sleep(0.25)
     pytest.fail("local collector did not become ready")
 
 
-def _run_cli(label: str, command: list[str], environment: dict[str, str]) -> None:
+def _run_cli(label: str, command: list[str], environment: dict[str, str]) -> str:
     process_environment = os.environ.copy()
     process_environment.update(environment)
     with tempfile.TemporaryDirectory(prefix=f"slowpoke-{label}-") as directory:
@@ -182,6 +186,41 @@ def _run_cli(label: str, command: list[str], environment: dict[str, str]) -> Non
             f"{label} exited {result.returncode}:\n"
             f"{result.stdout[-2000:]}\n{result.stderr[-2000:]}"
         )
+    return result.stdout
+
+
+def _run_setup(code: str, backend_port: int, setup_home: Path) -> dict[str, object]:
+    output = _run_cli(
+        "setup",
+        [
+            "node",
+            str(SETUP_CLI),
+            "enroll",
+            "--code",
+            code,
+            "--server",
+            f"http://127.0.0.1:{backend_port}",
+            "--computer-name",
+            "Local E2E computer",
+        ],
+        {
+            "HOME": str(setup_home),
+            "CODEX_HOME": str(setup_home / ".codex"),
+            "CLAUDE_CONFIG_DIR": str(setup_home / ".claude"),
+        },
+    )
+    assert code not in output
+    return json.loads(output)
+
+
+def _configured_authorizations(setup_home: Path) -> tuple[str, str]:
+    codex_config = (setup_home / ".codex" / "config.toml").read_text()
+    match = re.search(r'authorization\s*=\s*"(Bearer [^"]+)"', codex_config)
+    assert match
+    claude_settings = json.loads((setup_home / ".claude" / "settings.json").read_text())
+    claude_header = claude_settings["env"]["OTEL_EXPORTER_OTLP_HEADERS"]
+    assert claude_header.startswith("Authorization=Bearer ")
+    return match.group(1), claude_header.removeprefix("Authorization=")
 
 
 def _codex_exporter(signal: str, endpoint: str, authorization: str) -> str:
@@ -275,45 +314,79 @@ def _post_raw(backend_port: int, signal: str, payload: object, token: str) -> No
         assert response.status == 200
 
 
-def test_real_clis_flow_through_collector_into_supabase() -> None:
+def test_real_two_tool_enrollment_flows_through_collector_into_supabase() -> None:
     url, secret_key = _require_environment()
     service_client = create_client(url, secret_key)
     suffix = secrets.token_hex(8)
     organization = (
         service_client.table("organizations")
-        .insert({"name": f"Local E2E {suffix}"})
+        .insert(
+            {
+                "name": f"Local E2E {suffix}",
+                "created_by_user_id": LOCAL_USER_ID,
+                "idempotency_key": str(uuid4()),
+            }
+        )
         .execute()
         .data[0]
     )
     organization_id = str(organization["id"])
-    installation = (
-        service_client.table("installations")
-        .insert({"organization_id": organization_id})
-        .execute()
-        .data[0]
-    )
-    installation_id = str(installation["id"])
-    token = secrets.token_urlsafe(24)
+    service_client.table("organization_members").insert(
+        {
+            "organization_id": organization_id,
+            "user_id": LOCAL_USER_ID,
+            "role": "admin",
+        }
+    ).execute()
+    enrollment_code = secrets.token_urlsafe(24)
+    service_client.table("installation_setup_sessions").insert(
+        {
+            "organization_id": organization_id,
+            "created_by_user_id": LOCAL_USER_ID,
+            "code_digest": hashlib.sha256(enrollment_code.encode()).hexdigest(),
+            "selected_tools": ["codex", "claude_code"],
+            "expires_at": "2099-01-01T00:00:00Z",
+        }
+    ).execute()
+    ingest_token = secrets.token_urlsafe(24)
+    backend_port = _free_port()
+    collector_port = _free_port()
+    endpoint = f"http://127.0.0.1:{collector_port}"
     settings = Settings(
-        SLOWPOKE_INGEST_TOKEN=token,
+        SLOWPOKE_INGEST_TOKEN=ingest_token,
         SUPABASE_URL=url,
         SUPABASE_SECRET_KEY=secret_key,
+        SLOWPOKE_INSTALLATION_ISSUER=f"http://host.docker.internal:{backend_port}",
+        SLOWPOKE_COLLECTOR_AUDIENCE="slowpoke-collector-e2e",
+        SLOWPOKE_COLLECTOR_URL=endpoint,
+        SLOWPOKE_INSTALLATION_SIGNING_PRIVATE_KEY=new_signing_private_key(),
+        SLOWPOKE_INSTALLATION_SIGNING_KID="local-e2e-key",
     )
 
     try:
         with ExitStack() as stack:
-            backend_port = stack.enter_context(_backend_server(settings))
-            collector_port = stack.enter_context(
-                _collector(backend_port, installation_id, token)
-            )
-            endpoint = f"http://127.0.0.1:{collector_port}"
-            authorization = os.environ["SLOWPOKE_E2E_BASIC_AUTHORIZATION"]
-            _run_codex(endpoint, authorization)
-            _run_claude(endpoint, authorization)
+            stack.enter_context(_backend_server(settings, backend_port))
+            stack.enter_context(_collector(backend_port, collector_port, ingest_token))
+            with tempfile.TemporaryDirectory(
+                prefix="slowpoke-setup-home-"
+            ) as directory:
+                setup_home = Path(directory)
+                setup_result = _run_setup(enrollment_code, backend_port, setup_home)
+                assert setup_result["status"] == "success"
+                assert {
+                    installation["tool"]
+                    for installation in setup_result["installations"]
+                } == {"codex", "claude_code"}
+                codex_authorization, claude_authorization = _configured_authorizations(
+                    setup_home
+                )
+                _run_codex(endpoint, codex_authorization)
+                _run_claude(endpoint, claude_authorization)
 
             deadline = time.monotonic() + 45
             prompts: list[dict[str, object]] = []
             batches: list[dict[str, object]] = []
+            installations: list[dict[str, object]] = []
             while time.monotonic() < deadline:
                 prompts = (
                     service_client.table("prompt_events")
@@ -329,31 +402,49 @@ def test_real_clis_flow_through_collector_into_supabase() -> None:
                     .execute()
                     .data
                 )
+                installations = (
+                    service_client.table("installations")
+                    .select("id,tool,verified_at,last_seen_at,revoked_at")
+                    .eq("organization_id", organization_id)
+                    .execute()
+                    .data
+                )
                 prompt_texts = {row["prompt_text"] for row in prompts}
                 signals = {row["signal"] for row in batches}
-                if {CODEX_PROMPT, CLAUDE_PROMPT} <= prompt_texts and signals == {
-                    "logs",
-                    "metrics",
-                    "traces",
-                }:
+                both_verified = len(installations) == 2 and all(
+                    row["verified_at"] and row["last_seen_at"] and not row["revoked_at"]
+                    for row in installations
+                )
+                if (
+                    {CODEX_PROMPT, CLAUDE_PROMPT} <= prompt_texts
+                    and signals == {"logs", "metrics", "traces"}
+                    and both_verified
+                ):
                     break
                 time.sleep(1)
             else:
                 pytest.fail(
-                    "timed out waiting for prompts and signals; "
-                    f"prompts={prompts}, batches={batches}"
+                    "timed out waiting for two-tool prompts and signals; "
+                    f"prompts={prompts}, batches={batches}, "
+                    f"installations={installations}"
                 )
 
-            assert {
-                (row["organization_id"], row["installation_id"])
-                for row in [*prompts, *batches]
-            } == {(organization_id, installation_id)}
+            installation_by_tool = {
+                str(row["tool"]): str(row["id"]) for row in installations
+            }
+            prompt_installations = {
+                str(row["prompt_text"]): str(row["installation_id"]) for row in prompts
+            }
+            assert prompt_installations[CODEX_PROMPT] == installation_by_tool["codex"]
+            assert (
+                prompt_installations[CLAUDE_PROMPT]
+                == installation_by_tool["claude_code"]
+            )
 
-            # Let the collector's five-second batch window drain before replaying.
             time.sleep(6)
             batches = (
                 service_client.table("telemetry_batches")
-                .select("id,signal,raw_payload,organization_id,installation_id")
+                .select("id,signal,raw_payload")
                 .eq("organization_id", organization_id)
                 .execute()
                 .data
@@ -371,7 +462,7 @@ def test_real_clis_flow_through_collector_into_supabase() -> None:
                     backend_port,
                     str(batch["signal"]),
                     batch["raw_payload"],
-                    token,
+                    ingest_token,
                 )
             batches_after = (
                 service_client.table("telemetry_batches")

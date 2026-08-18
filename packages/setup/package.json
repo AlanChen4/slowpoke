@@ -1,0 +1,36 @@
+{
+  "name": "@slowpokeai/setup",
+  "version": "0.0.0",
+  "description": "Connect Codex and Claude Code installations to Slowpoke",
+  "homepage": "https://github.com/AlanChen4/slowpoke#readme",
+  "bugs": {
+    "url": "https://github.com/AlanChen4/slowpoke/issues"
+  },
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlanChen4/slowpoke.git",
+    "directory": "packages/setup"
+  },
+  "bin": {
+    "slowpoke-setup": "bin/slowpoke-setup.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

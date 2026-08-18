@@ -1,27 +1,42 @@
 # Glossary
 
-**Organization:** A company tenant that owns users, installations, and telemetry.
+**Organization:** A company workspace that owns memberships, invitations,
+installations, and telemetry.
 
-**Administrator:** An organization member with the `admin` role. May read the
-organization's prompts through row-level security (RLS).
+**Invitation:** A seven-day offer to join an organization as a member or an
+administrator. The signed-in email address must match the invitation email.
 
-**Installation:** A Collector credential for one organization. Its UUID is both
-the username for HTTP Basic authentication and `slowpoke.installation.id`.
+**Membership:** A user's access to one organization. A user can have memberships
+in several organizations.
 
-**Collector:** An OpenTelemetry gateway that authenticates, stamps installation
-identity, batches signals, and sends them to the backend.
+**Administrator:** A member with the `admin` role. Administrators can manage
+organization settings, invitations, and installations. They can read all prompt
+events in the organization.
 
-**Ingestion backend:** A FastAPI service that validates, partitions, deduplicates,
-and stores Collector exports.
+**Installation:** One AI tool connected from one computer. An installation owns
+a signed token and reports its verification, last-seen, and revocation state.
 
-**OTLP export:** One JSON request containing OpenTelemetry logs, metrics, or
-traces.
+**AI Tool:** Codex or Claude Code. A computer that uses both tools has two
+installations.
 
-**Resource group:** A top-level OTLP group that shares resource attributes. The
+**Completed Organization:** An organization where the current user owns at
+least one active, verified installation. Revoking the user's last qualifying
+installation makes the organization incomplete.
+
+**Collector:** An OpenTelemetry gateway that validates installation tokens,
+stamps installation and tool identity, batches signals, and sends them to the
+backend.
+
+**Ingestion Backend:** A FastAPI service that issues installation tokens and
+validates, partitions, deduplicates, and stores Collector exports.
+
+**OTLP Export:** One request containing OpenTelemetry logs, metrics, or traces.
+
+**Resource Group:** A top-level OTLP group that shares resource attributes. The
 backend partitions exports at this level.
 
-**Telemetry batch:** A canonical tenant-scoped OTLP partition stored with its
-signal and content digest.
+**Telemetry Batch:** A canonical, organization-scoped OTLP partition stored with
+its signal and content digest.
 
-**Prompt event:** A normalized Codex or Claude user-prompt log derived from a
-telemetry batch.
+**Prompt Event:** A normalized Codex or Claude Code user-prompt log derived from
+a telemetry batch.

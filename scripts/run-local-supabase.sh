@@ -14,4 +14,10 @@ export SUPABASE_AUTH_EXTERNAL_GITHUB_SECRET
 export SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID
 export SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET
 
+if [[ "${1:-}" == start ]]; then
+  pnpm exec supabase "$@" >/dev/null
+  printf '%s\n' 'status: started' 'target: local Supabase stack'
+  exit 0
+fi
+
 exec pnpm exec supabase "$@"

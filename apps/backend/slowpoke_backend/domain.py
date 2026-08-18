@@ -7,12 +7,14 @@ from uuid import UUID
 
 type Signal = Literal["logs", "metrics", "traces"]
 type Provider = Literal["anthropic", "openai"]
+type Tool = Literal["codex", "claude_code"]
 
 
 @dataclass(frozen=True, slots=True)
 class Installation:
     id: UUID
     organization_id: UUID
+    tool: Tool = "codex"
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +37,7 @@ class Prompt:
 @dataclass(frozen=True, slots=True)
 class Partition:
     installation_id: UUID
+    tool: Tool
     signal: Signal
     payload: dict[str, object]
     content_sha256: str

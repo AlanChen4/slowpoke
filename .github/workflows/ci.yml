@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -46,7 +48,11 @@ jobs:
         run: pnpm typecheck:web
 
       - name: Test web and tooling
-        run: pnpm test --suite tooling --suite web
+        run: pnpm test --suite setup --suite tooling --suite web
+
+      - name: Check package release notes
+        if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+        run: pnpm changeset status --since=${{ github.event.pull_request.base.sha }}
 
   backend:
     name: Backend

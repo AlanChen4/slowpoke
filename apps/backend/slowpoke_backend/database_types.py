@@ -41,22 +41,40 @@ AuthOauthResponseType: TypeAlias = Literal["code"]
 AuthOauthClientType: TypeAlias = Literal["public", "confidential"]
 
 class PublicInstallations(BaseModel):
+    computer_name: str = Field(alias="computer_name")
     created_at: datetime.datetime = Field(alias="created_at")
+    created_by_user_id: uuid.UUID = Field(alias="created_by_user_id")
     id: uuid.UUID = Field(alias="id")
+    last_seen_at: Optional[datetime.datetime] = Field(alias="last_seen_at")
     organization_id: uuid.UUID = Field(alias="organization_id")
     revoked_at: Optional[datetime.datetime] = Field(alias="revoked_at")
+    setup_session_id: uuid.UUID = Field(alias="setup_session_id")
+    tool: str = Field(alias="tool")
+    verified_at: Optional[datetime.datetime] = Field(alias="verified_at")
 
 class PublicInstallationsInsert(TypedDict):
+    computer_name: Annotated[str, Field(alias="computer_name")]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    created_by_user_id: Annotated[uuid.UUID, Field(alias="created_by_user_id")]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
+    setup_session_id: Annotated[uuid.UUID, Field(alias="setup_session_id")]
+    tool: Annotated[str, Field(alias="tool")]
+    verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]
 
 class PublicInstallationsUpdate(TypedDict):
+    computer_name: NotRequired[Annotated[str, Field(alias="computer_name")]]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    created_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="created_by_user_id")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
+    setup_session_id: NotRequired[Annotated[uuid.UUID, Field(alias="setup_session_id")]]
+    tool: NotRequired[Annotated[str, Field(alias="tool")]]
+    verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]
 
 class PublicOrganizationMembers(BaseModel):
     created_at: datetime.datetime = Field(alias="created_at")
@@ -78,19 +96,25 @@ class PublicOrganizationMembersUpdate(TypedDict):
 
 class PublicOrganizations(BaseModel):
     created_at: datetime.datetime = Field(alias="created_at")
+    created_by_user_id: uuid.UUID = Field(alias="created_by_user_id")
     id: uuid.UUID = Field(alias="id")
+    idempotency_key: uuid.UUID = Field(alias="idempotency_key")
     logo_url: Optional[str] = Field(alias="logo_url")
     name: str = Field(alias="name")
 
 class PublicOrganizationsInsert(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    created_by_user_id: Annotated[uuid.UUID, Field(alias="created_by_user_id")]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    idempotency_key: Annotated[uuid.UUID, Field(alias="idempotency_key")]
     logo_url: NotRequired[Annotated[Optional[str], Field(alias="logo_url")]]
     name: Annotated[str, Field(alias="name")]
 
 class PublicOrganizationsUpdate(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    created_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="created_by_user_id")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    idempotency_key: NotRequired[Annotated[uuid.UUID, Field(alias="idempotency_key")]]
     logo_url: NotRequired[Annotated[Optional[str], Field(alias="logo_url")]]
     name: NotRequired[Annotated[str, Field(alias="name")]]
 
@@ -180,6 +204,75 @@ class PublicTelemetryBatchesUpdate(TypedDict):
     raw_payload: NotRequired[Annotated[Json[Any], Field(alias="raw_payload")]]
     received_at: NotRequired[Annotated[datetime.datetime, Field(alias="received_at")]]
     signal: NotRequired[Annotated[str, Field(alias="signal")]]
+
+class PublicOrganizationInvitations(BaseModel):
+    accepted_at: Optional[datetime.datetime] = Field(alias="accepted_at")
+    canceled_at: Optional[datetime.datetime] = Field(alias="canceled_at")
+    created_at: datetime.datetime = Field(alias="created_at")
+    declined_at: Optional[datetime.datetime] = Field(alias="declined_at")
+    expires_at: datetime.datetime = Field(alias="expires_at")
+    id: uuid.UUID = Field(alias="id")
+    invited_by_user_id: uuid.UUID = Field(alias="invited_by_user_id")
+    normalized_email: str = Field(alias="normalized_email")
+    organization_id: uuid.UUID = Field(alias="organization_id")
+    role: str = Field(alias="role")
+    updated_at: datetime.datetime = Field(alias="updated_at")
+
+class PublicOrganizationInvitationsInsert(TypedDict):
+    accepted_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="accepted_at")]]
+    canceled_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="canceled_at")]]
+    created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    declined_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="declined_at")]]
+    expires_at: NotRequired[Annotated[datetime.datetime, Field(alias="expires_at")]]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    invited_by_user_id: Annotated[uuid.UUID, Field(alias="invited_by_user_id")]
+    normalized_email: Annotated[str, Field(alias="normalized_email")]
+    organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
+    role: Annotated[str, Field(alias="role")]
+    updated_at: NotRequired[Annotated[datetime.datetime, Field(alias="updated_at")]]
+
+class PublicOrganizationInvitationsUpdate(TypedDict):
+    accepted_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="accepted_at")]]
+    canceled_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="canceled_at")]]
+    created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    declined_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="declined_at")]]
+    expires_at: NotRequired[Annotated[datetime.datetime, Field(alias="expires_at")]]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    invited_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="invited_by_user_id")]]
+    normalized_email: NotRequired[Annotated[str, Field(alias="normalized_email")]]
+    organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
+    role: NotRequired[Annotated[str, Field(alias="role")]]
+    updated_at: NotRequired[Annotated[datetime.datetime, Field(alias="updated_at")]]
+
+class PublicInstallationSetupSessions(BaseModel):
+    code_digest: str = Field(alias="code_digest")
+    created_at: datetime.datetime = Field(alias="created_at")
+    created_by_user_id: uuid.UUID = Field(alias="created_by_user_id")
+    expires_at: datetime.datetime = Field(alias="expires_at")
+    id: uuid.UUID = Field(alias="id")
+    organization_id: uuid.UUID = Field(alias="organization_id")
+    redeemed_at: Optional[datetime.datetime] = Field(alias="redeemed_at")
+    selected_tools: List[str] = Field(alias="selected_tools")
+
+class PublicInstallationSetupSessionsInsert(TypedDict):
+    code_digest: Annotated[str, Field(alias="code_digest")]
+    created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    created_by_user_id: Annotated[uuid.UUID, Field(alias="created_by_user_id")]
+    expires_at: Annotated[datetime.datetime, Field(alias="expires_at")]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
+    redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
+    selected_tools: Annotated[List[str], Field(alias="selected_tools")]
+
+class PublicInstallationSetupSessionsUpdate(TypedDict):
+    code_digest: NotRequired[Annotated[str, Field(alias="code_digest")]]
+    created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    created_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="created_by_user_id")]]
+    expires_at: NotRequired[Annotated[datetime.datetime, Field(alias="expires_at")]]
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
+    redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
+    selected_tools: NotRequired[Annotated[List[str], Field(alias="selected_tools")]]
 
 class PublicHumanPromptEvents(BaseModel):
     actor_account_id: Optional[str] = Field(alias="actor_account_id")
