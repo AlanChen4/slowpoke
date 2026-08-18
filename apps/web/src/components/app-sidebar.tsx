@@ -20,7 +20,6 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -40,7 +39,6 @@ export type SidebarOrganization = {
 };
 
 type AppSidebarProps = {
-  email: string;
   organizations: SidebarOrganization[];
   selectedOrganizationId: string | null;
 };
@@ -61,29 +59,13 @@ const navigation = [
   },
 ] as const;
 
-function accountInitials(email: string) {
-  const localPart = email.split("@")[0] ?? "";
-  const parts = localPart.split(/[._-]/).filter(Boolean);
-  const initials = parts
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2);
-
-  return initials.toUpperCase() || "U";
-}
-
-export function AppSidebar({ email, organizations, selectedOrganizationId }: AppSidebarProps) {
+export function AppSidebar({ organizations, selectedOrganizationId }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [switchError, setSwitchError] = useState<string>();
   const [isSwitching, startSwitchTransition] = useTransition();
   const selectedOrganization =
     organizations.find((organization) => organization.id === selectedOrganizationId) ?? null;
-  const roleLabel = !selectedOrganization
-    ? "No organization"
-    : selectedOrganization.role === "admin"
-      ? "Administrator"
-      : "Member";
 
   function changeOrganization(organizationId: string | null) {
     if (!organizationId) {
@@ -207,26 +189,6 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              tooltip={{ children: email }}
-              render={<Link href="/dashboard/settings#account" />}
-            >
-              <Avatar size="sm">
-                <AvatarFallback>{accountInitials(email)}</AvatarFallback>
-              </Avatar>
-              <div className="flex min-w-0 flex-1 flex-col text-left leading-tight">
-                <span className="truncate font-medium">{email}</span>
-                <span className="truncate text-muted-foreground">{roleLabel}</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </Sidebar>
   );
 }
