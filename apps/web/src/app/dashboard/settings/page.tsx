@@ -264,9 +264,13 @@ export default async function SettingsPage() {
             )}
           </CardContent>
           <CardFooter>
-            <Link href="/onboarding?create=1" className="text-xs underline underline-offset-4">
+            <Button
+              variant="secondary"
+              nativeButton={false}
+              render={<Link href="/onboarding?create=1" />}
+            >
               Create another organization
-            </Link>
+            </Button>
           </CardFooter>
         </Card>
       </section>
