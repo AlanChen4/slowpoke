@@ -259,7 +259,7 @@ function ToolStep({
               ["codex", "Codex", "/openai-logo.png"],
               ["claude_code", "Claude Code", "/claude-logo.png"],
             ].map(([value, label, logo]) => (
-              <FieldLabel key={value} className="cursor-pointer">
+              <FieldLabel key={value} variant="secondary" className="cursor-pointer">
                 <Field orientation="horizontal">
                   <Input
                     type="checkbox"
