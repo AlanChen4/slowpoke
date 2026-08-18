@@ -22,7 +22,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type OrganizationFlowActionState = {
-  enrollmentId?: string;
+  setupSessionId?: string;
   error?: string;
   invitationId?: string;
   message?: string;
@@ -42,7 +42,7 @@ const createInvitationSchema = z.object({
   email: z.string().trim().pipe(z.email("Enter a valid email address.")),
   role: z.enum(["admin", "member"]),
 });
-const createEnrollmentSchema = z.object({
+const createSetupSessionSchema = z.object({
   organizationId: organizationIdSchema,
   tools: z
     .array(z.enum(["codex", "claude_code"]))
@@ -236,11 +236,11 @@ export async function declineInvitation(
   return respondToInvitation(formData, "decline");
 }
 
-export async function createInstallationEnrollment(
+export async function createInstallationSetupSession(
   _previousState: OrganizationFlowActionState,
   formData: FormData,
 ): Promise<OrganizationFlowActionState> {
-  const parsed = createEnrollmentSchema.safeParse({
+  const parsed = createSetupSessionSchema.safeParse({
     organizationId: formData.get("organizationId"),
     tools: formData.getAll("tools"),
   });
@@ -253,17 +253,20 @@ export async function createInstallationEnrollment(
   }
 
   const admin = createAdminClient();
-  const enrollmentRepository = new SupabaseOrganizationRepository(admin);
+  const organizationRepository = new SupabaseOrganizationRepository(admin);
   try {
-    const role = await enrollmentRepository.getMembershipRole(parsed.data.organizationId, actor.id);
+    const role = await organizationRepository.getMembershipRole(
+      parsed.data.organizationId,
+      actor.id,
+    );
     if (!role) {
       return { error: "You do not have access to that organization." };
     }
 
     const code = randomBytes(24).toString("base64url");
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-    const { data: enrollment, error } = await admin
-      .from("installation_enrollments")
+    const { data: setupSession, error } = await admin
+      .from("installation_setup_sessions")
       .insert({
         organization_id: parsed.data.organizationId,
         created_by_user_id: actor.id,
@@ -273,28 +276,28 @@ export async function createInstallationEnrollment(
       })
       .select("id")
       .single<{ id: string }>();
-    if (error || !enrollment) {
-      throw new Error(error?.message ?? "Enrollment was not created");
+    if (error || !setupSession) {
+      throw new Error(error?.message ?? "Setup session was not created");
     }
 
     return {
       message: "Setup command created.",
-      enrollmentId: enrollment.id,
+      setupSessionId: setupSession.id,
       organizationId: parsed.data.organizationId,
       setupCommand: `npx @slowpoke/setup enroll --code ${code} --server ${env.SLOWPOKE_SETUP_SERVER}`,
     };
   } catch (error) {
-    return actionError(error instanceof Error ? error : new Error("Unknown enrollment error"));
+    return actionError(error instanceof Error ? error : new Error("Unknown setup session error"));
   }
 }
 
-export async function checkInstallationEnrollment(
+export async function checkInstallationSetupSession(
   organizationId: string,
-  enrollmentId: string,
+  setupSessionId: string,
 ): Promise<{ complete: boolean; error?: string }> {
   const parsed = z
-    .object({ organizationId: organizationIdSchema, enrollmentId: z.uuid() })
-    .safeParse({ organizationId, enrollmentId });
+    .object({ organizationId: organizationIdSchema, setupSessionId: z.uuid() })
+    .safeParse({ organizationId, setupSessionId });
   if (!parsed.success) {
     return { complete: false, error: "The setup session is invalid." };
   }
@@ -303,20 +306,20 @@ export async function checkInstallationEnrollment(
     return { complete: false, error: "Sign in again to check this computer." };
   }
   const admin = createAdminClient();
-  const { data: enrollment, error: enrollmentError } = await admin
-    .from("installation_enrollments")
+  const { data: setupSession, error: setupSessionError } = await admin
+    .from("installation_setup_sessions")
     .select("selected_tools")
-    .eq("id", parsed.data.enrollmentId)
+    .eq("id", parsed.data.setupSessionId)
     .eq("organization_id", parsed.data.organizationId)
     .eq("created_by_user_id", actor.id)
     .maybeSingle<{ selected_tools: string[] }>();
-  if (enrollmentError || !enrollment) {
+  if (setupSessionError || !setupSession) {
     return { complete: false, error: "The setup session could not be checked." };
   }
   const { data: installations, error } = await admin
     .from("installations")
     .select("tool")
-    .eq("enrollment_id", parsed.data.enrollmentId)
+    .eq("setup_session_id", parsed.data.setupSessionId)
     .eq("created_by_user_id", actor.id)
     .is("revoked_at", null)
     .not("verified_at", "is", null)
@@ -326,7 +329,7 @@ export async function checkInstallationEnrollment(
   }
   const verifiedTools = new Set((installations ?? []).map((installation) => installation.tool));
   return {
-    complete: enrollment.selected_tools.every((tool) => verifiedTools.has(tool)),
+    complete: setupSession.selected_tools.every((tool) => verifiedTools.has(tool)),
   };
 }
 

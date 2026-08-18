@@ -59,7 +59,7 @@ create unique index organization_invitations_pending_email_idx
 
 alter table public.organization_invitations enable row level security;
 
-create table public.installation_enrollments (
+create table public.installation_setup_sessions (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations (id) on delete cascade,
   created_by_user_id uuid not null references auth.users (id),
@@ -75,15 +75,15 @@ create table public.installation_enrollments (
   unique (id, organization_id)
 );
 
-create index installation_enrollments_organization_id_idx
-  on public.installation_enrollments (organization_id);
+create index installation_setup_sessions_organization_id_idx
+  on public.installation_setup_sessions (organization_id);
 
-create index installation_enrollments_created_by_user_id_idx
-  on public.installation_enrollments (created_by_user_id);
+create index installation_setup_sessions_created_by_user_id_idx
+  on public.installation_setup_sessions (created_by_user_id);
 
-alter table public.installation_enrollments enable row level security;
+alter table public.installation_setup_sessions enable row level security;
 
-insert into public.installation_enrollments (
+insert into public.installation_setup_sessions (
   id,
   organization_id,
   created_by_user_id,
@@ -110,7 +110,7 @@ alter table public.installations
   add column created_by_user_id uuid,
   add column tool text,
   add column computer_name text,
-  add column enrollment_id uuid,
+  add column setup_session_id uuid,
   add column verified_at timestamptz,
   add column last_seen_at timestamptz;
 
@@ -119,7 +119,7 @@ set
   created_by_user_id = organization.created_by_user_id,
   tool = 'codex',
   computer_name = 'Legacy installation',
-  enrollment_id = installation.id
+  setup_session_id = installation.id
 from public.organizations as organization
 where organization.id = installation.organization_id;
 
@@ -127,18 +127,18 @@ alter table public.installations
   alter column created_by_user_id set not null,
   alter column tool set not null,
   alter column computer_name set not null,
-  alter column enrollment_id set not null,
+  alter column setup_session_id set not null,
   add constraint installations_created_by_user_id_fkey
     foreign key (created_by_user_id) references auth.users (id),
   add constraint installations_tool_check
     check (tool in ('codex', 'claude_code')),
   add constraint installations_computer_name_check
     check (char_length(trim(computer_name)) between 1 and 255),
-  add constraint installations_enrollment_id_organization_id_fkey
-    foreign key (enrollment_id, organization_id)
-      references public.installation_enrollments (id, organization_id),
-  add constraint installations_enrollment_id_tool_key
-    unique (enrollment_id, tool);
+  add constraint installations_setup_session_id_organization_id_fkey
+    foreign key (setup_session_id, organization_id)
+      references public.installation_setup_sessions (id, organization_id),
+  add constraint installations_setup_session_id_tool_key
+    unique (setup_session_id, tool);
 
 create index installations_created_by_user_organization_idx
   on public.installations (created_by_user_id, organization_id);
@@ -148,10 +148,10 @@ create index installations_active_owner_organization_idx
   where verified_at is not null and revoked_at is null;
 
 revoke all on table public.organization_invitations from anon, authenticated, service_role;
-revoke all on table public.installation_enrollments from anon, authenticated, service_role;
+revoke all on table public.installation_setup_sessions from anon, authenticated, service_role;
 
 grant select, insert, update, delete on table public.organization_invitations to service_role;
-grant select, insert, update, delete on table public.installation_enrollments to service_role;
+grant select, insert, update, delete on table public.installation_setup_sessions to service_role;
 
 revoke update (name, logo_url) on table public.organizations from authenticated;
 
@@ -162,8 +162,8 @@ create policy "clients cannot access organization invitations"
   using (false)
   with check (false);
 
-create policy "clients cannot access installation enrollments"
-  on public.installation_enrollments
+create policy "clients cannot access installation setup sessions"
+  on public.installation_setup_sessions
   for all
   to anon, authenticated
   using (false)

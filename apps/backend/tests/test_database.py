@@ -58,8 +58,8 @@ def _database_fixture() -> Iterator[tuple[Client, str, str]]:
         .data[0]
     )
     organization_id = str(organization["id"])
-    enrollment = (
-        client.table("installation_enrollments")
+    setup_session = (
+        client.table("installation_setup_sessions")
         .insert(
             {
                 "organization_id": organization_id,
@@ -80,7 +80,7 @@ def _database_fixture() -> Iterator[tuple[Client, str, str]]:
                 "created_by_user_id": LOCAL_USER_ID,
                 "tool": "codex",
                 "computer_name": "Backend database test",
-                "enrollment_id": enrollment["id"],
+                "setup_session_id": setup_session["id"],
             }
         )
         .execute()
@@ -108,7 +108,7 @@ def _api(secret_key: str, url: str, collector_token: str) -> TestClient:
 
 
 @contextmanager
-def _enrollment_fixture(
+def _setup_session_fixture(
     selected_tools: list[str], expires_at: datetime
 ) -> Iterator[tuple[Client, str, str, str]]:
     url, secret_key = _credentials()
@@ -128,8 +128,8 @@ def _enrollment_fixture(
     )
     organization_id = str(organization["id"])
     digest = secrets.token_hex(32)
-    enrollment = (
-        client.table("installation_enrollments")
+    setup_session = (
+        client.table("installation_setup_sessions")
         .insert(
             {
                 "organization_id": organization_id,
@@ -143,7 +143,7 @@ def _enrollment_fixture(
         .data[0]
     )
     try:
-        yield client, organization_id, digest, str(enrollment["id"])
+        yield client, organization_id, digest, str(setup_session["id"])
     finally:
         client.table("organizations").delete().eq("id", organization_id).execute()
 
@@ -308,11 +308,12 @@ def test_mixed_export_persists_known_partition_before_retry() -> None:
 def test_enrollment_redeem_is_idempotent_for_each_selected_tool() -> None:
     url, secret_key = _credentials()
     now = datetime.now(UTC)
-    with _enrollment_fixture(["codex", "claude_code"], now + timedelta(minutes=10)) as (
+    expires_at = now + timedelta(minutes=10)
+    with _setup_session_fixture(["codex", "claude_code"], expires_at) as (
         client,
         organization_id,
         digest,
-        enrollment_id,
+        setup_session_id,
     ):
         repository = SupabaseEnrollmentRepository(url, secret_key)
 
@@ -323,7 +324,7 @@ def test_enrollment_redeem_is_idempotent_for_each_selected_tool() -> None:
         stored = (
             client.table("installations")
             .select("*")
-            .eq("enrollment_id", enrollment_id)
+            .eq("setup_session_id", setup_session_id)
             .execute()
             .data
         )
@@ -343,11 +344,11 @@ def test_enrollment_redeem_is_idempotent_for_each_selected_tool() -> None:
 def test_enrollment_rejects_expired_code() -> None:
     url, secret_key = _credentials()
     now = datetime.now(UTC)
-    with _enrollment_fixture(["codex"], now - timedelta(seconds=1)) as (
+    with _setup_session_fixture(["codex"], now - timedelta(seconds=1)) as (
         _client,
         _organization_id,
         digest,
-        _enrollment_id,
+        _setup_session_id,
     ):
         repository = SupabaseEnrollmentRepository(url, secret_key)
 

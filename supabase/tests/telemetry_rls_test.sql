@@ -15,8 +15,8 @@ select ok(
   'organization_invitations has RLS enabled'
 );
 select ok(
-  (select relrowsecurity from pg_class where oid = 'public.installation_enrollments'::regclass),
-  'installation_enrollments has RLS enabled'
+  (select relrowsecurity from pg_class where oid = 'public.installation_setup_sessions'::regclass),
+  'installation_setup_sessions has RLS enabled'
 );
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.installations'::regclass),
@@ -67,7 +67,7 @@ values (
   '2026-08-24 10:00:00+00'
 );
 
-insert into public.installation_enrollments (
+insert into public.installation_setup_sessions (
   id, organization_id, created_by_user_id, code_digest, selected_tools, expires_at, redeemed_at
 )
 values
@@ -76,7 +76,7 @@ values
   ('31000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', '10000000-0000-0000-0000-000000000003', repeat('3', 64), array['claude_code']::text[], '2026-08-24 10:00:00+00', '2026-08-17 10:00:00+00');
 
 insert into public.installations (
-  id, organization_id, created_by_user_id, tool, computer_name, enrollment_id, verified_at, last_seen_at
+  id, organization_id, created_by_user_id, tool, computer_name, setup_session_id, verified_at, last_seen_at
 )
 values
   ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000002', 'codex', 'Member laptop', '31000000-0000-4000-8000-000000000001', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00'),
@@ -194,9 +194,9 @@ select throws_ok(
   'invitations are server-only'
 );
 select throws_ok(
-  'select * from public.installation_enrollments',
+  'select * from public.installation_setup_sessions',
   '42501',
-  'permission denied for table installation_enrollments',
+  'permission denied for table installation_setup_sessions',
   'enrollment codes are server-only'
 );
 select results_eq(
@@ -226,13 +226,13 @@ select throws_ok(
   'authenticated clients cannot insert invitations directly'
 );
 select throws_ok(
-  $$insert into public.installation_enrollments (organization_id, created_by_user_id, code_digest, selected_tools, expires_at) values ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', repeat('9', 64), array['codex']::text[], now() + interval '10 minutes')$$,
+  $$insert into public.installation_setup_sessions (organization_id, created_by_user_id, code_digest, selected_tools, expires_at) values ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', repeat('9', 64), array['codex']::text[], now() + interval '10 minutes')$$,
   '42501',
-  'permission denied for table installation_enrollments',
+  'permission denied for table installation_setup_sessions',
   'authenticated clients cannot insert enrollments directly'
 );
 select throws_ok(
-  $$insert into public.installations (organization_id, created_by_user_id, tool, computer_name, enrollment_id) values ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', 'codex', 'Direct', '31000000-0000-4000-8000-000000000001')$$,
+  $$insert into public.installations (organization_id, created_by_user_id, tool, computer_name, setup_session_id) values ('20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', 'codex', 'Direct', '31000000-0000-4000-8000-000000000001')$$,
   '42501',
   'permission denied for table installations',
   'authenticated clients cannot insert installations directly'

@@ -339,7 +339,7 @@ def test_real_two_tool_enrollment_flows_through_collector_into_supabase() -> Non
         }
     ).execute()
     enrollment_code = secrets.token_urlsafe(24)
-    service_client.table("installation_enrollments").insert(
+    service_client.table("installation_setup_sessions").insert(
         {
             "organization_id": organization_id,
             "created_by_user_id": LOCAL_USER_ID,

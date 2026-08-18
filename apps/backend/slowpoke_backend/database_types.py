@@ -44,11 +44,11 @@ class PublicInstallations(BaseModel):
     computer_name: str = Field(alias="computer_name")
     created_at: datetime.datetime = Field(alias="created_at")
     created_by_user_id: uuid.UUID = Field(alias="created_by_user_id")
-    enrollment_id: uuid.UUID = Field(alias="enrollment_id")
     id: uuid.UUID = Field(alias="id")
     last_seen_at: Optional[datetime.datetime] = Field(alias="last_seen_at")
     organization_id: uuid.UUID = Field(alias="organization_id")
     revoked_at: Optional[datetime.datetime] = Field(alias="revoked_at")
+    setup_session_id: uuid.UUID = Field(alias="setup_session_id")
     tool: str = Field(alias="tool")
     verified_at: Optional[datetime.datetime] = Field(alias="verified_at")
 
@@ -56,11 +56,11 @@ class PublicInstallationsInsert(TypedDict):
     computer_name: Annotated[str, Field(alias="computer_name")]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     created_by_user_id: Annotated[uuid.UUID, Field(alias="created_by_user_id")]
-    enrollment_id: Annotated[uuid.UUID, Field(alias="enrollment_id")]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
     last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
+    setup_session_id: Annotated[uuid.UUID, Field(alias="setup_session_id")]
     tool: Annotated[str, Field(alias="tool")]
     verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]
 
@@ -68,11 +68,11 @@ class PublicInstallationsUpdate(TypedDict):
     computer_name: NotRequired[Annotated[str, Field(alias="computer_name")]]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     created_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="created_by_user_id")]]
-    enrollment_id: NotRequired[Annotated[uuid.UUID, Field(alias="enrollment_id")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
     last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
+    setup_session_id: NotRequired[Annotated[uuid.UUID, Field(alias="setup_session_id")]]
     tool: NotRequired[Annotated[str, Field(alias="tool")]]
     verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]
 
@@ -244,7 +244,7 @@ class PublicOrganizationInvitationsUpdate(TypedDict):
     role: NotRequired[Annotated[str, Field(alias="role")]]
     updated_at: NotRequired[Annotated[datetime.datetime, Field(alias="updated_at")]]
 
-class PublicInstallationEnrollments(BaseModel):
+class PublicInstallationSetupSessions(BaseModel):
     code_digest: str = Field(alias="code_digest")
     created_at: datetime.datetime = Field(alias="created_at")
     created_by_user_id: uuid.UUID = Field(alias="created_by_user_id")
@@ -254,7 +254,7 @@ class PublicInstallationEnrollments(BaseModel):
     redeemed_at: Optional[datetime.datetime] = Field(alias="redeemed_at")
     selected_tools: List[str] = Field(alias="selected_tools")
 
-class PublicInstallationEnrollmentsInsert(TypedDict):
+class PublicInstallationSetupSessionsInsert(TypedDict):
     code_digest: Annotated[str, Field(alias="code_digest")]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     created_by_user_id: Annotated[uuid.UUID, Field(alias="created_by_user_id")]
@@ -264,7 +264,7 @@ class PublicInstallationEnrollmentsInsert(TypedDict):
     redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
     selected_tools: Annotated[List[str], Field(alias="selected_tools")]
 
-class PublicInstallationEnrollmentsUpdate(TypedDict):
+class PublicInstallationSetupSessionsUpdate(TypedDict):
     code_digest: NotRequired[Annotated[str, Field(alias="code_digest")]]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     created_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="created_by_user_id")]]

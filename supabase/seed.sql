@@ -75,8 +75,8 @@ order by organization.id
 limit 1
 on conflict (organization_id, user_id) do nothing;
 
--- Stable local enrollment and installation used by development tooling.
-insert into public.installation_enrollments (
+-- Stable local setup session and installation used by development tooling.
+insert into public.installation_setup_sessions (
   id,
   organization_id,
   created_by_user_id,
@@ -105,7 +105,7 @@ insert into public.installations (
   created_by_user_id,
   tool,
   computer_name,
-  enrollment_id,
+  setup_session_id,
   verified_at,
   last_seen_at
 )

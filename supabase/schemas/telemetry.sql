@@ -62,7 +62,7 @@ create unique index organization_invitations_pending_email_idx
   on public.organization_invitations (organization_id, normalized_email)
   where accepted_at is null and declined_at is null and canceled_at is null;
 
-create table public.installation_enrollments (
+create table public.installation_setup_sessions (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations (id) on delete cascade,
   created_by_user_id uuid not null references auth.users (id),
@@ -78,11 +78,11 @@ create table public.installation_enrollments (
   unique (id, organization_id)
 );
 
-create index installation_enrollments_organization_id_idx
-  on public.installation_enrollments (organization_id);
+create index installation_setup_sessions_organization_id_idx
+  on public.installation_setup_sessions (organization_id);
 
-create index installation_enrollments_created_by_user_id_idx
-  on public.installation_enrollments (created_by_user_id);
+create index installation_setup_sessions_created_by_user_id_idx
+  on public.installation_setup_sessions (created_by_user_id);
 
 create table public.installations (
   id uuid primary key default gen_random_uuid(),
@@ -92,13 +92,13 @@ create table public.installations (
   created_by_user_id uuid not null references auth.users (id),
   tool text not null check (tool in ('codex', 'claude_code')),
   computer_name text not null check (char_length(trim(computer_name)) between 1 and 255),
-  enrollment_id uuid not null,
+  setup_session_id uuid not null,
   verified_at timestamptz,
   last_seen_at timestamptz,
-  foreign key (enrollment_id, organization_id)
-    references public.installation_enrollments (id, organization_id),
+  foreign key (setup_session_id, organization_id)
+    references public.installation_setup_sessions (id, organization_id),
   unique (id, organization_id),
-  unique (enrollment_id, tool)
+  unique (setup_session_id, tool)
 );
 
 create index installations_organization_id_idx
@@ -176,7 +176,7 @@ create index prompt_events_prompt_text_trgm_idx
 alter table public.organizations enable row level security;
 alter table public.organization_members enable row level security;
 alter table public.organization_invitations enable row level security;
-alter table public.installation_enrollments enable row level security;
+alter table public.installation_setup_sessions enable row level security;
 alter table public.installations enable row level security;
 alter table public.telemetry_batches enable row level security;
 alter table public.prompt_events enable row level security;
@@ -188,8 +188,8 @@ create policy "clients cannot access organization invitations"
   using (false)
   with check (false);
 
-create policy "clients cannot access installation enrollments"
-  on public.installation_enrollments
+create policy "clients cannot access installation setup sessions"
+  on public.installation_setup_sessions
   for all
   to anon, authenticated
   using (false)
@@ -374,7 +374,7 @@ where batch.signal = 'logs'
 revoke all on table public.organizations from anon, authenticated, service_role;
 revoke all on table public.organization_members from anon, authenticated, service_role;
 revoke all on table public.organization_invitations from anon, authenticated, service_role;
-revoke all on table public.installation_enrollments from anon, authenticated, service_role;
+revoke all on table public.installation_setup_sessions from anon, authenticated, service_role;
 revoke all on table public.installations from anon, authenticated, service_role;
 revoke all on table public.telemetry_batches from anon, authenticated, service_role;
 revoke all on table public.prompt_events from anon, authenticated, service_role;
@@ -390,7 +390,7 @@ grant select on table public.human_prompt_events to authenticated;
 grant select, insert, update, delete on table public.organizations to service_role;
 grant select, insert, update, delete on table public.organization_members to service_role;
 grant select, insert, update, delete on table public.organization_invitations to service_role;
-grant select, insert, update, delete on table public.installation_enrollments to service_role;
+grant select, insert, update, delete on table public.installation_setup_sessions to service_role;
 grant select, insert, update, delete on table public.installations to service_role;
 grant select, insert, update, delete on table public.telemetry_batches to service_role;
 grant select, insert, update, delete on table public.prompt_events to service_role;

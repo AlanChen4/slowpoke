@@ -7,7 +7,7 @@ from typing import Protocol, cast
 
 from supabase import Client, create_client
 
-from .database_types import PublicInstallationEnrollments, PublicInstallations
+from .database_types import PublicInstallations, PublicInstallationSetupSessions
 from .domain import Installation, Tool
 from .errors import (
     ExpiredEnrollmentCodeError,
@@ -43,7 +43,7 @@ class SupabaseEnrollmentRepository:
     ) -> tuple[Installation, ...]:
         try:
             response = (
-                self._client.table("installation_enrollments")
+                self._client.table("installation_setup_sessions")
                 .select(
                     "id,organization_id,created_by_user_id,code_digest,"
                     "selected_tools,expires_at,redeemed_at,created_at"
@@ -54,35 +54,37 @@ class SupabaseEnrollmentRepository:
             )
             if not response.data:
                 raise InvalidEnrollmentCodeError
-            enrollment = PublicInstallationEnrollments.model_validate(response.data[0])
-            if enrollment.expires_at <= now:
+            setup_session = PublicInstallationSetupSessions.model_validate(
+                response.data[0]
+            )
+            if setup_session.expires_at <= now:
                 raise ExpiredEnrollmentCodeError
 
             rows = [
                 {
-                    "organization_id": str(enrollment.organization_id),
-                    "created_by_user_id": str(enrollment.created_by_user_id),
+                    "organization_id": str(setup_session.organization_id),
+                    "created_by_user_id": str(setup_session.created_by_user_id),
                     "tool": tool,
                     "computer_name": computer_name,
-                    "enrollment_id": str(enrollment.id),
+                    "setup_session_id": str(setup_session.id),
                 }
-                for tool in enrollment.selected_tools
+                for tool in setup_session.selected_tools
             ]
             (
                 self._client.table("installations")
                 .upsert(
                     rows,
                     ignore_duplicates=True,
-                    on_conflict="enrollment_id,tool",
+                    on_conflict="setup_session_id,tool",
                     default_to_null=False,
                 )
                 .execute()
             )
             timestamp = now.isoformat()
             (
-                self._client.table("installation_enrollments")
+                self._client.table("installation_setup_sessions")
                 .update({"redeemed_at": timestamp})
-                .eq("id", str(enrollment.id))
+                .eq("id", str(setup_session.id))
                 .is_("redeemed_at", "null")
                 .execute()
             )
@@ -90,9 +92,9 @@ class SupabaseEnrollmentRepository:
                 self._client.table("installations")
                 .select(
                     "id,organization_id,created_at,revoked_at,created_by_user_id,"
-                    "tool,computer_name,enrollment_id,verified_at,last_seen_at"
+                    "tool,computer_name,setup_session_id,verified_at,last_seen_at"
                 )
-                .eq("enrollment_id", str(enrollment.id))
+                .eq("setup_session_id", str(setup_session.id))
                 .execute()
             )
             installations_by_tool = {
@@ -104,10 +106,10 @@ class SupabaseEnrollmentRepository:
                 for item in installation_response.data
                 if (row := PublicInstallations.model_validate(item)).revoked_at is None
             }
-            if set(installations_by_tool) != set(enrollment.selected_tools):
+            if set(installations_by_tool) != set(setup_session.selected_tools):
                 raise RepositoryError("failed to recover every enrolled installation")
             return tuple(
-                installations_by_tool[tool] for tool in enrollment.selected_tools
+                installations_by_tool[tool] for tool in setup_session.selected_tools
             )
         except (ExpiredEnrollmentCodeError, InvalidEnrollmentCodeError):
             raise

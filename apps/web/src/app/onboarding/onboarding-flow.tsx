@@ -12,8 +12,8 @@ import { useActionState, useCallback, useEffect, useState } from "react";
 
 import {
   acceptInvitation,
-  checkInstallationEnrollment,
-  createInstallationEnrollment,
+  checkInstallationSetupSession,
+  createInstallationSetupSession,
   createOrganization,
   declineInvitation,
   type OrganizationFlowActionState,
@@ -230,18 +230,18 @@ function OrganizationStep({
 function ToolStep({
   organization,
   onBack,
-  onEnrollment,
+  onSetupSession,
 }: {
   organization: OrganizationChoice;
   onBack: () => void;
-  onEnrollment: (state: OrganizationFlowActionState) => void;
+  onSetupSession: (state: OrganizationFlowActionState) => void;
 }) {
-  const [state, action, pending] = useActionState(createInstallationEnrollment, initialState);
+  const [state, action, pending] = useActionState(createInstallationSetupSession, initialState);
   useEffect(() => {
-    if (state.setupCommand && state.enrollmentId) {
-      onEnrollment(state);
+    if (state.setupCommand && state.setupSessionId) {
+      onSetupSession(state);
     }
-  }, [onEnrollment, state]);
+  }, [onSetupSession, state]);
 
   return (
     <Card>
@@ -350,7 +350,7 @@ export function OnboardingFlow({
     initialUnfinishedOrganizations,
   );
   const [invitations, setInvitations] = useState(initialInvitations);
-  const [enrollment, setEnrollment] = useState<OrganizationFlowActionState>();
+  const [setupSession, setSetupSession] = useState<OrganizationFlowActionState>();
   const [checking, setChecking] = useState(false);
   const [complete, setComplete] = useState(false);
   const [checkError, setCheckError] = useState<string>();
@@ -371,15 +371,15 @@ export function OnboardingFlow({
   );
 
   useEffect(() => {
-    if (!checking || !organization || !enrollment?.enrollmentId) {
+    if (!checking || !organization || !setupSession?.setupSessionId) {
       return;
     }
     const organizationId = organization.id;
-    const enrollmentId = enrollment.enrollmentId;
+    const setupSessionId = setupSession.setupSessionId;
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
     async function poll() {
-      const result = await checkInstallationEnrollment(organizationId, enrollmentId);
+      const result = await checkInstallationSetupSession(organizationId, setupSessionId);
       if (!active) {
         return;
       }
@@ -398,13 +398,13 @@ export function OnboardingFlow({
       active = false;
       clearTimeout(timer);
     };
-  }, [checking, enrollment?.enrollmentId, organization]);
+  }, [checking, setupSession?.setupSessionId, organization]);
 
   const currentStep = complete
     ? 5
     : checking
       ? 4
-      : enrollment?.setupCommand
+      : setupSession?.setupCommand
         ? 3
         : organization
           ? 2
@@ -465,13 +465,13 @@ export function OnboardingFlow({
             </Button>
           </CardFooter>
         </Card>
-      ) : enrollment?.setupCommand ? (
+      ) : setupSession?.setupCommand ? (
         <ConnectionStep
-          command={enrollment.setupCommand}
+          command={setupSession.setupCommand}
           checking={checking}
           onBack={() => {
             setCheckError(undefined);
-            setEnrollment(undefined);
+            setSetupSession(undefined);
           }}
           onCheck={() => {
             setCheckError(undefined);
@@ -485,7 +485,7 @@ export function OnboardingFlow({
             setOrganization(null);
             router.replace("/onboarding?create=1");
           }}
-          onEnrollment={setEnrollment}
+          onSetupSession={setSetupSession}
         />
       ) : (
         <OrganizationStep
