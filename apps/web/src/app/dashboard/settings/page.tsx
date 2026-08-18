@@ -65,7 +65,7 @@ type InvitationRow = {
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-1 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-1 pt-3 sm:flex-row sm:items-center sm:justify-between">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="break-all text-xs">
         <code>{value}</code>

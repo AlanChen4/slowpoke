@@ -62,7 +62,7 @@ type PromptEvent = z.infer<typeof promptEventSchema>;
 
 function DetailItem({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="space-y-1 border-t pt-3">
+    <div className="space-y-1 pt-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="break-words text-sm">{children ?? "—"}</dd>
     </div>
@@ -101,7 +101,7 @@ function PromptBreakdown({ segments }: { segments: PromptTextSegment[] }) {
 
 function UsageItem({ label, value }: { label: string; value: number | null | undefined }) {
   return (
-    <div className="border-t pt-3">
+    <div className="pt-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-1 text-lg font-medium">
         {value === null || value === undefined ? "—" : numberFormatter.format(value)}
@@ -280,7 +280,7 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
             <UsageItem label="Output tokens" value={usage?.outputTokens} />
             <UsageItem label="Reasoning tokens" value={usage?.reasoningTokens} />
             <UsageItem label="Total tokens" value={usage?.totalTokens} />
-            <div className="border-t pt-3">
+            <div className="pt-3">
               <dt className="text-xs text-muted-foreground">Cost</dt>
               <dd className="mt-1 text-lg font-medium">
                 {usage?.costUsd === null || usage?.costUsd === undefined
@@ -290,11 +290,11 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
             </div>
           </dl>
           {!usage ? (
-            <p className="border-t pt-3 text-xs text-muted-foreground">
+            <p className="pt-3 text-xs text-muted-foreground">
               No completed response usage was found before the next human prompt.
             </p>
           ) : usage.costUsd === null ? (
-            <p className="border-t pt-3 text-xs text-muted-foreground">
+            <p className="pt-3 text-xs text-muted-foreground">
               Codex reported token counts for this response, but not a billable dollar amount.
             </p>
           ) : null}

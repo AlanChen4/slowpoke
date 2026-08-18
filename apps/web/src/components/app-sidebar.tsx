@@ -164,7 +164,7 @@ export function AppSidebar({ email, organizations, selectedOrganizationId }: App
                     </SelectItem>
                   ))}
                 </SelectGroup>
-                <div className="border-t p-1">
+                <div className="p-1">
                   <Button
                     type="button"
                     variant="ghost"
