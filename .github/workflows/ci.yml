@@ -22,7 +22,7 @@ jobs:
       matrix:
         include:
           - name: Lint
-            command: pnpm lint && pnpm format:check && pnpm knip && pnpm deptry
+            command: pnpm lint && pnpm format:check && pnpm knip && pnpm vulture && pnpm deptry
           - name: Typecheck
             command: pnpm typecheck
           - name: Test

@@ -21,6 +21,7 @@ dev = [
   "pyright>=1.1.403,<2",
   "pytest>=8.4,<9",
   "ruff>=0.12,<1",
+  "vulture==2.16",
 ]
 
 [tool.pytest.ini_options]
@@ -53,6 +54,12 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.ruff.format]
 exclude = ["slowpoke_backend/database_types.py"]
+
+[tool.vulture]
+exclude = ["*database_types.py"]
+ignore_decorators = ["@app.get"]
+ignore_names = ["model_config", "pytestmark", "should_exit"]
+min_confidence = 60
 
 [tool.uv]
 package = true

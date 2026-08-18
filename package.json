@@ -19,6 +19,7 @@
     "lint:python": "(cd apps/backend && uv run ruff check .) && (cd apps/collector && uv run ruff check .)",
     "lint:python:fix": "(cd apps/backend && uv run ruff check --fix .) && (cd apps/collector && uv run ruff check --fix .)",
     "knip": "knip --treat-config-hints-as-errors",
+    "vulture": "cd apps/backend && uv run vulture slowpoke_backend tests && cd ../collector && uv run vulture collector.py modal_app.py tests",
     "deptry": "cd apps/backend && uv run deptry . && cd ../collector && uv run deptry .",
     "format": "oxfmt && (cd apps/backend && uv run ruff format .) && (cd apps/collector && uv run ruff format .)",
     "format:check": "oxfmt --check && (cd apps/backend && uv run ruff format --check .) && (cd apps/collector && uv run ruff format --check .)",

@@ -6,7 +6,13 @@ requires-python = ">=3.13,<3.14"
 dependencies = ["modal==1.5.2"]
 
 [dependency-groups]
-dev = ["deptry==0.25.1", "opentelemetry-proto==1.37.0", "pytest==8.4.2", "ruff>=0.12,<1"]
+dev = [
+  "deptry==0.25.1",
+  "opentelemetry-proto==1.37.0",
+  "pytest==8.4.2",
+  "ruff>=0.12,<1",
+  "vulture==2.16",
+]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
@@ -19,6 +25,11 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.vulture]
+ignore_decorators = ["@app.function"]
+ignore_names = ["Collector", "as_int", "do_GET", "do_POST", "log_message", "span_id", "trace_id"]
+min_confidence = 60
 
 [tool.uv]
 package = false
