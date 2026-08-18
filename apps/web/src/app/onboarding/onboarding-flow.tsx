@@ -20,14 +20,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Field,
   FieldContent,
@@ -141,9 +134,6 @@ function OrganizationStep({
         <CardTitle role="heading" aria-level={1} className="text-base">
           Create your organization
         </CardTitle>
-        <CardDescription>
-          Accept an invitation, or create a separate workspace for your team.
-        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {invitations.length > 0 ? (
@@ -201,9 +191,6 @@ function ToolStep({
         <CardTitle role="heading" aria-level={1} className="text-base">
           Choose your AI tools
         </CardTitle>
-        <CardDescription>
-          Each installation connects one AI tool on one computer. This computer can have both.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="flex flex-col gap-5">
@@ -273,10 +260,6 @@ function ConnectionStep({
         <CardTitle role="heading" aria-level={1} className="text-base">
           Connect this computer
         </CardTitle>
-        <CardDescription>
-          Run this command in a terminal on the computer you want to connect. It expires in 15
-          minutes.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="relative border bg-foreground p-4 pr-12 text-background">
@@ -398,9 +381,6 @@ export function OnboardingFlow({
             <CardTitle role="heading" aria-level={1} className="text-base">
               Your computer is connected
             </CardTitle>
-            <CardDescription>
-              Slowpoke verified every selected AI tool on this computer.
-            </CardDescription>
           </CardHeader>
           <CardFooter>
             <Link href="/dashboard?scope=human" className={buttonVariants()}>
@@ -417,9 +397,6 @@ export function OnboardingFlow({
             <CardTitle role="heading" aria-level={1} className="text-base">
               Checking the connection
             </CardTitle>
-            <CardDescription>
-              Keep this page open. Verification usually takes a few seconds.
-            </CardDescription>
           </CardHeader>
           {checkError ? (
             <CardContent>
