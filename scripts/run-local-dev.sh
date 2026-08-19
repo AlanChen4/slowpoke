@@ -124,10 +124,22 @@ stop_stale_collectors() {
 
 restart_local_postgrest() {
   local container_id
+  local project_id
+
+  project_id="$(
+    sed -n 's/^[[:space:]]*project_id[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \
+      "$project_root/supabase/config.toml" |
+      head -n 1
+  )"
+
+  if [[ -z "$project_id" ]]; then
+    printf 'Unable to read the local Supabase project ID.\n' >&2
+    exit 1
+  fi
 
   container_id="$(
     docker ps \
-      --filter "label=com.supabase.cli.workdir=$project_root" \
+      --filter "label=com.supabase.cli.project=$project_id" \
       --format '{{.ID}} {{.Image}}' |
       awk '$2 ~ /postgrest/ { print $1; exit }'
   )"
