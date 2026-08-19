@@ -44,8 +44,6 @@ jobs:
           commit-message: "chore(setup): release package"
           pr-title: "chore(setup): release package"
           create-github-releases: true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Format release pull request
         if: steps.changesets.outputs.pr-number != ''
         env:
