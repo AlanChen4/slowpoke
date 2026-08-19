@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -72,9 +71,6 @@ function InstallationSetup({
       <>
         <DialogHeader>
           <DialogTitle>Waiting for the verification event</DialogTitle>
-          <DialogDescription>
-            Slowpoke will add the installation after the selected tools connect.
-          </DialogDescription>
         </DialogHeader>
         <div className="flex items-center gap-2 py-4 text-muted-foreground">
           <CircleNotchIcon className="animate-spin" />
@@ -102,9 +98,6 @@ function InstallationSetup({
       <>
         <DialogHeader>
           <DialogTitle>Connect this computer</DialogTitle>
-          <DialogDescription>
-            Run this onboarding command in a terminal on the computer you want to connect.
-          </DialogDescription>
         </DialogHeader>
         <EnrollmentCodeBlock command={state.setupCommand} />
         <DialogFooter className="justify-between sm:justify-between">
@@ -129,7 +122,6 @@ function InstallationSetup({
     <>
       <DialogHeader>
         <DialogTitle>Add installation</DialogTitle>
-        <DialogDescription>Choose the AI tools to connect on this computer.</DialogDescription>
       </DialogHeader>
       <form action={action} className="flex flex-col gap-5">
         <Input type="hidden" name="organizationId" value={organizationId} />

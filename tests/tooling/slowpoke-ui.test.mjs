@@ -50,35 +50,60 @@ test("allows full borders and semantic page chrome", () => {
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
 
-test("rejects card descriptions without an explicit rationale", () => {
+test("rejects surface descriptions without an explicit rationale", () => {
   const result = lintFixture(`
-    import { CardDescription, CardHeader, CardTitle } from "./card";
+    import { CardDescription } from "./card";
+    import { DialogDescription } from "./dialog";
+    import { DrawerDescription } from "./drawer";
+    import { SheetDescription } from "./sheet";
 
     export function Example() {
       return (
-        <CardHeader>
-          <CardTitle>Organization</CardTitle>
+        <>
           <CardDescription>Update the name shown throughout this workspace.</CardDescription>
-        </CardHeader>
+          <DialogDescription>Choose the tools to connect.</DialogDescription>
+          <DrawerDescription>Choose the tools to connect.</DrawerDescription>
+          <SheetDescription>Choose the tools to connect.</SheetDescription>
+        </>
       );
     }
   `);
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stdout + result.stderr, /slowpoke-ui\(card-description-reason\)/u);
+  assert.match(result.stdout + result.stderr, /slowpoke-ui\(surface-description-reason\)/u);
 });
 
-test("allows a card description with a meaningful rationale", () => {
+test("allows a surface description with a meaningful rationale", () => {
   const result = lintFixture(`
-    import { CardDescription, CardHeader, CardTitle } from "./card";
+    import { DialogDescription, DialogHeader, DialogTitle } from "./dialog";
 
     export function Example() {
       return (
-        <CardHeader>
-          <CardTitle>Security</CardTitle>
-          {/* CARD-DESCRIPTION-REASON: Explains the irreversible effect before the user acts. */}
-          <CardDescription>Deleting this key immediately disables every connected client.</CardDescription>
-        </CardHeader>
+        <DialogHeader>
+          <DialogTitle>Delete API key</DialogTitle>
+          {/* SURFACE-DESCRIPTION-REASON: Explains the irreversible effect before the user acts. */}
+          <DialogDescription>Deleting this key immediately disables every connected client.</DialogDescription>
+        </DialogHeader>
+      );
+    }
+  `);
+
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test("allows functional descriptions outside titled surfaces", () => {
+  const result = lintFixture(`
+    import { AlertDescription } from "./alert";
+    import { EmptyDescription } from "./empty";
+    import { FieldDescription } from "./field";
+
+    export function Example() {
+      return (
+        <>
+          <AlertDescription>The request failed.</AlertDescription>
+          <EmptyDescription>No installations found.</EmptyDescription>
+          <FieldDescription>Use at least 12 characters.</FieldDescription>
+        </>
       );
     }
   `);

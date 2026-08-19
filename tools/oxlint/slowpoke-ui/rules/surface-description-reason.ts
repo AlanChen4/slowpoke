@@ -2,7 +2,13 @@ import { defineRule } from "@oxlint/plugins";
 
 import type { ESTree, SourceCode } from "@oxlint/plugins";
 
-const cardDescriptionReasonPattern = /\bCARD-DESCRIPTION-REASON:\s+([\s\S]+)/u;
+const descriptionReasonPattern = /\bSURFACE-DESCRIPTION-REASON:\s+([\s\S]+)/u;
+const surfaceDescriptions = new Set([
+  "CardDescription",
+  "DialogDescription",
+  "DrawerDescription",
+  "SheetDescription",
+]);
 
 function elementName(node: ESTree.JSXElement): string | null {
   const name = node.openingElement.name;
@@ -10,7 +16,7 @@ function elementName(node: ESTree.JSXElement): string | null {
 }
 
 function hasMeaningfulReason(commentValue: string): boolean {
-  const reason = cardDescriptionReasonPattern.exec(commentValue)?.[1];
+  const reason = descriptionReasonPattern.exec(commentValue)?.[1];
   return reason !== undefined && reason.trim().length >= 12;
 }
 
@@ -31,7 +37,7 @@ function reasonContainer(node: ESTree.JSXElement): ESTree.JSXExpressionContainer
   return null;
 }
 
-function hasCardDescriptionReason(sourceCode: SourceCode, node: ESTree.JSXElement): boolean {
+function hasDescriptionReason(sourceCode: SourceCode, node: ESTree.JSXElement): boolean {
   const container = reasonContainer(node);
   return (
     container !== null &&
@@ -39,23 +45,24 @@ function hasCardDescriptionReason(sourceCode: SourceCode, node: ESTree.JSXElemen
   );
 }
 
-/** Keep card descriptions exceptional and explicitly justified. */
-export const cardDescriptionReasonRule = defineRule({
+/** Keep supporting copy beneath surface titles exceptional and explicitly justified. */
+export const surfaceDescriptionReasonRule = defineRule({
   meta: {
     type: "problem",
     docs: {
-      description: "Require a human-authored rationale before a JSX CardDescription.",
+      description: "Require a human-authored rationale before a JSX surface description.",
     },
     messages: {
       missingReason:
-        "Remove this redundant card description, or add an immediately preceding `{/* CARD-DESCRIPTION-REASON: <human-authored reason> */}` comment when the supporting copy is essential.",
+        "Remove this redundant surface description, or add an immediately preceding `{/* SURFACE-DESCRIPTION-REASON: <human-authored reason> */}` comment when the supporting copy is essential.",
     },
   },
   createOnce(context) {
     return {
       JSXElement(node) {
-        if (elementName(node) !== "CardDescription") return;
-        if (!hasCardDescriptionReason(context.sourceCode, node)) {
+        const name = elementName(node);
+        if (name === null || !surfaceDescriptions.has(name)) return;
+        if (!hasDescriptionReason(context.sourceCode, node)) {
           context.report({ node: node.openingElement, messageId: "missingReason" });
         }
       },
