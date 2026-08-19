@@ -44,6 +44,9 @@ test("provides root and layered enrollment help with copyable examples", async (
   assert.equal((await run(["--help"])).help, ROOT_HELP);
   assert.equal((await run(["enroll", "--help"])).help, ENROLL_HELP);
   assert.match(ROOT_HELP, /npx @slowpokeai\/setup enroll/);
+  assert.match(ROOT_HELP, /pnpm dlx @slowpokeai\/setup enroll/);
+  assert.match(ROOT_HELP, /yarn dlx @slowpokeai\/setup enroll/);
+  assert.match(ROOT_HELP, /bunx @slowpokeai\/setup enroll/);
   assert.match(ENROLL_HELP, /--code <code> --server <url>/);
   assert.match(ENROLL_HELP, /Examples:/);
 });

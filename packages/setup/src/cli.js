@@ -9,6 +9,11 @@ export const ROOT_HELP = `Connect AI tools to Slowpoke.
 Usage:
   npx @slowpokeai/setup enroll [options]
 
+Other package runners:
+  pnpm dlx @slowpokeai/setup enroll [options]
+  yarn dlx @slowpokeai/setup enroll [options]
+  bunx @slowpokeai/setup enroll [options]
+
 Commands:
   enroll  Connect the AI tools selected in Slowpoke
 
