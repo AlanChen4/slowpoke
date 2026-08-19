@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { validateCommitMessage, validatePullRequest } from "../../scripts/check-metadata.mjs";
+
+const CHECK_SCRIPT = fileURLToPath(new URL("../../scripts/check-metadata.mjs", import.meta.url));
 
 const VALID_PR_BODY = `## Summary
 
@@ -58,4 +65,42 @@ test("limits pull request summaries to three bullets", () => {
       error.includes("one to three"),
     ),
   );
+});
+
+test("ignores merge commits in a pull request range", () => {
+  const repository = mkdtempSync(join(tmpdir(), "slowpoke-metadata-"));
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: repository, encoding: "utf8", stdio: "pipe" }).trim();
+
+  try {
+    git("init", "--initial-branch=main");
+    git("config", "user.email", "test@example.com");
+    git("config", "user.name", "Metadata Test");
+    writeFileSync(join(repository, "base.txt"), "base\n");
+    git("add", "base.txt");
+    git("commit", "-m", "chore: add baseline");
+    const base = git("rev-parse", "HEAD");
+
+    git("checkout", "-b", "feature");
+    writeFileSync(join(repository, "feature.txt"), "feature\n");
+    git("add", "feature.txt");
+    git("commit", "-m", "docs: add guide");
+
+    git("checkout", "-b", "side", base);
+    writeFileSync(join(repository, "side.txt"), "side\n");
+    git("add", "side.txt");
+    git("commit", "-m", "fix: add side note");
+
+    git("checkout", "feature");
+    git("merge", "--no-ff", "side", "-m", "Merge branch 'side'");
+
+    const output = execFileSync(process.execPath, [CHECK_SCRIPT, "range", base, "HEAD"], {
+      cwd: repository,
+      encoding: "utf8",
+    });
+
+    assert.match(output, /Metadata valid/);
+  } finally {
+    rmSync(repository, { recursive: true, force: true });
+  }
 });

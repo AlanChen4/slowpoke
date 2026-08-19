@@ -179,9 +179,13 @@ export function validatePullRequest(title, body) {
 }
 
 function commitMessagesInRange(base, head) {
-  const output = execFileSync("git", ["log", "--format=%H%x00%B%x00", `${base}..${head}`], {
-    encoding: "utf8",
-  });
+  const output = execFileSync(
+    "git",
+    ["log", "--no-merges", "--format=%H%x00%B%x00", `${base}..${head}`],
+    {
+      encoding: "utf8",
+    },
+  );
   const fields = output.split("\0");
   const commits = [];
 
