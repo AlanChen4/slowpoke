@@ -283,16 +283,10 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
       </section>
 
       <section className="space-y-4" aria-labelledby="conversation-heading">
-        <div>
-          {/* HEADING-REASON: Identifies the labelled ordered list of surrounding messages. */}
-          <h2 id="conversation-heading" className="text-lg font-semibold">
-            Conversation
-          </h2>
-          <output className="text-xs text-muted-foreground">
-            Showing {conversation.length} captured{" "}
-            {conversation.length === 1 ? "prompt" : "prompts"} around the selected prompt.
-          </output>
-        </div>
+        {/* HEADING-REASON: Identifies the labelled ordered list of surrounding messages. */}
+        <h2 id="conversation-heading" className="text-lg font-semibold">
+          Conversation
+        </h2>
         <ol className="divide-y border">
           {conversation.map((event, index) => {
             const displayText = event.is_redacted
