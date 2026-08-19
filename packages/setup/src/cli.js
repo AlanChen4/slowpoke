@@ -4,6 +4,8 @@ import { pathToFileURL } from "node:url";
 import { exchangeEnrollment, sendVerification, SetupError } from "./client.js";
 import { applyConfigurationPlans, planConfigurations } from "./config.js";
 
+export const DEFAULT_SERVER = "https://avchen4--slowpoke-backend-web.modal.run";
+
 export const ROOT_HELP = `Connect AI tools to Slowpoke.
 
 Usage:
@@ -22,24 +24,24 @@ Run "npx @slowpokeai/setup enroll --help" for enrollment options and examples.`;
 export const ENROLL_HELP = `Connect this computer to Slowpoke.
 
 Usage:
-  npx @slowpokeai/setup enroll --code <code> --server <url> [options]
+  npx @slowpokeai/setup enroll --code <code> [options]
 
 Required:
   --code <code>             Short-lived setup code from Slowpoke
-  --server <url>            Slowpoke setup server URL
 
 Options:
+  --server <url>            Override the Slowpoke setup server URL
   --computer-name <name>    Override this computer's detected name
   --dry-run                 Validate arguments without enrolling or writing files
   --help, -h                Show this help
 
 Examples:
-  npx @slowpokeai/setup enroll --code abc123 --server https://app.slowpoke.dev
-  npx @slowpokeai/setup enroll --code abc123 --server https://app.slowpoke.dev --computer-name "Ada's laptop"
-  npx @slowpokeai/setup enroll --code abc123 --server https://app.slowpoke.dev --dry-run`;
+  npx @slowpokeai/setup enroll --code abc123
+  npx @slowpokeai/setup enroll --code abc123 --computer-name "Ada's laptop"
+  npx @slowpokeai/setup enroll --code abc123 --server http://127.0.0.1:8000`;
 
 function parseEnrollArguments(argumentsToParse) {
-  const options = { dryRun: false };
+  const options = { dryRun: false, server: DEFAULT_SERVER };
   for (let index = 0; index < argumentsToParse.length; index += 1) {
     const argument = argumentsToParse[index];
     if (argument === "--help" || argument === "-h") {
@@ -60,8 +62,8 @@ function parseEnrollArguments(argumentsToParse) {
     }
     throw new SetupError("invalid_arguments", `Unknown option: ${argument}`);
   }
-  if (!options.code || !options.server) {
-    throw new SetupError("invalid_arguments", "--code and --server are required.");
+  if (!options.code) {
+    throw new SetupError("invalid_arguments", "--code is required.");
   }
   try {
     const parsedServer = new URL(options.server);
