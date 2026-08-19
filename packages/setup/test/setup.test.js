@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { ENROLL_HELP, ROOT_HELP, run } from "../src/cli.js";
+import { DEFAULT_SERVER, ENROLL_HELP, ROOT_HELP, run } from "../src/cli.js";
 import { exchangeEnrollment } from "../src/client.js";
 import {
   applyConfigurationPlans,
@@ -47,7 +47,8 @@ test("provides root and layered enrollment help with copyable examples", async (
   assert.match(ROOT_HELP, /pnpm dlx @slowpokeai\/setup enroll/);
   assert.match(ROOT_HELP, /yarn dlx @slowpokeai\/setup enroll/);
   assert.match(ROOT_HELP, /bunx @slowpokeai\/setup enroll/);
-  assert.match(ENROLL_HELP, /--code <code> --server <url>/);
+  assert.match(ENROLL_HELP, /--code <code> \[options\]/);
+  assert.match(ENROLL_HELP, /--server <url>\s+Override/);
   assert.match(ENROLL_HELP, /Examples:/);
 });
 
@@ -176,12 +177,14 @@ test("enrollment retries transient failures and sends one non-prompt verificatio
     return jsonResponse({});
   };
 
-  const result = await run(
-    ["enroll", "--code", CODE, "--server", SERVER, "--computer-name", "Ada's laptop"],
-    { fetch, home: directory, sleep: async () => {} },
-  );
+  const result = await run(["enroll", "--code", CODE, "--computer-name", "Ada's laptop"], {
+    fetch,
+    home: directory,
+    sleep: async () => {},
+  });
 
   assert.equal(enrollmentAttempts, 2);
+  assert.equal(requests[0].url, `${DEFAULT_SERVER}/api/setup/enroll`);
   const verifications = requests.filter(({ url }) => url === `${COLLECTOR}/v1/logs`);
   assert.equal(verifications.length, 2);
   assert.deepEqual(
