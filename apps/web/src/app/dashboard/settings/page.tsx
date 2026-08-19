@@ -9,6 +9,7 @@ import {
 import { AddInstallationDialog } from "@/app/dashboard/settings/add-installation-dialog";
 import { OrganizationProfileForm } from "@/app/dashboard/settings/organization-profile-form";
 import { RevokeInstallationButton } from "@/app/dashboard/settings/revoke-installation-button";
+import { InstallationToolIdentity } from "@/components/provider-identity";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -238,7 +239,7 @@ export default async function SettingsPage() {
                       return (
                         <TableRow key={installation.id}>
                           <TableCell>
-                            {installation.tool === "codex" ? "Codex" : "Claude Code"}
+                            <InstallationToolIdentity tool={installation.tool} />
                           </TableCell>
                           <TableCell>{installation.computer_name}</TableCell>
                           <TableCell>
