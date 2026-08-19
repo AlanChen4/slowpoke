@@ -18,6 +18,7 @@ import {
 } from "@/lib/organizations/service";
 import { SupabaseOrganizationRepository } from "@/lib/organizations/supabase-repository";
 import { ORGANIZATION_COOKIE } from "@/lib/organization-context";
+import { isInstallationSetupComplete } from "@/lib/installation-setup-status";
 import { createSetupCommand } from "@/lib/setup-command";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -328,9 +329,8 @@ export async function checkInstallationSetupSession(
   if (error) {
     return { complete: false, error: "The connection could not be checked." };
   }
-  const verifiedTools = new Set((installations ?? []).map((installation) => installation.tool));
   return {
-    complete: setupSession.selected_tools.every((tool) => verifiedTools.has(tool)),
+    complete: isInstallationSetupComplete(setupSession.selected_tools, installations ?? []),
   };
 }
 
