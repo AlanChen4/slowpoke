@@ -6,12 +6,20 @@ import {
   InvitationSettings,
   type SettingsInvitation,
 } from "@/app/dashboard/settings/invitation-settings";
+import { AddInstallationDialog } from "@/app/dashboard/settings/add-installation-dialog";
 import { OrganizationProfileForm } from "@/app/dashboard/settings/organization-profile-form";
 import { RevokeInstallationButton } from "@/app/dashboard/settings/revoke-installation-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -43,7 +51,6 @@ type Installation = {
   created_by_user_id: string;
   id: string;
   last_seen_at: string | null;
-  revoked_at: string | null;
   tool: "codex" | "claude_code";
   verified_at: string | null;
 };
@@ -67,9 +74,6 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 function installationState(installation: Installation) {
-  if (installation.revoked_at) {
-    return "Revoked";
-  }
   return installation.verified_at ? "Active" : "Pending";
 }
 
@@ -86,10 +90,9 @@ export default async function SettingsPage() {
   const installationsResult = selectedOrganization
     ? await supabase
         .from("installations")
-        .select(
-          "id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at,revoked_at",
-        )
+        .select("id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at")
         .eq("organization_id", selectedOrganization.id)
+        .is("revoked_at", null)
         .order("created_at", { ascending: false })
         .overrideTypes<Installation[], { merge: false }>()
     : { data: [], error: null };
@@ -197,6 +200,11 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Installations</CardTitle>
+            {selectedOrganization ? (
+              <CardAction>
+                <AddInstallationDialog organizationId={selectedOrganization.id} />
+              </CardAction>
+            ) : null}
           </CardHeader>
           <CardContent>
             {installations.length === 0 ? (
@@ -247,7 +255,7 @@ export default async function SettingsPage() {
                               : "Never"}
                           </TableCell>
                           <TableCell className="text-right">
-                            {state !== "Revoked" && selectedOrganization ? (
+                            {selectedOrganization ? (
                               <RevokeInstallationButton
                                 installationId={installation.id}
                                 organizationId={selectedOrganization.id}

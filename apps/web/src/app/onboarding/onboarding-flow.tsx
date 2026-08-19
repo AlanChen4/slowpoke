@@ -4,7 +4,6 @@
 /* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 import { CheckCircleIcon, CircleNotchIcon } from "@phosphor-icons/react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -19,20 +18,12 @@ import {
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
 import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
+import { InstallationToolFields } from "@/components/installation-tool-fields";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSeparator,
-  FieldSet,
-  FieldTitle,
-} from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { PendingInvitation } from "@/lib/onboarding-data";
 
@@ -253,36 +244,7 @@ function ToolStep({
       <CardContent>
         <form action={action} className="flex flex-col gap-5">
           <Input type="hidden" name="organizationId" value={organization.id} />
-          <FieldSet className="grid gap-3 sm:grid-cols-2">
-            <FieldLegend className="sr-only">AI tools</FieldLegend>
-            {[
-              ["codex", "Codex", "/openai-logo.png"],
-              ["claude_code", "Claude Code", "/claude-logo.png"],
-            ].map(([value, label, logo]) => (
-              <FieldLabel key={value} variant="secondary" className="cursor-pointer">
-                <Field orientation="horizontal">
-                  <Input
-                    type="checkbox"
-                    name="tools"
-                    value={value}
-                    aria-label={label}
-                    className="size-4"
-                  />
-                  <FieldTitle>
-                    <Image
-                      src={logo}
-                      alt=""
-                      aria-hidden="true"
-                      width={18}
-                      height={18}
-                      className="shrink-0 object-contain"
-                    />
-                    {label}
-                  </FieldTitle>
-                </Field>
-              </FieldLabel>
-            ))}
-          </FieldSet>
+          <InstallationToolFields />
           {state.error ? <FieldError>{state.error}</FieldError> : null}
           <div className="flex items-center justify-between">
             <Button type="button" variant="outline" onClick={onBack}>
