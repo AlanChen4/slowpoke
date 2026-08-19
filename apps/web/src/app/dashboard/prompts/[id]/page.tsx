@@ -274,10 +274,6 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
             <p className="pt-3 text-xs text-muted-foreground">
               No completed response usage was found before the next human prompt.
             </p>
-          ) : usage.costUsd === null ? (
-            <p className="pt-3 text-xs text-muted-foreground">
-              Token counts were reported for this response, but not a billable dollar amount.
-            </p>
           ) : null}
         </div>
       </section>
