@@ -1,5 +1,11 @@
 # @slowpokeai/setup
 
+## 0.1.2
+
+### Patch Changes
+
+- e7f3977: Bundle the production setup server so enrollment commands only require a setup code.
+
 ## 0.1.1
 
 ### Patch Changes
