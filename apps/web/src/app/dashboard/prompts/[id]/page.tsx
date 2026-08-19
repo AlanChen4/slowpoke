@@ -59,7 +59,7 @@ type PromptEvent = z.infer<typeof promptEventSchema>;
 
 function PromptBreakdown({ segments }: { segments: PromptTextSegment[] }) {
   return (
-    <article className="min-w-0 border">
+    <article className="min-w-0">
       <header className="flex flex-wrap items-center gap-4 border-b px-4 py-3 text-xs font-medium">
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2.5 bg-human-highlight" aria-hidden="true" />
@@ -247,10 +247,9 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-      <PromptBreakdown segments={promptSegments} />
-
-      <section>
-        <div className="space-y-4 border p-5">
+      <section className="grid divide-y border lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)] lg:divide-x lg:divide-y-0">
+        <PromptBreakdown segments={promptSegments} />
+        <div className="space-y-4 p-5">
           <div>
             {/* HEADING-REASON: Labels the token and cost definition list as one section. */}
             <h2 className="text-lg font-semibold">Usage and cost</h2>
