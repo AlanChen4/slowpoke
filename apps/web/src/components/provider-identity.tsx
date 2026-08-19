@@ -68,12 +68,6 @@ function Identity({ className, identity, fallback }: IdentityProps) {
   );
 }
 
-export function ProviderIdentity({ className, provider }: ProviderIdentityProps) {
-  return (
-    <Identity className={className} identity={providerDetails(provider)} fallback={provider} />
-  );
-}
-
 export function InstallationToolIdentity({ className, tool }: InstallationToolIdentityProps) {
   return (
     <Identity className={className} identity={installationToolDetails(tool)} fallback={tool} />

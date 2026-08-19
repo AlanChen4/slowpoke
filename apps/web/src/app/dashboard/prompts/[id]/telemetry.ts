@@ -1,57 +1,4 @@
-import * as z from "zod";
-
-export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue | undefined };
-
-const integerValueSchema = z.union([
-  z.number(),
-  z.string().transform((value) => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : value;
-  }),
-]);
-const attributeValueSchema = z.object({
-  stringValue: z.string().optional(),
-  intValue: integerValueSchema.optional(),
-  doubleValue: z.number().optional(),
-  boolValue: z.boolean().optional(),
-});
-const attributeSchema = z
-  .object({
-    key: z.string(),
-    value: attributeValueSchema,
-  })
-  .nullable()
-  .catch(null);
-const logRecordSchema = z
-  .object({
-    attributes: z.array(attributeSchema).catch([]).default([]),
-  })
-  .catch({ attributes: [] });
-const scopeLogSchema = z
-  .object({
-    logRecords: z.array(logRecordSchema).catch([]).default([]),
-  })
-  .catch({ logRecords: [] });
-const resourceLogSchema = z
-  .object({
-    scopeLogs: z.array(scopeLogSchema).catch([]).default([]),
-  })
-  .catch({ scopeLogs: [] });
-const telemetryPayloadSchema = z.object({
-  resourceLogs: z.array(resourceLogSchema).catch([]).default([]),
-});
-
-type AttributeValue = z.infer<typeof attributeValueSchema>;
-type LogRecord = z.infer<typeof logRecordSchema>;
-
 export type PromptResponseUsage = {
-  model: string | null;
   inputTokens: number | null;
   cachedTokens: number | null;
   cacheCreationTokens: number | null;
@@ -63,7 +10,6 @@ export type PromptResponseUsage = {
 
 export type ResponseUsageEvent = {
   prompt_id: string | null;
-  model: string | null;
   event_timestamp: string | null;
   time_unix_nano: string | number | null;
   observed_time_unix_nano: string | number | null;
@@ -77,54 +23,6 @@ export type ResponseUsageEvent = {
   estimated_cost_usd: string | number | null;
   total_cost_usd: string | number | null;
 };
-
-function attributeValue(value: AttributeValue): string | number | boolean | null {
-  if (value.stringValue !== undefined) {
-    return value.stringValue;
-  }
-
-  if (value.intValue !== undefined) {
-    return value.intValue;
-  }
-
-  if (value.doubleValue !== undefined) {
-    return value.doubleValue;
-  }
-
-  if (value.boolValue !== undefined) {
-    return value.boolValue;
-  }
-
-  return null;
-}
-
-function logRecordAttributes(record: LogRecord) {
-  const attributes: Record<string, string | number | boolean> = {};
-
-  for (const attribute of record.attributes) {
-    if (!attribute) {
-      continue;
-    }
-
-    const value = attributeValue(attribute.value);
-    if (value !== null) {
-      attributes[attribute.key] = value;
-    }
-  }
-
-  return attributes;
-}
-
-function logRecords(rawPayload: JsonValue | undefined) {
-  const parsedPayload = telemetryPayloadSchema.safeParse(rawPayload);
-  if (!parsedPayload.success) {
-    return [];
-  }
-
-  return parsedPayload.data.resourceLogs.flatMap((resourceGroup) =>
-    resourceGroup.scopeLogs.flatMap((scopeGroup) => scopeGroup.logRecords),
-  );
-}
 
 function eventTimestamp(event: ResponseUsageEvent) {
   if (event.event_timestamp) {
@@ -170,11 +68,6 @@ function sumValues(
   return foundValue ? total : null;
 }
 
-export function promptRecordMetadata(rawPayload: JsonValue | undefined, recordIndex: number) {
-  const record = logRecords(rawPayload)[recordIndex];
-  return record ? logRecordAttributes(record) : {};
-}
-
 export function responseUsageForPrompt(
   events: ResponseUsageEvent[],
   promptOccurredAt: string,
@@ -198,7 +91,6 @@ export function responseUsageForPrompt(
   }
 
   return {
-    model: candidates.find((event) => event.model)?.model ?? null,
     inputTokens: sumValues(candidates, (event) => numberValue(event.input_token_count)),
     cachedTokens: sumValues(candidates, (event) => numberValue(event.cached_token_count)),
     cacheCreationTokens: sumValues(candidates, (event) =>
