@@ -4,11 +4,14 @@ import { promptRecordMetadata, responseUsageForPrompt, type ResponseUsageEvent }
 
 function usageEvent(overrides: Partial<ResponseUsageEvent> = {}): ResponseUsageEvent {
   return {
+    prompt_id: null,
+    model: null,
     event_timestamp: "2026-08-10T10:00:01.000Z",
     time_unix_nano: null,
     observed_time_unix_nano: null,
     input_token_count: null,
     cached_token_count: null,
+    cache_creation_token_count: null,
     output_token_count: null,
     reasoning_token_count: null,
     tool_token_count: null,
@@ -46,8 +49,10 @@ describe("responseUsageForPrompt", () => {
     );
 
     expect(usage).toEqual({
+      model: null,
       inputTokens: 220,
       cachedTokens: 120,
+      cacheCreationTokens: null,
       outputTokens: 15,
       reasoningTokens: 3,
       totalTokens: 235,
@@ -89,6 +94,41 @@ describe("responseUsageForPrompt", () => {
     );
 
     expect(usage?.totalTokens).toBe(42);
+  });
+
+  it("associates Claude usage by prompt ID and includes cache creation", () => {
+    const usage = responseUsageForPrompt(
+      [
+        usageEvent({
+          prompt_id: "other-prompt",
+          input_token_count: "999",
+          output_token_count: "999",
+        }),
+        usageEvent({
+          prompt_id: "selected-prompt",
+          model: "claude-haiku-4-5-20251001",
+          input_token_count: "10",
+          cached_token_count: "25823",
+          cache_creation_token_count: "15242",
+          output_token_count: "478",
+          cost_usd: "0.0354663",
+        }),
+      ],
+      "2026-08-10T10:00:00.000Z",
+      null,
+      "selected-prompt",
+    );
+
+    expect(usage).toEqual({
+      model: "claude-haiku-4-5-20251001",
+      inputTokens: 10,
+      cachedTokens: 25823,
+      cacheCreationTokens: 15242,
+      outputTokens: 478,
+      reasoningTokens: null,
+      totalTokens: 41553,
+      costUsd: 0.0354663,
+    });
   });
 });
 

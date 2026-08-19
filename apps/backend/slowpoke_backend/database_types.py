@@ -274,6 +274,28 @@ class PublicInstallationSetupSessionsUpdate(TypedDict):
     redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
     selected_tools: NotRequired[Annotated[List[str], Field(alias="selected_tools")]]
 
+class PublicResponseUsageEvents(BaseModel):
+    batch_id: Optional[uuid.UUID] = Field(alias="batch_id")
+    cache_creation_token_count: Optional[str] = Field(alias="cache_creation_token_count")
+    cached_token_count: Optional[str] = Field(alias="cached_token_count")
+    conversation_id: Optional[str] = Field(alias="conversation_id")
+    cost_usd: Optional[str] = Field(alias="cost_usd")
+    estimated_cost_usd: Optional[str] = Field(alias="estimated_cost_usd")
+    event_timestamp: Optional[str] = Field(alias="event_timestamp")
+    input_token_count: Optional[str] = Field(alias="input_token_count")
+    installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
+    model: Optional[str] = Field(alias="model")
+    observed_time_unix_nano: Optional[str] = Field(alias="observed_time_unix_nano")
+    organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
+    output_token_count: Optional[str] = Field(alias="output_token_count")
+    prompt_id: Optional[str] = Field(alias="prompt_id")
+    provider: Optional[str] = Field(alias="provider")
+    reasoning_token_count: Optional[str] = Field(alias="reasoning_token_count")
+    received_at: Optional[datetime.datetime] = Field(alias="received_at")
+    time_unix_nano: Optional[str] = Field(alias="time_unix_nano")
+    tool_token_count: Optional[str] = Field(alias="tool_token_count")
+    total_cost_usd: Optional[str] = Field(alias="total_cost_usd")
+
 class PublicHumanPromptEvents(BaseModel):
     actor_account_id: Optional[str] = Field(alias="actor_account_id")
     actor_email: Optional[str] = Field(alias="actor_email")
@@ -293,21 +315,3 @@ class PublicHumanPromptEvents(BaseModel):
     record_index: Optional[int] = Field(alias="record_index")
     session_id: Optional[str] = Field(alias="session_id")
     slug: Optional[str] = Field(alias="slug")
-
-class PublicCodexResponseUsageEvents(BaseModel):
-    batch_id: Optional[uuid.UUID] = Field(alias="batch_id")
-    cached_token_count: Optional[str] = Field(alias="cached_token_count")
-    conversation_id: Optional[str] = Field(alias="conversation_id")
-    cost_usd: Optional[str] = Field(alias="cost_usd")
-    estimated_cost_usd: Optional[str] = Field(alias="estimated_cost_usd")
-    event_timestamp: Optional[str] = Field(alias="event_timestamp")
-    input_token_count: Optional[str] = Field(alias="input_token_count")
-    installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
-    observed_time_unix_nano: Optional[str] = Field(alias="observed_time_unix_nano")
-    organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
-    output_token_count: Optional[str] = Field(alias="output_token_count")
-    reasoning_token_count: Optional[str] = Field(alias="reasoning_token_count")
-    received_at: Optional[datetime.datetime] = Field(alias="received_at")
-    time_unix_nano: Optional[str] = Field(alias="time_unix_nano")
-    tool_token_count: Optional[str] = Field(alias="tool_token_count")
-    total_cost_usd: Optional[str] = Field(alias="total_cost_usd")

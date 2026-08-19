@@ -114,7 +114,38 @@ values
     $json$::jsonb
   ),
   ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'logs', repeat('b', 64), '{"resourceLogs": []}'),
-  ('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', 'logs', repeat('c', 64), '{"resourceLogs": []}');
+  ('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', 'logs', repeat('c', 64), '{"resourceLogs": []}'),
+  (
+    '40000000-0000-4000-8000-000000000004',
+    '20000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000003',
+    'logs',
+    repeat('d', 64),
+    $json$
+    {
+      "resourceLogs": [{
+        "scopeLogs": [{
+          "logRecords": [{
+            "timeUnixNano": "1786356601000000000",
+            "body": {"stringValue": "claude_code.api_request"},
+            "attributes": [
+              {"key": "event.name", "value": {"stringValue": "api_request"}},
+              {"key": "event.timestamp", "value": {"stringValue": "2026-08-10T10:10:01.000Z"}},
+              {"key": "session.id", "value": {"stringValue": "conversation-a-claude"}},
+              {"key": "prompt.id", "value": {"stringValue": "prompt-a-claude"}},
+              {"key": "model", "value": {"stringValue": "claude-haiku-4-5-20251001"}},
+              {"key": "input_tokens", "value": {"intValue": "10"}},
+              {"key": "cache_read_tokens", "value": {"intValue": "25"}},
+              {"key": "cache_creation_tokens", "value": {"intValue": "15"}},
+              {"key": "output_tokens", "value": {"intValue": "4"}},
+              {"key": "cost_usd", "value": {"doubleValue": 0.03}}
+            ]
+          }]
+        }]
+      }]
+    }
+    $json$::jsonb
+  );
 
 insert into public.prompt_events (
   organization_id,
@@ -182,9 +213,9 @@ select throws_ok(
   'raw telemetry is backend-only'
 );
 select throws_ok(
-  'select * from public.codex_response_usage_events',
+  'select * from public.response_usage_events',
   '42501',
-  'permission denied for view codex_response_usage_events',
+  'permission denied for view response_usage_events',
   'compact response usage remains backend-only'
 );
 select throws_ok(
@@ -319,9 +350,12 @@ select throws_ok(
 
 set local role service_role;
 select results_eq(
-  $$select conversation_id, input_token_count, tool_token_count from public.codex_response_usage_events where batch_id = '40000000-0000-4000-8000-000000000001'$$,
-  $$values ('conversation-a'::text, '100'::text, '110'::text)$$,
-  'the backend can read compact usage from eventName-only telemetry'
+  $$select provider, conversation_id, prompt_id, model, input_token_count, cached_token_count, cache_creation_token_count, output_token_count, cost_usd from public.response_usage_events where batch_id in ('40000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000004') order by provider$$,
+  $$values
+    ('anthropic'::text, 'conversation-a-claude'::text, 'prompt-a-claude'::text, 'claude-haiku-4-5-20251001'::text, '10'::text, '25'::text, '15'::text, '4'::text, '0.03'::text),
+    ('openai'::text, 'conversation-a'::text, null::text, null::text, '100'::text, null::text, null::text, null::text, null::text)
+  $$,
+  'the backend can read normalized Codex and Claude response usage'
 );
 
 select * from finish();

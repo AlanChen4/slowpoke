@@ -51,8 +51,10 @@ type AttributeValue = z.infer<typeof attributeValueSchema>;
 type LogRecord = z.infer<typeof logRecordSchema>;
 
 export type PromptResponseUsage = {
+  model: string | null;
   inputTokens: number | null;
   cachedTokens: number | null;
+  cacheCreationTokens: number | null;
   outputTokens: number | null;
   reasoningTokens: number | null;
   totalTokens: number | null;
@@ -60,11 +62,14 @@ export type PromptResponseUsage = {
 };
 
 export type ResponseUsageEvent = {
+  prompt_id: string | null;
+  model: string | null;
   event_timestamp: string | null;
   time_unix_nano: string | number | null;
   observed_time_unix_nano: string | number | null;
   input_token_count: string | number | null;
   cached_token_count: string | number | null;
+  cache_creation_token_count: string | number | null;
   output_token_count: string | number | null;
   reasoning_token_count: string | number | null;
   tool_token_count: string | number | null;
@@ -174,6 +179,7 @@ export function responseUsageForPrompt(
   events: ResponseUsageEvent[],
   promptOccurredAt: string,
   nextPromptOccurredAt: string | null,
+  promptId: string | null = null,
 ): PromptResponseUsage | null {
   const promptTime = Date.parse(promptOccurredAt);
   const nextPromptTime = nextPromptOccurredAt ? Date.parse(nextPromptOccurredAt) : null;
@@ -182,7 +188,8 @@ export function responseUsageForPrompt(
     return (
       timestamp !== null &&
       timestamp >= promptTime &&
-      (nextPromptTime === null || timestamp < nextPromptTime)
+      (nextPromptTime === null || timestamp < nextPromptTime) &&
+      (promptId === null || event.prompt_id === null || event.prompt_id === promptId)
     );
   });
 
@@ -191,8 +198,12 @@ export function responseUsageForPrompt(
   }
 
   return {
+    model: candidates.find((event) => event.model)?.model ?? null,
     inputTokens: sumValues(candidates, (event) => numberValue(event.input_token_count)),
     cachedTokens: sumValues(candidates, (event) => numberValue(event.cached_token_count)),
+    cacheCreationTokens: sumValues(candidates, (event) =>
+      numberValue(event.cache_creation_token_count),
+    ),
     outputTokens: sumValues(candidates, (event) => numberValue(event.output_token_count)),
     reasoningTokens: sumValues(candidates, (event) => numberValue(event.reasoning_token_count)),
     totalTokens: sumValues(candidates, (event) => {
@@ -202,8 +213,12 @@ export function responseUsageForPrompt(
       }
 
       const inputTokens = numberValue(event.input_token_count);
+      const cachedTokens = numberValue(event.cached_token_count) ?? 0;
+      const cacheCreationTokens = numberValue(event.cache_creation_token_count) ?? 0;
       const outputTokens = numberValue(event.output_token_count);
-      return inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null;
+      return inputTokens !== null && outputTokens !== null
+        ? inputTokens + cachedTokens + cacheCreationTokens + outputTokens
+        : null;
     }),
     costUsd: sumValues(
       candidates,

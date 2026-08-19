@@ -207,9 +207,9 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
   const admin = createTelemetryAdminClient();
   const responseUsageQuery = prompt.session_id
     ? admin
-        .from("codex_response_usage_events")
+        .from("response_usage_events")
         .select(
-          "event_timestamp,time_unix_nano,observed_time_unix_nano,input_token_count,cached_token_count,output_token_count,reasoning_token_count,tool_token_count,cost_usd,estimated_cost_usd,total_cost_usd",
+          "prompt_id,model,event_timestamp,time_unix_nano,observed_time_unix_nano,input_token_count,cached_token_count,cache_creation_token_count,output_token_count,reasoning_token_count,tool_token_count,cost_usd,estimated_cost_usd,total_cost_usd",
         )
         .eq("organization_id", prompt.organization_id)
         .eq("installation_id", prompt.installation_id)
@@ -253,7 +253,12 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
   const conversation = [...conversationBefore.reverse(), prompt, ...conversationAfter];
   const nextPromptOccurredAt = conversationAfter[0]?.occurred_at ?? null;
   const usage = prompt.session_id
-    ? responseUsageForPrompt(usageResult.data ?? [], prompt.occurred_at, nextPromptOccurredAt)
+    ? responseUsageForPrompt(
+        usageResult.data ?? [],
+        prompt.occurred_at,
+        nextPromptOccurredAt,
+        prompt.prompt_id,
+      )
     : null;
   const rawMetadata = promptRecordMetadata(
     selectedBatchResult.data?.raw_payload,
@@ -276,7 +281,8 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
           </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <UsageItem label="Input tokens" value={usage?.inputTokens} />
-            <UsageItem label="Cached tokens" value={usage?.cachedTokens} />
+            <UsageItem label="Cache read tokens" value={usage?.cachedTokens} />
+            <UsageItem label="Cache creation tokens" value={usage?.cacheCreationTokens} />
             <UsageItem label="Output tokens" value={usage?.outputTokens} />
             <UsageItem label="Reasoning tokens" value={usage?.reasoningTokens} />
             <UsageItem label="Total tokens" value={usage?.totalTokens} />
@@ -295,7 +301,7 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
             </p>
           ) : usage.costUsd === null ? (
             <p className="pt-3 text-xs text-muted-foreground">
-              Codex reported token counts for this response, but not a billable dollar amount.
+              Token counts were reported for this response, but not a billable dollar amount.
             </p>
           ) : null}
         </div>
@@ -318,7 +324,7 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
               <ProviderIdentity provider={prompt.provider} />
             </DetailItem>
             <DetailItem label="Event">{prompt.event_name}</DetailItem>
-            <DetailItem label="Model">{prompt.model}</DetailItem>
+            <DetailItem label="Model">{prompt.model ?? usage?.model}</DetailItem>
             <DetailItem label="Originator">{prompt.originator}</DetailItem>
             <DetailItem label="Actor">{prompt.actor_email ?? prompt.actor_account_id}</DetailItem>
             <DetailItem label="Conversation ID">{prompt.session_id}</DetailItem>

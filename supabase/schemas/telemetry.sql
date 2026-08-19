@@ -306,20 +306,44 @@ where coalesce(model, '') <> 'codex-auto-review'
     'Generate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this '
   ) = 0;
 
-create view public.codex_response_usage_events
+create view public.response_usage_events
 with (security_invoker = true) as
 select
   batch.organization_id,
   batch.installation_id,
   batch.id as batch_id,
   batch.received_at,
-  metadata.attributes->>'conversation.id' as conversation_id,
+  case
+    when coalesce(metadata.attributes->>'event.name', record.value->>'eventName') = 'codex.sse_event'
+      then 'openai'
+    when record.value#>>'{body,stringValue}' = 'claude_code.api_request'
+      then 'anthropic'
+  end as provider,
+  coalesce(
+    metadata.attributes->>'conversation.id',
+    metadata.attributes->>'session.id'
+  ) as conversation_id,
+  metadata.attributes->>'prompt.id' as prompt_id,
+  metadata.attributes->>'model' as model,
   metadata.attributes->>'event.timestamp' as event_timestamp,
   record.value->>'timeUnixNano' as time_unix_nano,
   record.value->>'observedTimeUnixNano' as observed_time_unix_nano,
-  metadata.attributes->>'input_token_count' as input_token_count,
-  metadata.attributes->>'cached_token_count' as cached_token_count,
-  metadata.attributes->>'output_token_count' as output_token_count,
+  coalesce(
+    metadata.attributes->>'input_token_count',
+    metadata.attributes->>'input_tokens'
+  ) as input_token_count,
+  coalesce(
+    metadata.attributes->>'cached_token_count',
+    metadata.attributes->>'cache_read_tokens'
+  ) as cached_token_count,
+  coalesce(
+    metadata.attributes->>'cache_write_token_count',
+    metadata.attributes->>'cache_creation_tokens'
+  ) as cache_creation_token_count,
+  coalesce(
+    metadata.attributes->>'output_token_count',
+    metadata.attributes->>'output_tokens'
+  ) as output_token_count,
   metadata.attributes->>'reasoning_token_count' as reasoning_token_count,
   metadata.attributes->>'tool_token_count' as tool_token_count,
   metadata.attributes->>'cost_usd' as cost_usd,
@@ -368,8 +392,13 @@ cross join lateral (
   ) as attribute(value)
 ) as metadata
 where batch.signal = 'logs'
-  and coalesce(metadata.attributes->>'event.name', record.value->>'eventName') = 'codex.sse_event'
-  and metadata.attributes->>'event.kind' = 'response.completed';
+  and (
+    (
+      coalesce(metadata.attributes->>'event.name', record.value->>'eventName') = 'codex.sse_event'
+      and metadata.attributes->>'event.kind' = 'response.completed'
+    )
+    or record.value#>>'{body,stringValue}' = 'claude_code.api_request'
+  );
 
 revoke all on table public.organizations from anon, authenticated, service_role;
 revoke all on table public.organization_members from anon, authenticated, service_role;
@@ -379,7 +408,7 @@ revoke all on table public.installations from anon, authenticated, service_role;
 revoke all on table public.telemetry_batches from anon, authenticated, service_role;
 revoke all on table public.prompt_events from anon, authenticated, service_role;
 revoke all on table public.human_prompt_events from anon, authenticated, service_role;
-revoke all on table public.codex_response_usage_events from anon, authenticated, service_role;
+revoke all on table public.response_usage_events from anon, authenticated, service_role;
 
 grant select on table public.organizations to authenticated;
 grant select on table public.organization_members to authenticated;
@@ -394,4 +423,4 @@ grant select, insert, update, delete on table public.installation_setup_sessions
 grant select, insert, update, delete on table public.installations to service_role;
 grant select, insert, update, delete on table public.telemetry_batches to service_role;
 grant select, insert, update, delete on table public.prompt_events to service_role;
-grant select on table public.codex_response_usage_events to service_role;
+grant select on table public.response_usage_events to service_role;
