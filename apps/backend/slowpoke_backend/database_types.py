@@ -45,10 +45,12 @@ class PublicInstallations(BaseModel):
     created_at: datetime.datetime = Field(alias="created_at")
     created_by_user_id: uuid.UUID = Field(alias="created_by_user_id")
     id: uuid.UUID = Field(alias="id")
+    installation_type: str = Field(alias="installation_type")
     last_seen_at: Optional[datetime.datetime] = Field(alias="last_seen_at")
     organization_id: uuid.UUID = Field(alias="organization_id")
     revoked_at: Optional[datetime.datetime] = Field(alias="revoked_at")
     setup_session_id: uuid.UUID = Field(alias="setup_session_id")
+    team_name: Optional[str] = Field(alias="team_name")
     tool: str = Field(alias="tool")
     verified_at: Optional[datetime.datetime] = Field(alias="verified_at")
 
@@ -57,10 +59,12 @@ class PublicInstallationsInsert(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     created_by_user_id: Annotated[uuid.UUID, Field(alias="created_by_user_id")]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_type: NotRequired[Annotated[str, Field(alias="installation_type")]]
     last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
     setup_session_id: Annotated[uuid.UUID, Field(alias="setup_session_id")]
+    team_name: NotRequired[Annotated[Optional[str], Field(alias="team_name")]]
     tool: Annotated[str, Field(alias="tool")]
     verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]
 
@@ -69,10 +73,12 @@ class PublicInstallationsUpdate(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     created_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="created_by_user_id")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_type: NotRequired[Annotated[str, Field(alias="installation_type")]]
     last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
     setup_session_id: NotRequired[Annotated[uuid.UUID, Field(alias="setup_session_id")]]
+    team_name: NotRequired[Annotated[Optional[str], Field(alias="team_name")]]
     tool: NotRequired[Annotated[str, Field(alias="tool")]]
     verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]
 
@@ -250,9 +256,11 @@ class PublicInstallationSetupSessions(BaseModel):
     created_by_user_id: uuid.UUID = Field(alias="created_by_user_id")
     expires_at: datetime.datetime = Field(alias="expires_at")
     id: uuid.UUID = Field(alias="id")
+    installation_type: str = Field(alias="installation_type")
     organization_id: uuid.UUID = Field(alias="organization_id")
     redeemed_at: Optional[datetime.datetime] = Field(alias="redeemed_at")
     selected_tools: List[str] = Field(alias="selected_tools")
+    team_name: Optional[str] = Field(alias="team_name")
 
 class PublicInstallationSetupSessionsInsert(TypedDict):
     code_digest: Annotated[str, Field(alias="code_digest")]
@@ -260,9 +268,11 @@ class PublicInstallationSetupSessionsInsert(TypedDict):
     created_by_user_id: Annotated[uuid.UUID, Field(alias="created_by_user_id")]
     expires_at: Annotated[datetime.datetime, Field(alias="expires_at")]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_type: NotRequired[Annotated[str, Field(alias="installation_type")]]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
     selected_tools: Annotated[List[str], Field(alias="selected_tools")]
+    team_name: NotRequired[Annotated[Optional[str], Field(alias="team_name")]]
 
 class PublicInstallationSetupSessionsUpdate(TypedDict):
     code_digest: NotRequired[Annotated[str, Field(alias="code_digest")]]
@@ -270,9 +280,31 @@ class PublicInstallationSetupSessionsUpdate(TypedDict):
     created_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="created_by_user_id")]]
     expires_at: NotRequired[Annotated[datetime.datetime, Field(alias="expires_at")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_type: NotRequired[Annotated[str, Field(alias="installation_type")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
     selected_tools: NotRequired[Annotated[List[str], Field(alias="selected_tools")]]
+    team_name: NotRequired[Annotated[Optional[str], Field(alias="team_name")]]
+
+class PublicHumanPromptEvents(BaseModel):
+    actor_account_id: Optional[str] = Field(alias="actor_account_id")
+    actor_email: Optional[str] = Field(alias="actor_email")
+    batch_id: Optional[uuid.UUID] = Field(alias="batch_id")
+    created_at: Optional[datetime.datetime] = Field(alias="created_at")
+    event_name: Optional[str] = Field(alias="event_name")
+    id: Optional[uuid.UUID] = Field(alias="id")
+    installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
+    is_redacted: Optional[bool] = Field(alias="is_redacted")
+    model: Optional[str] = Field(alias="model")
+    occurred_at: Optional[datetime.datetime] = Field(alias="occurred_at")
+    organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
+    originator: Optional[str] = Field(alias="originator")
+    prompt_id: Optional[str] = Field(alias="prompt_id")
+    prompt_text: Optional[str] = Field(alias="prompt_text")
+    provider: Optional[str] = Field(alias="provider")
+    record_index: Optional[int] = Field(alias="record_index")
+    session_id: Optional[str] = Field(alias="session_id")
+    slug: Optional[str] = Field(alias="slug")
 
 class PublicResponseUsageEvents(BaseModel):
     batch_id: Optional[uuid.UUID] = Field(alias="batch_id")
@@ -295,23 +327,3 @@ class PublicResponseUsageEvents(BaseModel):
     time_unix_nano: Optional[str] = Field(alias="time_unix_nano")
     tool_token_count: Optional[str] = Field(alias="tool_token_count")
     total_cost_usd: Optional[str] = Field(alias="total_cost_usd")
-
-class PublicHumanPromptEvents(BaseModel):
-    actor_account_id: Optional[str] = Field(alias="actor_account_id")
-    actor_email: Optional[str] = Field(alias="actor_email")
-    batch_id: Optional[uuid.UUID] = Field(alias="batch_id")
-    created_at: Optional[datetime.datetime] = Field(alias="created_at")
-    event_name: Optional[str] = Field(alias="event_name")
-    id: Optional[uuid.UUID] = Field(alias="id")
-    installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
-    is_redacted: Optional[bool] = Field(alias="is_redacted")
-    model: Optional[str] = Field(alias="model")
-    occurred_at: Optional[datetime.datetime] = Field(alias="occurred_at")
-    organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
-    originator: Optional[str] = Field(alias="originator")
-    prompt_id: Optional[str] = Field(alias="prompt_id")
-    prompt_text: Optional[str] = Field(alias="prompt_text")
-    provider: Optional[str] = Field(alias="provider")
-    record_index: Optional[int] = Field(alias="record_index")
-    session_id: Optional[str] = Field(alias="session_id")
-    slug: Optional[str] = Field(alias="slug")

@@ -75,6 +75,24 @@ create table public.installation_setup_sessions (
   expires_at timestamptz not null,
   redeemed_at timestamptz,
   created_at timestamptz not null default now(),
+  installation_type text not null default 'personal' check (
+    installation_type in ('personal', 'team')
+  ),
+  team_name text,
+  check (
+    (
+      installation_type = 'personal'
+      and team_name is null
+    )
+    or (
+      installation_type = 'team'
+      and selected_tools = array['claude_code']::text[]
+      and team_name is not null
+      and team_name = trim(team_name)
+      and char_length(team_name) >= 1
+      and char_length(team_name) <= 80
+    )
+  ),
   unique (id, organization_id)
 );
 
@@ -95,6 +113,24 @@ create table public.installations (
   setup_session_id uuid not null,
   verified_at timestamptz,
   last_seen_at timestamptz,
+  installation_type text not null default 'personal' check (
+    installation_type in ('personal', 'team')
+  ),
+  team_name text,
+  check (
+    (
+      installation_type = 'personal'
+      and team_name is null
+    )
+    or (
+      installation_type = 'team'
+      and tool = 'claude_code'
+      and team_name is not null
+      and team_name = trim(team_name)
+      and char_length(team_name) >= 1
+      and char_length(team_name) <= 80
+    )
+  ),
   foreign key (setup_session_id, organization_id)
     references public.installation_setup_sessions (id, organization_id),
   unique (id, organization_id),
@@ -110,6 +146,10 @@ create index installations_created_by_user_organization_idx
 create index installations_active_owner_organization_idx
   on public.installations (created_by_user_id, organization_id)
   where verified_at is not null and revoked_at is null;
+
+create unique index installations_active_team_name_idx
+  on public.installations (organization_id, lower(team_name))
+  where installation_type = 'team' and revoked_at is null;
 
 create table public.telemetry_batches (
   id uuid primary key default gen_random_uuid(),
@@ -233,7 +273,10 @@ create policy "members can read allowed installations"
         and membership.user_id = (select auth.uid())
         and (
           membership.role = 'admin'
-          or installations.created_by_user_id = (select auth.uid())
+          or (
+            installations.installation_type = 'personal'
+            and installations.created_by_user_id = (select auth.uid())
+          )
         )
     )
   );
@@ -255,6 +298,7 @@ create policy "members can read allowed prompts"
             from public.installations as installation
             where installation.id = prompt_events.installation_id
               and installation.organization_id = prompt_events.organization_id
+              and installation.installation_type = 'personal'
               and installation.created_by_user_id = (select auth.uid())
           )
         )

@@ -1,6 +1,6 @@
 begin;
 
-select plan(35);
+select plan(37);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass),
@@ -75,6 +75,22 @@ values
   ('31000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', repeat('2', 64), array['claude_code']::text[], '2026-08-24 10:00:00+00', '2026-08-17 10:00:00+00'),
   ('31000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', '10000000-0000-0000-0000-000000000003', repeat('3', 64), array['claude_code']::text[], '2026-08-24 10:00:00+00', '2026-08-17 10:00:00+00');
 
+insert into public.installation_setup_sessions (
+  id, organization_id, created_by_user_id, code_digest, selected_tools, expires_at,
+  redeemed_at, installation_type, team_name
+)
+values (
+  '31000000-0000-4000-8000-000000000004',
+  '20000000-0000-4000-8000-000000000001',
+  '10000000-0000-0000-0000-000000000002',
+  repeat('4', 64),
+  array['claude_code']::text[],
+  '2026-08-24 10:00:00+00',
+  '2026-08-17 10:00:00+00',
+  'team',
+  'Platform'
+);
+
 insert into public.installations (
   id, organization_id, created_by_user_id, tool, computer_name, setup_session_id, verified_at, last_seen_at
 )
@@ -82,6 +98,23 @@ values
   ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000002', 'codex', 'Member laptop', '31000000-0000-4000-8000-000000000001', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00'),
   ('30000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', 'claude_code', 'Admin laptop', '31000000-0000-4000-8000-000000000002', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00'),
   ('30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '10000000-0000-0000-0000-000000000003', 'claude_code', 'Other tenant laptop', '31000000-0000-4000-8000-000000000003', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00');
+
+insert into public.installations (
+  id, organization_id, created_by_user_id, tool, computer_name, setup_session_id,
+  verified_at, last_seen_at, installation_type, team_name
+)
+values (
+  '30000000-0000-4000-8000-000000000004',
+  '20000000-0000-4000-8000-000000000001',
+  '10000000-0000-0000-0000-000000000002',
+  'claude_code',
+  'Platform',
+  '31000000-0000-4000-8000-000000000004',
+  '2026-08-17 10:01:00+00',
+  '2026-08-17 10:02:00+00',
+  'team',
+  'Platform'
+);
 
 insert into public.telemetry_batches (
   id, organization_id, installation_id, signal, content_sha256, raw_payload
@@ -115,6 +148,7 @@ values
   ),
   ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'logs', repeat('b', 64), '{"resourceLogs": []}'),
   ('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', 'logs', repeat('c', 64), '{"resourceLogs": []}'),
+  ('40000000-0000-4000-8000-000000000005', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000004', 'logs', repeat('e', 64), '{"resourceLogs": []}'),
   (
     '40000000-0000-4000-8000-000000000004',
     '20000000-0000-4000-8000-000000000001',
@@ -171,6 +205,7 @@ values
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 7, 'openai', 'codex.user_prompt', '2026-08-10 10:07:00+00', 'projectless-suggestions-a', E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this Projectless task', 'gpt-5.6-terra', 'gpt-5.6-terra'),
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 8, 'openai', 'codex.user_prompt', '2026-08-10 10:08:00+00', 'activity-a', E'You write the one-line activity update displayed beneath an existing Codex task title.\nFill the structured summary field with the latest task activity.', 'gpt-5.6-luna', 'gpt-5.6-luna'),
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000003', 0, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:09:00+00', 'admin-owned-a', 'organization a admin-owned', null, null),
+  ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000004', '40000000-0000-4000-8000-000000000005', 10, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:10:00+00', 'team-a', 'organization a team', null, null),
   ('20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', 0, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:00:00+00', 'conversation-b', 'organization b', null, null);
 
 set local role authenticated;
@@ -181,7 +216,7 @@ select set_config(
 );
 
 select results_eq(
-  'select prompt_text from public.prompt_events order by record_index',
+  'select prompt_text from public.prompt_events order by record_index, prompt_text',
   $$values
     ('organization a'::text),
     ('organization a admin-owned'::text),
@@ -192,13 +227,14 @@ select results_eq(
     ('You are an expert at upholding safety and compliance standards for Codex ambient suggestions. Additional internal instructions.'::text),
     (E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this local project: /tmp/project'::text),
     (E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this Projectless task'::text),
-    (E'You write the one-line activity update displayed beneath an existing Codex task title.\nFill the structured summary field with the latest task activity.'::text)
+    (E'You write the one-line activity update displayed beneath an existing Codex task title.\nFill the structured summary field with the latest task activity.'::text),
+    ('organization a team'::text)
   $$,
   'an administrator sees only prompts in their organization'
 );
 select results_eq(
   'select prompt_text from public.human_prompt_events order by prompt_text',
-  $$values ('organization a'::text), ('organization a admin-owned'::text), ('organization a follow-up'::text)$$,
+  $$values ('organization a'::text), ('organization a admin-owned'::text), ('organization a follow-up'::text), ('organization a team'::text)$$,
   'the human-prompt view keeps every user turn and removes known internal prompts'
 );
 select results_eq(
@@ -234,7 +270,8 @@ select results_eq(
   'select id from public.installations order by id',
   $$values
     ('30000000-0000-4000-8000-000000000001'::uuid),
-    ('30000000-0000-4000-8000-000000000003'::uuid)
+    ('30000000-0000-4000-8000-000000000003'::uuid),
+    ('30000000-0000-4000-8000-000000000004'::uuid)
   $$,
   'an administrator sees only installations in their organization'
 );
@@ -293,6 +330,10 @@ select is_empty(
   $$select * from public.prompt_events where installation_id <> '30000000-0000-4000-8000-000000000001'$$,
   'a member cannot read prompts from installations they do not own'
 );
+select is_empty(
+  $$select * from public.installations where installation_type = 'team'$$,
+  'a member cannot read a team installation even when they created it'
+);
 select results_eq(
   'select prompt_text from public.human_prompt_events order by prompt_text',
   $$values ('organization a'::text), ('organization a follow-up'::text)$$,
@@ -349,6 +390,11 @@ select throws_ok(
 );
 
 set local role service_role;
+select results_eq(
+  $$select distinct installation_type from public.installations where id <> '30000000-0000-4000-8000-000000000004'$$,
+  $$values ('personal'::text)$$,
+  'existing installation inserts default to personal'
+);
 select results_eq(
   $$select provider, conversation_id, prompt_id, model, input_token_count, cached_token_count, cache_creation_token_count, output_token_count, cost_usd from public.response_usage_events where batch_id in ('40000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000004') order by provider$$,
   $$values

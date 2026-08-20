@@ -51,7 +51,9 @@ type Installation = {
   created_at: string;
   created_by_user_id: string;
   id: string;
+  installation_type: "personal" | "team";
   last_seen_at: string | null;
+  team_name: string | null;
   tool: "codex" | "claude_code";
   verified_at: string | null;
 };
@@ -91,7 +93,9 @@ export default async function SettingsPage() {
   const installationsResult = selectedOrganization
     ? await supabase
         .from("installations")
-        .select("id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at")
+        .select(
+          "id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at,installation_type,team_name",
+        )
         .eq("organization_id", selectedOrganization.id)
         .is("revoked_at", null)
         .order("created_at", { ascending: false })
@@ -203,7 +207,10 @@ export default async function SettingsPage() {
             <CardTitle>Installations</CardTitle>
             {selectedOrganization ? (
               <CardAction>
-                <AddInstallationDialog organizationId={selectedOrganization.id} />
+                <AddInstallationDialog
+                  isAdmin={selectedOrganization.role === "admin"}
+                  organizationId={selectedOrganization.id}
+                />
               </CardAction>
             ) : null}
           </CardHeader>
@@ -226,7 +233,7 @@ export default async function SettingsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Tool</TableHead>
-                      <TableHead>Computer</TableHead>
+                      <TableHead>Installation</TableHead>
                       <TableHead>Owner</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Last seen</TableHead>
@@ -241,7 +248,18 @@ export default async function SettingsPage() {
                           <TableCell>
                             <InstallationToolIdentity tool={installation.tool} />
                           </TableCell>
-                          <TableCell>{installation.computer_name}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {installation.installation_type === "team"
+                                  ? installation.team_name
+                                  : installation.computer_name}
+                              </span>
+                              {installation.installation_type === "team" ? (
+                                <Badge variant="outline">Team</Badge>
+                              ) : null}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             {ownerEmails.get(installation.created_by_user_id) ?? "Unknown account"}
                           </TableCell>

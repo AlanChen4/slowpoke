@@ -8,6 +8,11 @@ import * as z from "zod";
 
 import { env } from "@/env";
 import {
+  claudeTeamEnrollmentSchema,
+  createClaudeTeamManagedSettings,
+  teamNameSchema,
+} from "@/lib/claude-team-installation";
+import {
   cancelOrganizationInvitation,
   createInvitationForOrganization,
   createOrganizationForUser,
@@ -31,6 +36,8 @@ export type OrganizationFlowActionState = {
   organizationId?: string;
   organizationName?: string;
   setupCommand?: string;
+  teamName?: string;
+  teamSettings?: string;
 };
 
 const organizationIdSchema = z.uuid();
@@ -50,6 +57,10 @@ const createSetupSessionSchema = z.object({
     .array(z.enum(["codex", "claude_code"]))
     .min(1, "Choose at least one AI tool.")
     .transform((tools) => [...new Set(tools)].sort((left) => (left === "codex" ? -1 : 1))),
+});
+const createTeamInstallationSchema = z.object({
+  organizationId: organizationIdSchema,
+  teamName: teamNameSchema,
 });
 
 async function getActor(): Promise<OrganizationActor | null> {
@@ -290,6 +301,88 @@ export async function createInstallationSetupSession(
     };
   } catch (error) {
     return actionError(error instanceof Error ? error : new Error("Unknown setup session error"));
+  }
+}
+
+export async function createTeamInstallation(
+  _previousState: OrganizationFlowActionState,
+  formData: FormData,
+): Promise<OrganizationFlowActionState> {
+  const parsed = createTeamInstallationSchema.safeParse({
+    organizationId: formData.get("organizationId"),
+    teamName: formData.get("teamName"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the team details." };
+  }
+  const actor = await getActor();
+  if (!actor) {
+    return { error: "Sign in again to connect a Claude Code team." };
+  }
+
+  const admin = createAdminClient();
+  const organizationRepository = new SupabaseOrganizationRepository(admin);
+  let setupSessionId: string | undefined;
+  try {
+    const role = await organizationRepository.getMembershipRole(
+      parsed.data.organizationId,
+      actor.id,
+    );
+    if (role !== "admin") {
+      return { error: "Only organization administrators can connect a Claude Code team." };
+    }
+
+    const code = randomBytes(24).toString("base64url");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const { data: setupSession, error } = await admin
+      .from("installation_setup_sessions")
+      .insert({
+        organization_id: parsed.data.organizationId,
+        created_by_user_id: actor.id,
+        code_digest: createHash("sha256").update(code).digest("hex"),
+        selected_tools: ["claude_code"],
+        expires_at: expiresAt,
+        installation_type: "team",
+        team_name: parsed.data.teamName,
+      })
+      .select("id")
+      .single<{ id: string }>();
+    if (error || !setupSession) {
+      throw new Error(error?.message ?? "Team setup session was not created");
+    }
+    setupSessionId = setupSession.id;
+
+    const response = await fetch(
+      `${env.SLOWPOKE_SETUP_SERVER.replace(/\/$/, "")}/api/setup/enroll`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, computer_name: parsed.data.teamName }),
+        cache: "no-store",
+      },
+    );
+    if (response.status === 409) {
+      await admin.from("installation_setup_sessions").delete().eq("id", setupSessionId);
+      return { error: "An active team installation already uses that name." };
+    }
+    if (!response.ok) {
+      throw new Error(`Team enrollment failed with status ${response.status}`);
+    }
+    const enrollment = claudeTeamEnrollmentSchema.parse(await response.json());
+    const installation = enrollment.installations[0];
+    refreshOrganizationViews();
+    return {
+      message: "Team installation created.",
+      organizationId: parsed.data.organizationId,
+      setupSessionId,
+      teamName: parsed.data.teamName,
+      teamSettings: createClaudeTeamManagedSettings(enrollment.collector_url, installation.token),
+    };
+  } catch (error) {
+    if (setupSessionId) {
+      await admin.from("installation_setup_sessions").delete().eq("id", setupSessionId);
+    }
+    return actionError(error instanceof Error ? error : new Error("Unknown team setup error"));
   }
 }
 

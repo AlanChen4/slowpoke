@@ -10,11 +10,15 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from postgrest.exceptions import APIError
 from supabase import Client, create_client
 
 from slowpoke_backend.app import create_app
 from slowpoke_backend.enrollment import SupabaseEnrollmentRepository
-from slowpoke_backend.errors import ExpiredEnrollmentCodeError
+from slowpoke_backend.errors import (
+    DuplicateTeamInstallationError,
+    ExpiredEnrollmentCodeError,
+)
 from slowpoke_backend.repository import SupabaseRepository
 from slowpoke_backend.settings import Settings
 
@@ -109,7 +113,11 @@ def _api(secret_key: str, url: str, collector_token: str) -> TestClient:
 
 @contextmanager
 def _setup_session_fixture(
-    selected_tools: list[str], expires_at: datetime
+    selected_tools: list[str],
+    expires_at: datetime,
+    *,
+    installation_type: str = "personal",
+    team_name: str | None = None,
 ) -> Iterator[tuple[Client, str, str, str]]:
     url, secret_key = _credentials()
     client = create_client(url, secret_key)
@@ -137,6 +145,8 @@ def _setup_session_fixture(
                 "code_digest": digest,
                 "selected_tools": selected_tools,
                 "expires_at": expires_at.isoformat(),
+                "installation_type": installation_type,
+                "team_name": team_name,
             }
         )
         .execute()
@@ -338,7 +348,152 @@ def test_enrollment_redeem_is_idempotent_for_each_selected_tool() -> None:
         }
         assert len(stored) == 2
         assert {row["computer_name"] for row in stored} == {"Test laptop"}
+        assert {row["installation_type"] for row in stored} == {"personal"}
+        assert {row["team_name"] for row in stored} == {None}
         assert all("token" not in row for row in stored)
+
+
+def test_team_enrollment_uses_stored_name_and_rejects_active_duplicate() -> None:
+    url, secret_key = _credentials()
+    now = datetime.now(UTC)
+    expires_at = now + timedelta(minutes=10)
+    with _setup_session_fixture(
+        ["claude_code"],
+        expires_at,
+        installation_type="team",
+        team_name="Platform",
+    ) as (client, organization_id, digest, setup_session_id):
+        repository = SupabaseEnrollmentRepository(url, secret_key)
+
+        repository.redeem(digest, "Ignored computer", now)
+        stored = (
+            client.table("installations")
+            .select("id,computer_name,installation_type,team_name")
+            .eq("setup_session_id", setup_session_id)
+            .single()
+            .execute()
+            .data
+        )
+        assert stored["computer_name"] == "Platform"
+        assert stored["installation_type"] == "team"
+        assert stored["team_name"] == "Platform"
+
+        duplicate_digest = secrets.token_hex(32)
+        duplicate_session = (
+            client.table("installation_setup_sessions")
+            .insert(
+                {
+                    "organization_id": organization_id,
+                    "created_by_user_id": LOCAL_USER_ID,
+                    "code_digest": duplicate_digest,
+                    "selected_tools": ["claude_code"],
+                    "expires_at": expires_at.isoformat(),
+                    "installation_type": "team",
+                    "team_name": "platform",
+                }
+            )
+            .execute()
+            .data[0]
+        )
+        with pytest.raises(DuplicateTeamInstallationError):
+            repository.redeem(duplicate_digest, "Ignored computer", now)
+
+        client.table("installations").update({"revoked_at": now.isoformat()}).eq(
+            "id", stored["id"]
+        ).execute()
+        replacement = repository.redeem(
+            duplicate_digest, "Ignored computer", now + timedelta(seconds=1)
+        )
+        assert len(replacement) == 1
+        assert str(replacement[0].id) != stored["id"]
+        replacement_row = (
+            client.table("installations")
+            .select("team_name,revoked_at")
+            .eq("setup_session_id", duplicate_session["id"])
+            .single()
+            .execute()
+            .data
+        )
+        assert replacement_row == {"team_name": "platform", "revoked_at": None}
+
+
+def test_team_schema_requires_claude_and_a_valid_name() -> None:
+    url, secret_key = _credentials()
+    client = create_client(url, secret_key)
+    suffix = secrets.token_hex(8)
+    organization = (
+        client.table("organizations")
+        .insert(
+            {
+                "name": f"Team schema test {suffix}",
+                "created_by_user_id": LOCAL_USER_ID,
+                "idempotency_key": str(uuid4()),
+            }
+        )
+        .execute()
+        .data[0]
+    )
+    organization_id = str(organization["id"])
+    expires_at = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
+
+    def setup_session(**overrides: object) -> dict[str, object]:
+        values: dict[str, object] = {
+            "organization_id": organization_id,
+            "created_by_user_id": LOCAL_USER_ID,
+            "code_digest": secrets.token_hex(32),
+            "selected_tools": ["claude_code"],
+            "expires_at": expires_at,
+            "installation_type": "team",
+            "team_name": "Platform",
+        }
+        values.update(overrides)
+        return values
+
+    try:
+        with pytest.raises(APIError):
+            client.table("installation_setup_sessions").insert(
+                setup_session(selected_tools=["codex"])
+            ).execute()
+        with pytest.raises(APIError):
+            client.table("installation_setup_sessions").insert(
+                setup_session(team_name=None)
+            ).execute()
+        with pytest.raises(APIError):
+            client.table("installation_setup_sessions").insert(
+                setup_session(team_name=" Platform ")
+            ).execute()
+        with pytest.raises(APIError):
+            client.table("installation_setup_sessions").insert(
+                setup_session(team_name="x" * 81)
+            ).execute()
+        with pytest.raises(APIError):
+            client.table("installation_setup_sessions").insert(
+                setup_session(installation_type="personal")
+            ).execute()
+
+        valid_setup = (
+            client.table("installation_setup_sessions")
+            .insert(setup_session())
+            .execute()
+            .data[0]
+        )
+        invalid_installation = {
+            "organization_id": organization_id,
+            "created_by_user_id": LOCAL_USER_ID,
+            "tool": "codex",
+            "computer_name": "Platform",
+            "setup_session_id": valid_setup["id"],
+            "installation_type": "team",
+            "team_name": "Platform",
+        }
+        with pytest.raises(APIError):
+            client.table("installations").insert(invalid_installation).execute()
+        with pytest.raises(APIError):
+            client.table("installations").insert(
+                {**invalid_installation, "tool": "claude_code", "team_name": None}
+            ).execute()
+    finally:
+        client.table("organizations").delete().eq("id", organization_id).execute()
 
 
 def test_enrollment_rejects_expired_code() -> None:
