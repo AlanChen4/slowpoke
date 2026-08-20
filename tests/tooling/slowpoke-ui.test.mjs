@@ -110,3 +110,35 @@ test("allows functional descriptions outside titled surfaces", () => {
 
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
+
+test("rejects inline field errors and destructive alerts", () => {
+  const result = lintFixture(`
+    import { Alert } from "./alert";
+    import { FieldError } from "./field";
+
+    export function Example() {
+      return (
+        <>
+          <FieldError>The request failed.</FieldError>
+          <Alert variant="destructive">The request failed.</Alert>
+        </>
+      );
+    }
+  `);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout + result.stderr, /slowpoke-ui\(no-inline-errors\)/u);
+});
+
+test("allows errors emitted through the shared toast", () => {
+  const result = lintFixture(`
+    import { ErrorToast, useErrorToast } from "./error-toast";
+
+    export function Example({ error }) {
+      useErrorToast(error);
+      return <ErrorToast message={error} />;
+    }
+  `);
+
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});

@@ -16,6 +16,7 @@ import {
   createTeamInstallation,
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
+import { useErrorToast } from "@/components/error-toast";
 import { InstallationToolFields } from "@/components/installation-tool-fields";
 import { InstallationToolIdentity } from "@/components/provider-identity";
 import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
@@ -29,7 +30,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -48,6 +48,8 @@ function PersonalInstallationSetup({
   const [state, action, pending] = useActionState(createInstallationSetupSession, initialState);
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string>();
+  useErrorToast(state.error, "Could not create installation", state);
+  useErrorToast(checkError, "Verification failed");
 
   useEffect(() => {
     if (!checking || !state.setupSessionId) {
@@ -88,7 +90,6 @@ function PersonalInstallationSetup({
           <CircleNotchIcon className="animate-spin" />
           Checking this computer…
         </div>
-        {checkError ? <FieldError>{checkError}</FieldError> : null}
         <DialogFooter>
           <Button
             type="button"
@@ -138,7 +139,6 @@ function PersonalInstallationSetup({
       <form action={action} className="flex flex-col gap-5">
         <Input type="hidden" name="organizationId" value={organizationId} />
         <InstallationToolFields />
-        {state.error ? <FieldError>{state.error}</FieldError> : null}
         <DialogFooter className="justify-between sm:justify-between">
           <Button type="button" variant="outline" onClick={onBack}>
             Back
@@ -164,6 +164,7 @@ function TeamInstallationSetup({
   const router = useRouter();
   const [state, action, pending] = useActionState(createTeamInstallation, initialState);
   const [teamTool, setTeamTool] = useState<"codex" | "claude_code">();
+  useErrorToast(state.error, "Could not create team installation", state);
 
   useEffect(() => {
     if (state.teamSettings) {
@@ -278,7 +279,6 @@ function TeamInstallationSetup({
             <InstallationToolIdentity tool="claude_code" />
           </ToggleGroupItem>
         </ToggleGroup>
-        {state.error ? <FieldError>{state.error}</FieldError> : null}
         <DialogFooter className="justify-between sm:justify-between">
           <Button type="button" variant="outline" onClick={onBack}>
             Back

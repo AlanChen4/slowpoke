@@ -9,8 +9,8 @@ import {
 import { AddInstallationDialog } from "@/app/dashboard/settings/add-installation-dialog";
 import { OrganizationProfileForm } from "@/app/dashboard/settings/organization-profile-form";
 import { RevokeInstallationButton } from "@/app/dashboard/settings/revoke-installation-button";
+import { ErrorToast } from "@/components/error-toast";
 import { InstallationToolIdentity } from "@/components/provider-identity";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -144,11 +144,7 @@ export default async function SettingsPage() {
   return (
     <div className="flex w-full flex-col gap-8">
       {dataError ? (
-        <Alert variant="destructive">
-          <WarningCircleIcon />
-          <AlertTitle>Some settings could not be loaded</AlertTitle>
-          <AlertDescription>{dataError.message}</AlertDescription>
-        </Alert>
+        <ErrorToast title="Some settings could not be loaded" message={dataError.message} />
       ) : null}
 
       <section id="organization" className="scroll-mt-20">

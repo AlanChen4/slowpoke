@@ -17,13 +17,13 @@ import {
   declineInvitation,
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
+import { useErrorToast } from "@/components/error-toast";
 import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
 import { InstallationToolFields } from "@/components/installation-tool-fields";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { PendingInvitation } from "@/lib/onboarding-data";
 
@@ -81,6 +81,8 @@ function InvitationChoice({
 }) {
   const [acceptState, acceptAction, accepting] = useActionState(acceptInvitation, initialState);
   const [declineState, declineAction, declining] = useActionState(declineInvitation, initialState);
+  useErrorToast(acceptState.error, "Could not accept invitation", acceptState);
+  useErrorToast(declineState.error, "Could not decline invitation", declineState);
 
   useEffect(() => {
     if (acceptState.organizationId) {
@@ -117,9 +119,6 @@ function InvitationChoice({
         <Badge variant="outline">{invitation.role === "admin" ? "Administrator" : "Member"}</Badge>
         <span>Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
       </OrganizationChoiceRow>
-      {acceptState.error || declineState.error ? (
-        <FieldError>{acceptState.error ?? declineState.error}</FieldError>
-      ) : null}
     </div>
   );
 }
@@ -157,6 +156,7 @@ function OrganizationStep({
   onInvitationDeclined: (invitationId: string) => void;
 }) {
   const [state, action, pending] = useActionState(createOrganization, initialState);
+  useErrorToast(state.error, "Could not create organization", state);
   useEffect(() => {
     if (state.organizationId && state.organizationName) {
       onOrganization({ id: state.organizationId, name: state.organizationName });
@@ -184,7 +184,6 @@ function OrganizationStep({
               </div>
             </Field>
           </FieldGroup>
-          {state.error ? <FieldError>{state.error}</FieldError> : null}
         </form>
         {unfinishedOrganizations.length > 0 || invitations.length > 0 ? (
           <FieldSeparator>or</FieldSeparator>
@@ -228,6 +227,7 @@ function ToolStep({
   onSetupSession: (state: OrganizationFlowActionState) => void;
 }) {
   const [state, action, pending] = useActionState(createInstallationSetupSession, initialState);
+  useErrorToast(state.error, "Could not create installation", state);
   useEffect(() => {
     if (state.setupCommand && state.setupSessionId) {
       onSetupSession(state);
@@ -245,7 +245,6 @@ function ToolStep({
         <form action={action} className="flex flex-col gap-5">
           <Input type="hidden" name="organizationId" value={organization.id} />
           <InstallationToolFields />
-          {state.error ? <FieldError>{state.error}</FieldError> : null}
           <div className="flex items-center justify-between">
             <Button type="button" variant="outline" onClick={onBack}>
               Back
@@ -316,6 +315,8 @@ export function OnboardingFlow({
   const [checking, setChecking] = useState(false);
   const [complete, setComplete] = useState(false);
   const [checkError, setCheckError] = useState<string>();
+  useErrorToast(loadError, "Onboarding could not be fully loaded");
+  useErrorToast(checkError, "Verification failed");
   const chooseOrganization = useCallback(
     (choice: OrganizationChoice) => {
       setOrganization(choice);
@@ -375,12 +376,6 @@ export function OnboardingFlow({
   return (
     <div className="flex w-full flex-col gap-6">
       <Progress current={currentStep} />
-      {loadError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Onboarding could not be fully loaded</AlertTitle>
-          <AlertDescription>{loadError}</AlertDescription>
-        </Alert>
-      ) : null}
       {complete ? (
         <Card>
           <CardHeader>
@@ -409,11 +404,6 @@ export function OnboardingFlow({
               </CardTitle>
             </div>
           </CardHeader>
-          {checkError ? (
-            <CardContent>
-              <FieldError>{checkError}</FieldError>
-            </CardContent>
-          ) : null}
           <CardFooter>
             <Button
               type="button"

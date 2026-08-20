@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { selectOrganization } from "@/app/dashboard/actions";
+import { useErrorToast } from "@/components/error-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +65,7 @@ export function AppSidebar({ organizations, selectedOrganizationId }: AppSidebar
   const router = useRouter();
   const [switchError, setSwitchError] = useState<string>();
   const [isSwitching, startSwitchTransition] = useTransition();
+  useErrorToast(switchError, "Could not switch organization");
   const selectedOrganization =
     organizations.find((organization) => organization.id === selectedOrganizationId) ?? null;
 
@@ -160,9 +162,7 @@ export function AppSidebar({ organizations, selectedOrganizationId }: AppSidebar
                 </div>
               </SelectContent>
             </Select>
-            <output className="sr-only">
-              {switchError ?? (isSwitching ? "Switching organization" : "")}
-            </output>
+            <output className="sr-only">{isSwitching ? "Switching organization" : ""}</output>
           </div>
           <SidebarTrigger className="shrink-0" />
         </div>

@@ -8,8 +8,8 @@ import { PromptRefreshButton } from "@/app/dashboard/prompt-refresh";
 import { PromptSearch } from "@/app/dashboard/prompt-search";
 import { PromptScopeFilter, type PromptScope } from "@/app/dashboard/prompt-scope-filter";
 import { PromptTime } from "@/app/dashboard/prompt-time";
+import { ErrorToast } from "@/components/error-toast";
 import { PromptSourceIdentity } from "@/components/provider-identity";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Empty,
   EmptyDescription,
@@ -170,11 +170,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </div>
 
       {promptsError ? (
-        <Alert variant="destructive">
-          <WarningCircleIcon />
-          <AlertTitle>Prompts could not be loaded</AlertTitle>
-          <AlertDescription>{promptsErrorMessage}</AlertDescription>
-        </Alert>
+        <ErrorToast title="Prompts could not be loaded" message={promptsErrorMessage} />
       ) : promptRows.length === 0 ? (
         <Empty className="border">
           <EmptyHeader>

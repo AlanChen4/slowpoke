@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { JetBrains_Mono, Geist } from "next/font/google";
+import { Toaster } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
@@ -23,7 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn(jetbrainsMono.variable, "font-sans", geist.variable)}>
-      <body className="min-h-full antialiased">{children}</body>
+      <body className="min-h-full antialiased">
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }
