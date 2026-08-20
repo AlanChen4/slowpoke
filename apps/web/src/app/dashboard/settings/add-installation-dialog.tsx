@@ -19,7 +19,6 @@ import {
 import { InstallationToolFields } from "@/components/installation-tool-fields";
 import { InstallationToolIdentity } from "@/components/provider-identity";
 import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import {
@@ -279,14 +278,6 @@ function TeamInstallationSetup({
             <InstallationToolIdentity tool="claude_code" />
           </ToggleGroupItem>
         </ToggleGroup>
-        {teamTool === "codex" ? (
-          <Alert>
-            <AlertDescription>
-              Requires administrator access to distribute managed Codex configuration across team
-              devices.
-            </AlertDescription>
-          </Alert>
-        ) : null}
         {state.error ? <FieldError>{state.error}</FieldError> : null}
         <DialogFooter className="justify-between sm:justify-between">
           <Button type="button" variant="outline" onClick={onBack}>
