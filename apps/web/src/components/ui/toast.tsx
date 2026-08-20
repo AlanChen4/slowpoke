@@ -177,9 +177,11 @@ function ToastList() {
   return toasts.map((toastItem) => (
     <Toast key={toastItem.id} toast={toastItem}>
       <ToastContent>
-        <ToastIcon type={toastItem.type} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <ToastTitle />
+          <div className="flex items-center gap-2">
+            <ToastIcon type={toastItem.type} />
+            <ToastTitle />
+          </div>
           <ToastDescription />
         </div>
         <ToastAction />
