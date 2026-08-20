@@ -20,7 +20,7 @@ import { InstallationToolFields } from "@/components/installation-tool-fields";
 import { InstallationToolIdentity } from "@/components/provider-identity";
 import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";
 import {
   Dialog,
@@ -178,14 +178,12 @@ function TeamInstallationSetup({
       <>
         <DialogHeader>
           <DialogTitle>Team installation created</DialogTitle>
+          <span className="text-xs/relaxed text-muted-foreground">
+            Preserve any existing managed settings and merge this{" "}
+            {isCodex ? "OTel table" : "env block"} into them. This token is shown only once.
+          </span>
         </DialogHeader>
         <div className="flex min-w-0 flex-col gap-4">
-          <Alert>
-            <AlertDescription>
-              Preserve any existing managed settings and merge this{" "}
-              {isCodex ? "OTel table" : "env block"} into them. This token is shown only once.
-            </AlertDescription>
-          </Alert>
           {isCodex ? (
             <ol className="list-decimal pl-5 text-sm leading-6">
               <li>Merge the generated OTel table into the team&apos;s managed Codex defaults.</li>
@@ -211,50 +209,40 @@ function TeamInstallationSetup({
             language={isCodex ? "toml" : "json"}
             className="min-w-0 max-w-full"
           />
+        </div>
+        <DialogFooter className="flex-row flex-wrap items-center justify-between sm:justify-between">
           <div className="flex flex-wrap gap-2">
             {isCodex ? null : (
-              <Button
-                render={
-                  <a
-                    aria-label="Open Claude admin settings"
-                    href="https://claude.ai/admin-settings/claude-code"
-                    target="_blank"
-                    rel="noreferrer"
-                  />
-                }
-                nativeButton={false}
-                variant="outline"
+              <a
+                aria-label="Open Claude admin settings"
+                href="https://claude.ai/admin-settings/claude-code"
+                target="_blank"
+                rel="noreferrer"
+                className={buttonVariants({ variant: "outline" })}
               >
                 Open Claude admin settings
                 <ArrowSquareOutIcon data-icon="inline-end" />
-              </Button>
+              </a>
             )}
-            <Button
-              render={
-                <a
-                  aria-label={
-                    isCodex
-                      ? "View Codex managed configuration instructions"
-                      : "View Claude Code server-managed settings instructions"
-                  }
-                  href={
-                    isCodex
-                      ? "https://learn.chatgpt.com/docs/enterprise/managed-configuration"
-                      : "https://code.claude.com/docs/en/server-managed-settings"
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                />
+            <a
+              aria-label={
+                isCodex
+                  ? "View Codex managed configuration instructions"
+                  : "View Claude Code server-managed settings instructions"
               }
-              nativeButton={false}
-              variant="ghost"
+              href={
+                isCodex
+                  ? "https://learn.chatgpt.com/docs/enterprise/managed-configuration"
+                  : "https://code.claude.com/docs/en/server-managed-settings"
+              }
+              target="_blank"
+              rel="noreferrer"
+              className={buttonVariants({ variant: "ghost" })}
             >
               View instructions
               <ArrowSquareOutIcon data-icon="inline-end" />
-            </Button>
+            </a>
           </div>
-        </div>
-        <DialogFooter>
           <Button type="button" onClick={onDone}>
             Done
           </Button>
