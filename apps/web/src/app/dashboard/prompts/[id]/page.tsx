@@ -261,14 +261,6 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
             <UsageItem label="Output tokens" value={usage?.outputTokens} />
             <UsageItem label="Reasoning tokens" value={usage?.reasoningTokens} />
             <UsageItem label="Total tokens" value={usage?.totalTokens} />
-            <div className="pt-3">
-              <dt className="text-xs text-muted-foreground">Cost</dt>
-              <dd className="mt-1 text-lg font-medium">
-                {usage?.costUsd === null || usage?.costUsd === undefined
-                  ? "Not reported"
-                  : `$${usage.costUsd.toFixed(4)}`}
-              </dd>
-            </div>
           </dl>
           {!usage ? (
             <p className="pt-3 text-xs text-muted-foreground">
