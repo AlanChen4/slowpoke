@@ -291,14 +291,6 @@ function TeamInstallationSetup({
             <InstallationToolIdentity tool="claude_code" />
           </ToggleGroupItem>
         </ToggleGroup>
-        {teamTool === "claude_code" ? (
-          <Alert>
-            <AlertDescription>
-              Requires Claude for Teams or Enterprise and an Owner or Primary Owner who can edit
-              organization managed settings.
-            </AlertDescription>
-          </Alert>
-        ) : null}
         {teamTool === "codex" ? (
           <Alert>
             <AlertDescription>
