@@ -247,14 +247,7 @@ export default async function SettingsPage() {
                           <TableCell>
                             <InstallationToolIdentity tool={installation.tool} />
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span>{installation.computer_name}</span>
-                              {installation.installation_type === "team" ? (
-                                <Badge variant="outline">Team</Badge>
-                              ) : null}
-                            </div>
-                          </TableCell>
+                          <TableCell>{installation.computer_name}</TableCell>
                           <TableCell>
                             {ownerEmails.get(installation.created_by_user_id) ?? "Unknown account"}
                           </TableCell>
