@@ -50,7 +50,6 @@ class PublicInstallations(BaseModel):
     organization_id: uuid.UUID = Field(alias="organization_id")
     revoked_at: Optional[datetime.datetime] = Field(alias="revoked_at")
     setup_session_id: uuid.UUID = Field(alias="setup_session_id")
-    team_name: Optional[str] = Field(alias="team_name")
     tool: str = Field(alias="tool")
     verified_at: Optional[datetime.datetime] = Field(alias="verified_at")
 
@@ -64,7 +63,6 @@ class PublicInstallationsInsert(TypedDict):
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
     setup_session_id: Annotated[uuid.UUID, Field(alias="setup_session_id")]
-    team_name: NotRequired[Annotated[Optional[str], Field(alias="team_name")]]
     tool: Annotated[str, Field(alias="tool")]
     verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]
 
@@ -78,7 +76,6 @@ class PublicInstallationsUpdate(TypedDict):
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
     setup_session_id: NotRequired[Annotated[uuid.UUID, Field(alias="setup_session_id")]]
-    team_name: NotRequired[Annotated[Optional[str], Field(alias="team_name")]]
     tool: NotRequired[Annotated[str, Field(alias="tool")]]
     verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]
 
@@ -260,7 +257,6 @@ class PublicInstallationSetupSessions(BaseModel):
     organization_id: uuid.UUID = Field(alias="organization_id")
     redeemed_at: Optional[datetime.datetime] = Field(alias="redeemed_at")
     selected_tools: List[str] = Field(alias="selected_tools")
-    team_name: Optional[str] = Field(alias="team_name")
 
 class PublicInstallationSetupSessionsInsert(TypedDict):
     code_digest: Annotated[str, Field(alias="code_digest")]
@@ -272,7 +268,6 @@ class PublicInstallationSetupSessionsInsert(TypedDict):
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
     selected_tools: Annotated[List[str], Field(alias="selected_tools")]
-    team_name: NotRequired[Annotated[Optional[str], Field(alias="team_name")]]
 
 class PublicInstallationSetupSessionsUpdate(TypedDict):
     code_digest: NotRequired[Annotated[str, Field(alias="code_digest")]]
@@ -284,7 +279,6 @@ class PublicInstallationSetupSessionsUpdate(TypedDict):
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
     selected_tools: NotRequired[Annotated[List[str], Field(alias="selected_tools")]]
-    team_name: NotRequired[Annotated[Optional[str], Field(alias="team_name")]]
 
 class PublicHumanPromptEvents(BaseModel):
     actor_account_id: Optional[str] = Field(alias="actor_account_id")

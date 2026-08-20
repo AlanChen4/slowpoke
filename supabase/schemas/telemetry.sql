@@ -78,20 +78,10 @@ create table public.installation_setup_sessions (
   installation_type text not null default 'personal' check (
     installation_type in ('personal', 'team')
   ),
-  team_name text,
   check (
-    (
-      installation_type = 'personal'
-      and team_name is null
-    )
-    or (
-      installation_type = 'team'
-      and selected_tools = array['claude_code']::text[]
-      and team_name is not null
-      and team_name = trim(team_name)
-      and char_length(team_name) >= 1
-      and char_length(team_name) <= 80
-    )
+    installation_type = 'personal'
+    or selected_tools = array['codex']::text[]
+    or selected_tools = array['claude_code']::text[]
   ),
   unique (id, organization_id)
 );
@@ -116,21 +106,6 @@ create table public.installations (
   installation_type text not null default 'personal' check (
     installation_type in ('personal', 'team')
   ),
-  team_name text,
-  check (
-    (
-      installation_type = 'personal'
-      and team_name is null
-    )
-    or (
-      installation_type = 'team'
-      and tool = 'claude_code'
-      and team_name is not null
-      and team_name = trim(team_name)
-      and char_length(team_name) >= 1
-      and char_length(team_name) <= 80
-    )
-  ),
   foreign key (setup_session_id, organization_id)
     references public.installation_setup_sessions (id, organization_id),
   unique (id, organization_id),
@@ -147,8 +122,8 @@ create index installations_active_owner_organization_idx
   on public.installations (created_by_user_id, organization_id)
   where verified_at is not null and revoked_at is null;
 
-create unique index installations_active_team_name_idx
-  on public.installations (organization_id, lower(team_name))
+create unique index installations_active_team_organization_idx
+  on public.installations (organization_id)
   where installation_type = 'team' and revoked_at is null;
 
 create table public.telemetry_batches (

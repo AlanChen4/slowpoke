@@ -8,10 +8,10 @@ import * as z from "zod";
 
 import { env } from "@/env";
 import {
-  claudeTeamEnrollmentSchema,
-  createClaudeTeamManagedSettings,
-  teamNameSchema,
-} from "@/lib/claude-team-installation";
+  createTeamManagedSettings,
+  teamEnrollmentSchema,
+  teamToolSchema,
+} from "@/lib/team-installation";
 import {
   cancelOrganizationInvitation,
   createInvitationForOrganization,
@@ -36,8 +36,8 @@ export type OrganizationFlowActionState = {
   organizationId?: string;
   organizationName?: string;
   setupCommand?: string;
-  teamName?: string;
   teamSettings?: string;
+  teamTool?: "codex" | "claude_code";
 };
 
 const organizationIdSchema = z.uuid();
@@ -60,7 +60,7 @@ const createSetupSessionSchema = z.object({
 });
 const createTeamInstallationSchema = z.object({
   organizationId: organizationIdSchema,
-  teamName: teamNameSchema,
+  tool: teamToolSchema,
 });
 
 async function getActor(): Promise<OrganizationActor | null> {
@@ -310,14 +310,14 @@ export async function createTeamInstallation(
 ): Promise<OrganizationFlowActionState> {
   const parsed = createTeamInstallationSchema.safeParse({
     organizationId: formData.get("organizationId"),
-    teamName: formData.get("teamName"),
+    tool: formData.get("tool"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Check the team details." };
   }
   const actor = await getActor();
   if (!actor) {
-    return { error: "Sign in again to connect a Claude Code team." };
+    return { error: "Sign in again to connect a team." };
   }
 
   const admin = createAdminClient();
@@ -329,7 +329,7 @@ export async function createTeamInstallation(
       actor.id,
     );
     if (role !== "admin") {
-      return { error: "Only organization administrators can connect a Claude Code team." };
+      return { error: "Only organization administrators can connect a team." };
     }
 
     const code = randomBytes(24).toString("base64url");
@@ -340,10 +340,9 @@ export async function createTeamInstallation(
         organization_id: parsed.data.organizationId,
         created_by_user_id: actor.id,
         code_digest: createHash("sha256").update(code).digest("hex"),
-        selected_tools: ["claude_code"],
+        selected_tools: [parsed.data.tool],
         expires_at: expiresAt,
         installation_type: "team",
-        team_name: parsed.data.teamName,
       })
       .select("id")
       .single<{ id: string }>();
@@ -357,7 +356,7 @@ export async function createTeamInstallation(
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, computer_name: parsed.data.teamName }),
+        body: JSON.stringify({ code, computer_name: "Team" }),
         cache: "no-store",
       },
     );
@@ -368,15 +367,22 @@ export async function createTeamInstallation(
     if (!response.ok) {
       throw new Error(`Team enrollment failed with status ${response.status}`);
     }
-    const enrollment = claudeTeamEnrollmentSchema.parse(await response.json());
+    const enrollment = teamEnrollmentSchema.parse(await response.json());
     const installation = enrollment.installations[0];
+    if (installation.tool !== parsed.data.tool) {
+      throw new Error("Team enrollment returned the wrong tool");
+    }
     refreshOrganizationViews();
     return {
       message: "Team installation created.",
       organizationId: parsed.data.organizationId,
       setupSessionId,
-      teamName: parsed.data.teamName,
-      teamSettings: createClaudeTeamManagedSettings(enrollment.collector_url, installation.token),
+      teamSettings: createTeamManagedSettings(
+        parsed.data.tool,
+        enrollment.collector_url,
+        installation.token,
+      ),
+      teamTool: parsed.data.tool,
     };
   } catch (error) {
     if (setupSessionId) {

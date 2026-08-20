@@ -53,7 +53,6 @@ type Installation = {
   id: string;
   installation_type: "personal" | "team";
   last_seen_at: string | null;
-  team_name: string | null;
   tool: "codex" | "claude_code";
   verified_at: string | null;
 };
@@ -94,7 +93,7 @@ export default async function SettingsPage() {
     ? await supabase
         .from("installations")
         .select(
-          "id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at,installation_type,team_name",
+          "id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at,installation_type",
         )
         .eq("organization_id", selectedOrganization.id)
         .is("revoked_at", null)
@@ -250,11 +249,7 @@ export default async function SettingsPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <span>
-                                {installation.installation_type === "team"
-                                  ? installation.team_name
-                                  : installation.computer_name}
-                              </span>
+                              <span>{installation.computer_name}</span>
                               {installation.installation_type === "team" ? (
                                 <Badge variant="outline">Team</Badge>
                               ) : null}

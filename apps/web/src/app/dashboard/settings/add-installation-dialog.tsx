@@ -17,6 +17,7 @@ import {
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
 import { InstallationToolFields } from "@/components/installation-tool-fields";
+import { InstallationToolIdentity } from "@/components/provider-identity";
 import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -29,15 +30,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldTitle,
-} from "@/components/ui/field";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -171,6 +164,7 @@ function TeamInstallationSetup({
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(createTeamInstallation, initialState);
+  const [teamTool, setTeamTool] = useState<"codex" | "claude_code">();
 
   useEffect(() => {
     if (state.teamSettings) {
@@ -179,53 +173,75 @@ function TeamInstallationSetup({
   }, [router, state.teamSettings]);
 
   if (state.teamSettings) {
+    const isCodex = state.teamTool === "codex";
     return (
       <>
         <DialogHeader>
-          <DialogTitle>Connect {state.teamName}</DialogTitle>
+          <DialogTitle>Team installation created</DialogTitle>
         </DialogHeader>
         <div className="flex min-w-0 flex-col gap-4">
           <Alert>
             <AlertDescription>
-              Preserve any existing managed settings and merge this env block into them. This token
-              is shown only once.
+              Preserve any existing managed settings and merge this{" "}
+              {isCodex ? "OTel table" : "env block"} into them. This token is shown only once.
             </AlertDescription>
           </Alert>
-          <ol className="list-decimal pl-5 text-sm leading-6">
-            <li>
-              Open Claude Admin Settings → Claude Code → Managed settings as an Owner or Primary
-              Owner.
-            </li>
-            <li>Merge the generated env block into the existing JSON, then save it.</li>
-            <li>Ask team members to restart Claude Code and approve the OTLP endpoint.</li>
-          </ol>
+          {isCodex ? (
+            <ol className="list-decimal pl-5 text-sm leading-6">
+              <li>Merge the generated OTel table into the team&apos;s managed Codex defaults.</li>
+              <li>
+                Deploy it as <code>/etc/codex/managed_config.toml</code> on macOS or Linux, or
+                through device management on supported clients.
+              </li>
+              <li>Ask team members to restart Codex so the managed defaults apply.</li>
+            </ol>
+          ) : (
+            <ol className="list-decimal pl-5 text-sm leading-6">
+              <li>
+                Open Claude Admin Settings → Claude Code → Managed settings as an Owner or Primary
+                Owner.
+              </li>
+              <li>Merge the generated env block into the existing JSON, then save it.</li>
+              <li>Ask team members to restart Claude Code and approve the OTLP endpoint.</li>
+            </ol>
+          )}
           <CodeBlock
-            filename="managed-settings.json"
+            filename={isCodex ? "managed_config.toml" : "managed-settings.json"}
             code={state.teamSettings}
-            language="json"
+            language={isCodex ? "toml" : "json"}
             className="min-w-0 max-w-full"
           />
           <div className="flex flex-wrap gap-2">
+            {isCodex ? null : (
+              <Button
+                render={
+                  <a
+                    aria-label="Open Claude admin settings"
+                    href="https://claude.ai/admin-settings/claude-code"
+                    target="_blank"
+                    rel="noreferrer"
+                  />
+                }
+                nativeButton={false}
+                variant="outline"
+              >
+                Open Claude admin settings
+                <ArrowSquareOutIcon data-icon="inline-end" />
+              </Button>
+            )}
             <Button
               render={
                 <a
-                  aria-label="Open Claude admin settings"
-                  href="https://claude.ai/admin-settings/claude-code"
-                  target="_blank"
-                  rel="noreferrer"
-                />
-              }
-              nativeButton={false}
-              variant="outline"
-            >
-              Open Claude admin settings
-              <ArrowSquareOutIcon data-icon="inline-end" />
-            </Button>
-            <Button
-              render={
-                <a
-                  aria-label="View Claude Code server-managed settings instructions"
-                  href="https://code.claude.com/docs/en/server-managed-settings"
+                  aria-label={
+                    isCodex
+                      ? "View Codex managed configuration instructions"
+                      : "View Claude Code server-managed settings instructions"
+                  }
+                  href={
+                    isCodex
+                      ? "https://learn.chatgpt.com/docs/enterprise/managed-configuration"
+                      : "https://code.claude.com/docs/en/server-managed-settings"
+                  }
                   target="_blank"
                   rel="noreferrer"
                 />
@@ -250,38 +266,53 @@ function TeamInstallationSetup({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Connect a Claude Code team</DialogTitle>
+        <DialogTitle>Connect a team</DialogTitle>
       </DialogHeader>
       <form action={action} className="flex flex-col gap-5">
         <Input type="hidden" name="organizationId" value={organizationId} />
-        <Alert>
-          <AlertDescription>
-            Requires Claude for Teams or Enterprise and an Owner or Primary Owner who can edit
-            organization managed settings.
-          </AlertDescription>
-        </Alert>
-        <FieldGroup>
-          <Field data-invalid={Boolean(state.error)}>
-            <FieldLabel htmlFor="team-installation-name">Team name</FieldLabel>
-            <Input
-              id="team-installation-name"
-              name="teamName"
-              maxLength={80}
-              required
-              aria-invalid={Boolean(state.error)}
-              autoComplete="off"
-            />
-            <FieldDescription>
-              Use the Claude organization name so team installations are easy to distinguish.
-            </FieldDescription>
-          </Field>
-        </FieldGroup>
+        <Input type="hidden" name="tool" value={teamTool ?? ""} />
+        <ToggleGroup
+          value={teamTool ? [teamTool] : []}
+          onValueChange={(value) => {
+            const nextValue = value[0];
+            setTeamTool(
+              nextValue === "codex" || nextValue === "claude_code" ? nextValue : undefined,
+            );
+          }}
+          variant="outline"
+          spacing={2}
+          aria-label="Team AI tool"
+          className="grid w-full grid-cols-2"
+        >
+          <ToggleGroupItem value="codex" className="h-16 min-w-0 justify-start px-4">
+            <InstallationToolIdentity tool="codex" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="claude_code" className="h-16 min-w-0 justify-start px-4">
+            <InstallationToolIdentity tool="claude_code" />
+          </ToggleGroupItem>
+        </ToggleGroup>
+        {teamTool === "claude_code" ? (
+          <Alert>
+            <AlertDescription>
+              Requires Claude for Teams or Enterprise and an Owner or Primary Owner who can edit
+              organization managed settings.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {teamTool === "codex" ? (
+          <Alert>
+            <AlertDescription>
+              Requires administrator access to distribute managed Codex configuration across team
+              devices.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {state.error ? <FieldError>{state.error}</FieldError> : null}
         <DialogFooter className="justify-between sm:justify-between">
           <Button type="button" variant="outline" onClick={onBack}>
             Back
           </Button>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" disabled={pending || !teamTool}>
             {pending ? "Creating installation…" : "Create installation"}
           </Button>
         </DialogFooter>
@@ -317,27 +348,13 @@ function InstallationTypeStep({
         aria-label="Installation type"
         className="grid w-full grid-cols-1 sm:grid-cols-2"
       >
-        <ToggleGroupItem
-          value="personal"
-          className="h-auto min-w-0 items-start justify-start whitespace-normal p-4 text-left"
-        >
+        <ToggleGroupItem value="personal" className="h-16 min-w-0 justify-start px-4">
           <DesktopIcon />
-          <FieldContent>
-            <FieldTitle>Personal computer</FieldTitle>
-            <FieldDescription>Connect Codex, Claude Code, or both.</FieldDescription>
-          </FieldContent>
+          Personal
         </ToggleGroupItem>
-        <ToggleGroupItem
-          value="team"
-          className="h-auto min-w-0 items-start justify-start whitespace-normal p-4 text-left"
-        >
+        <ToggleGroupItem value="team" className="h-16 min-w-0 justify-start px-4">
           <UsersThreeIcon />
-          <FieldContent>
-            <FieldTitle>Claude Code team</FieldTitle>
-            <FieldDescription>
-              Connect a Claude organization with managed settings.
-            </FieldDescription>
-          </FieldContent>
+          Team
         </ToggleGroupItem>
       </ToggleGroup>
       <DialogFooter className="justify-between sm:justify-between">

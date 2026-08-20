@@ -1,58 +1,44 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  claudeTeamEnrollmentSchema,
   createClaudeTeamManagedSettings,
-  teamNameSchema,
-} from "./claude-team-installation";
+  createCodexTeamManagedSettings,
+  teamEnrollmentSchema,
+} from "./team-installation";
 
-describe("Claude team installations", () => {
-  it("validates and trims team names", () => {
-    expect(teamNameSchema.parse("  Platform  ")).toBe("Platform");
-    expect(teamNameSchema.safeParse(" ").success).toBe(false);
-    expect(teamNameSchema.safeParse("x".repeat(81)).success).toBe(false);
-  });
-
-  it("accepts one Claude Code enrollment", () => {
+describe("team installations", () => {
+  it.each(["codex", "claude_code"] as const)("accepts one %s enrollment", (tool) => {
     expect(
-      claudeTeamEnrollmentSchema.parse({
+      teamEnrollmentSchema.parse({
         collector_url: "https://collector.example.test/",
         installations: [
           {
             installation_id: "00000000-0000-4000-8000-000000000001",
             organization_id: "10000000-0000-4000-8000-000000000001",
-            tool: "claude_code",
+            tool,
             token: "signed-token",
           },
         ],
       }).installations[0].tool,
-    ).toBe("claude_code");
+    ).toBe(tool);
   });
 
-  it("rejects another tool or more than one installation", () => {
+  it("rejects more than one installation", () => {
     const installation = {
       installation_id: "00000000-0000-4000-8000-000000000001",
       organization_id: "10000000-0000-4000-8000-000000000001",
+      tool: "codex",
       token: "signed-token",
     };
     expect(() =>
-      claudeTeamEnrollmentSchema.parse({
+      teamEnrollmentSchema.parse({
         collector_url: "https://collector.example.test",
-        installations: [{ ...installation, tool: "codex" }],
-      }),
-    ).toThrow();
-    expect(() =>
-      claudeTeamEnrollmentSchema.parse({
-        collector_url: "https://collector.example.test",
-        installations: [
-          { ...installation, tool: "claude_code" },
-          { ...installation, tool: "claude_code" },
-        ],
+        installations: [installation, installation],
       }),
     ).toThrow();
   });
 
-  it("generates the complete managed settings payload", () => {
+  it("generates the complete Claude managed settings payload", () => {
     expect(
       JSON.parse(
         createClaudeTeamManagedSettings("https://collector.example.test/", "signed-token"),
@@ -71,5 +57,16 @@ describe("Claude team installations", () => {
         OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Bearer signed-token",
       },
     });
+  });
+
+  it("generates the complete Codex managed settings payload", () => {
+    expect(createCodexTeamManagedSettings("https://collector.example.test/", 'signed-"token'))
+      .toBe(`[otel]
+environment = "production"
+log_user_prompt = true
+exporter = { otlp-http = { endpoint = "https://collector.example.test/v1/logs", protocol = "binary", headers = { authorization = "Bearer signed-\\"token" } } }
+metrics_exporter = "none"
+trace_exporter = "none"
+`);
   });
 });

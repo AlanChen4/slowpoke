@@ -48,7 +48,7 @@ class SupabaseEnrollmentRepository:
                 .select(
                     "id,organization_id,created_by_user_id,code_digest,"
                     "selected_tools,expires_at,redeemed_at,created_at,"
-                    "installation_type,team_name"
+                    "installation_type"
                 )
                 .eq("code_digest", code_digest)
                 .limit(1)
@@ -62,11 +62,9 @@ class SupabaseEnrollmentRepository:
             if setup_session.expires_at <= now:
                 raise ExpiredEnrollmentCodeError
 
-            installation_name = computer_name
-            if setup_session.installation_type == "team":
-                if not setup_session.team_name:
-                    raise RepositoryError("team installation is missing a name")
-                installation_name = setup_session.team_name
+            installation_name = (
+                "Team" if setup_session.installation_type == "team" else computer_name
+            )
 
             rows = [
                 {
@@ -76,7 +74,6 @@ class SupabaseEnrollmentRepository:
                     "computer_name": installation_name,
                     "setup_session_id": str(setup_session.id),
                     "installation_type": setup_session.installation_type,
-                    "team_name": setup_session.team_name,
                 }
                 for tool in setup_session.selected_tools
             ]
@@ -103,7 +100,7 @@ class SupabaseEnrollmentRepository:
                 .select(
                     "id,organization_id,created_at,revoked_at,created_by_user_id,"
                     "tool,computer_name,setup_session_id,verified_at,last_seen_at,"
-                    "installation_type,team_name"
+                    "installation_type"
                 )
                 .eq("setup_session_id", str(setup_session.id))
                 .execute()
@@ -133,7 +130,7 @@ class SupabaseEnrollmentRepository:
         except Exception as error:
             if getattr(
                 error, "code", None
-            ) == "23505" and "installations_active_team_name_idx" in str(error):
+            ) == "23505" and "installations_active_team_organization_idx" in str(error):
                 raise DuplicateTeamInstallationError from error
             logger.exception("Failed to redeem installation enrollment")
             raise RepositoryError("failed to redeem installation enrollment") from error

@@ -77,7 +77,7 @@ values
 
 insert into public.installation_setup_sessions (
   id, organization_id, created_by_user_id, code_digest, selected_tools, expires_at,
-  redeemed_at, installation_type, team_name
+  redeemed_at, installation_type
 )
 values (
   '31000000-0000-4000-8000-000000000004',
@@ -87,8 +87,7 @@ values (
   array['claude_code']::text[],
   '2026-08-24 10:00:00+00',
   '2026-08-17 10:00:00+00',
-  'team',
-  'Platform'
+  'team'
 );
 
 insert into public.installations (
@@ -101,7 +100,7 @@ values
 
 insert into public.installations (
   id, organization_id, created_by_user_id, tool, computer_name, setup_session_id,
-  verified_at, last_seen_at, installation_type, team_name
+  verified_at, last_seen_at, installation_type
 )
 values (
   '30000000-0000-4000-8000-000000000004',
@@ -112,8 +111,7 @@ values (
   '31000000-0000-4000-8000-000000000004',
   '2026-08-17 10:01:00+00',
   '2026-08-17 10:02:00+00',
-  'team',
-  'Platform'
+  'team'
 );
 
 insert into public.telemetry_batches (
