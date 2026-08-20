@@ -362,7 +362,10 @@ export async function createTeamInstallation(
     );
     if (response.status === 409) {
       await admin.from("installation_setup_sessions").delete().eq("id", setupSessionId);
-      return { error: "An active team installation already uses that name." };
+      return {
+        error:
+          "This organization already has a team installation. Revoke it before creating another.",
+      };
     }
     if (!response.ok) {
       throw new Error(`Team enrollment failed with status ${response.status}`);

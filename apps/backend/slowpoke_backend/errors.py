@@ -32,7 +32,7 @@ class ExpiredEnrollmentCodeError(Exception):
 
 
 class DuplicateTeamInstallationError(Exception):
-    """An active team installation already uses the requested name."""
+    """The organization already has a non-revoked team installation."""
 
 
 class RepositoryError(IngestionError):
