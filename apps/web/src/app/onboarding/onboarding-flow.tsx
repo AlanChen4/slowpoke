@@ -400,7 +400,7 @@ export function OnboardingFlow({
       ) : checking ? (
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2 text-center">
               <div className="flex size-4 animate-spin items-center justify-center text-primary">
                 <CircleNotchIcon />
               </div>
@@ -414,7 +414,7 @@ export function OnboardingFlow({
               <FieldError>{checkError}</FieldError>
             </CardContent>
           ) : null}
-          <CardFooter className="justify-between">
+          <CardFooter>
             <Button
               type="button"
               variant="outline"
@@ -424,19 +424,6 @@ export function OnboardingFlow({
               }}
             >
               Back
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setCheckError(undefined);
-                setChecking(false);
-                setSetupSession(undefined);
-                setOrganization(null);
-                router.replace("/onboarding?create=1");
-              }}
-            >
-              Skip
             </Button>
           </CardFooter>
         </Card>
