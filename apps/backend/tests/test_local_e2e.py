@@ -273,7 +273,12 @@ def _run_claude(endpoint: str, authorization: str) -> None:
         "claude",
         [
             claude,
-            "--safe-mode",
+            "--setting-sources",
+            "local",
+            "--strict-mcp-config",
+            "--mcp-config",
+            '{"mcpServers":{}}',
+            "--disable-slash-commands",
             "--print",
             "--no-session-persistence",
             "--tools",
@@ -380,6 +385,35 @@ def test_real_two_tool_enrollment_flows_through_collector_into_supabase() -> Non
                 codex_authorization, claude_authorization = _configured_authorizations(
                     setup_home
                 )
+
+                verification_deadline = time.monotonic() + 15
+                setup_installations: list[dict[str, object]] = []
+                while time.monotonic() < verification_deadline:
+                    setup_installations = (
+                        service_client.table("installations")
+                        .select("id,tool,verified_at,last_seen_at,revoked_at")
+                        .eq("organization_id", organization_id)
+                        .execute()
+                        .data
+                    )
+                    if len(setup_installations) == 2 and all(
+                        row["verified_at"]
+                        and row["last_seen_at"]
+                        and not row["revoked_at"]
+                        for row in setup_installations
+                    ):
+                        break
+                    time.sleep(0.25)
+                else:
+                    pytest.fail(
+                        "timed out waiting for both setup verification events; "
+                        f"installations={setup_installations}"
+                    )
+                assert {row["tool"] for row in setup_installations} == {
+                    "codex",
+                    "claude_code",
+                }
+
                 _run_codex(endpoint, codex_authorization)
                 _run_claude(endpoint, claude_authorization)
 

@@ -14,6 +14,7 @@ from .enrollment import (
     enrollment_code_digest,
 )
 from .errors import (
+    DuplicateTeamInstallationError,
     ExpiredEnrollmentCodeError,
     InvalidEnrollmentCodeError,
     InvalidPayloadError,
@@ -114,6 +115,10 @@ def create_app(
         except ExpiredEnrollmentCodeError as error:
             raise HTTPException(
                 status_code=410, detail="enrollment code expired"
+            ) from error
+        except DuplicateTeamInstallationError as error:
+            raise HTTPException(
+                status_code=409, detail="team installation name already in use"
             ) from error
         except RepositoryError as error:
             raise HTTPException(

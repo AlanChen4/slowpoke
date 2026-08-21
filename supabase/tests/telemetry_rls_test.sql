@@ -1,6 +1,6 @@
 begin;
 
-select plan(35);
+select plan(37);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass),
@@ -75,6 +75,21 @@ values
   ('31000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', repeat('2', 64), array['claude_code']::text[], '2026-08-24 10:00:00+00', '2026-08-17 10:00:00+00'),
   ('31000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', '10000000-0000-0000-0000-000000000003', repeat('3', 64), array['claude_code']::text[], '2026-08-24 10:00:00+00', '2026-08-17 10:00:00+00');
 
+insert into public.installation_setup_sessions (
+  id, organization_id, created_by_user_id, code_digest, selected_tools, expires_at,
+  redeemed_at, installation_type
+)
+values (
+  '31000000-0000-4000-8000-000000000004',
+  '20000000-0000-4000-8000-000000000001',
+  '10000000-0000-0000-0000-000000000002',
+  repeat('4', 64),
+  array['claude_code']::text[],
+  '2026-08-24 10:00:00+00',
+  '2026-08-17 10:00:00+00',
+  'team'
+);
+
 insert into public.installations (
   id, organization_id, created_by_user_id, tool, computer_name, setup_session_id, verified_at, last_seen_at
 )
@@ -82,6 +97,22 @@ values
   ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000002', 'codex', 'Member laptop', '31000000-0000-4000-8000-000000000001', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00'),
   ('30000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '10000000-0000-0000-0000-000000000001', 'claude_code', 'Admin laptop', '31000000-0000-4000-8000-000000000002', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00'),
   ('30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '10000000-0000-0000-0000-000000000003', 'claude_code', 'Other tenant laptop', '31000000-0000-4000-8000-000000000003', '2026-08-17 10:01:00+00', '2026-08-17 10:02:00+00');
+
+insert into public.installations (
+  id, organization_id, created_by_user_id, tool, computer_name, setup_session_id,
+  verified_at, last_seen_at, installation_type
+)
+values (
+  '30000000-0000-4000-8000-000000000004',
+  '20000000-0000-4000-8000-000000000001',
+  '10000000-0000-0000-0000-000000000002',
+  'claude_code',
+  'Platform',
+  '31000000-0000-4000-8000-000000000004',
+  '2026-08-17 10:01:00+00',
+  '2026-08-17 10:02:00+00',
+  'team'
+);
 
 insert into public.telemetry_batches (
   id, organization_id, installation_id, signal, content_sha256, raw_payload
@@ -114,7 +145,39 @@ values
     $json$::jsonb
   ),
   ('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'logs', repeat('b', 64), '{"resourceLogs": []}'),
-  ('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', 'logs', repeat('c', 64), '{"resourceLogs": []}');
+  ('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', 'logs', repeat('c', 64), '{"resourceLogs": []}'),
+  ('40000000-0000-4000-8000-000000000005', '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000004', 'logs', repeat('e', 64), '{"resourceLogs": []}'),
+  (
+    '40000000-0000-4000-8000-000000000004',
+    '20000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000003',
+    'logs',
+    repeat('d', 64),
+    $json$
+    {
+      "resourceLogs": [{
+        "scopeLogs": [{
+          "logRecords": [{
+            "timeUnixNano": "1786356601000000000",
+            "body": {"stringValue": "claude_code.api_request"},
+            "attributes": [
+              {"key": "event.name", "value": {"stringValue": "api_request"}},
+              {"key": "event.timestamp", "value": {"stringValue": "2026-08-10T10:10:01.000Z"}},
+              {"key": "session.id", "value": {"stringValue": "conversation-a-claude"}},
+              {"key": "prompt.id", "value": {"stringValue": "prompt-a-claude"}},
+              {"key": "model", "value": {"stringValue": "claude-haiku-4-5-20251001"}},
+              {"key": "input_tokens", "value": {"intValue": "10"}},
+              {"key": "cache_read_tokens", "value": {"intValue": "25"}},
+              {"key": "cache_creation_tokens", "value": {"intValue": "15"}},
+              {"key": "output_tokens", "value": {"intValue": "4"}},
+              {"key": "cost_usd", "value": {"doubleValue": 0.03}}
+            ]
+          }]
+        }]
+      }]
+    }
+    $json$::jsonb
+  );
 
 insert into public.prompt_events (
   organization_id,
@@ -140,6 +203,7 @@ values
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 7, 'openai', 'codex.user_prompt', '2026-08-10 10:07:00+00', 'projectless-suggestions-a', E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this Projectless task', 'gpt-5.6-terra', 'gpt-5.6-terra'),
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', 8, 'openai', 'codex.user_prompt', '2026-08-10 10:08:00+00', 'activity-a', E'You write the one-line activity update displayed beneath an existing Codex task title.\nFill the structured summary field with the latest task activity.', 'gpt-5.6-luna', 'gpt-5.6-luna'),
   ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000003', 0, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:09:00+00', 'admin-owned-a', 'organization a admin-owned', null, null),
+  ('20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000004', '40000000-0000-4000-8000-000000000005', 10, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:10:00+00', 'team-a', 'organization a team', null, null),
   ('20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', 0, 'anthropic', 'claude_code.user_prompt', '2026-08-10 10:00:00+00', 'conversation-b', 'organization b', null, null);
 
 set local role authenticated;
@@ -150,7 +214,7 @@ select set_config(
 );
 
 select results_eq(
-  'select prompt_text from public.prompt_events order by record_index',
+  'select prompt_text from public.prompt_events order by record_index, prompt_text',
   $$values
     ('organization a'::text),
     ('organization a admin-owned'::text),
@@ -161,13 +225,14 @@ select results_eq(
     ('You are an expert at upholding safety and compliance standards for Codex ambient suggestions. Additional internal instructions.'::text),
     (E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this local project: /tmp/project'::text),
     (E'# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this Projectless task'::text),
-    (E'You write the one-line activity update displayed beneath an existing Codex task title.\nFill the structured summary field with the latest task activity.'::text)
+    (E'You write the one-line activity update displayed beneath an existing Codex task title.\nFill the structured summary field with the latest task activity.'::text),
+    ('organization a team'::text)
   $$,
   'an administrator sees only prompts in their organization'
 );
 select results_eq(
   'select prompt_text from public.human_prompt_events order by prompt_text',
-  $$values ('organization a'::text), ('organization a admin-owned'::text), ('organization a follow-up'::text)$$,
+  $$values ('organization a'::text), ('organization a admin-owned'::text), ('organization a follow-up'::text), ('organization a team'::text)$$,
   'the human-prompt view keeps every user turn and removes known internal prompts'
 );
 select results_eq(
@@ -182,9 +247,9 @@ select throws_ok(
   'raw telemetry is backend-only'
 );
 select throws_ok(
-  'select * from public.codex_response_usage_events',
+  'select * from public.response_usage_events',
   '42501',
-  'permission denied for view codex_response_usage_events',
+  'permission denied for view response_usage_events',
   'compact response usage remains backend-only'
 );
 select throws_ok(
@@ -203,7 +268,8 @@ select results_eq(
   'select id from public.installations order by id',
   $$values
     ('30000000-0000-4000-8000-000000000001'::uuid),
-    ('30000000-0000-4000-8000-000000000003'::uuid)
+    ('30000000-0000-4000-8000-000000000003'::uuid),
+    ('30000000-0000-4000-8000-000000000004'::uuid)
   $$,
   'an administrator sees only installations in their organization'
 );
@@ -262,6 +328,10 @@ select is_empty(
   $$select * from public.prompt_events where installation_id <> '30000000-0000-4000-8000-000000000001'$$,
   'a member cannot read prompts from installations they do not own'
 );
+select is_empty(
+  $$select * from public.installations where installation_type = 'team'$$,
+  'a member cannot read a team installation even when they created it'
+);
 select results_eq(
   'select prompt_text from public.human_prompt_events order by prompt_text',
   $$values ('organization a'::text), ('organization a follow-up'::text)$$,
@@ -319,9 +389,17 @@ select throws_ok(
 
 set local role service_role;
 select results_eq(
-  $$select conversation_id, input_token_count, tool_token_count from public.codex_response_usage_events where batch_id = '40000000-0000-4000-8000-000000000001'$$,
-  $$values ('conversation-a'::text, '100'::text, '110'::text)$$,
-  'the backend can read compact usage from eventName-only telemetry'
+  $$select distinct installation_type from public.installations where id <> '30000000-0000-4000-8000-000000000004'$$,
+  $$values ('personal'::text)$$,
+  'existing installation inserts default to personal'
+);
+select results_eq(
+  $$select provider, conversation_id, prompt_id, model, input_token_count, cached_token_count, cache_creation_token_count, output_token_count, cost_usd from public.response_usage_events where batch_id in ('40000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000004') order by provider$$,
+  $$values
+    ('anthropic'::text, 'conversation-a-claude'::text, 'prompt-a-claude'::text, 'claude-haiku-4-5-20251001'::text, '10'::text, '25'::text, '15'::text, '4'::text, '0.03'::text),
+    ('openai'::text, 'conversation-a'::text, null::text, null::text, '100'::text, null::text, null::text, null::text, null::text)
+  $$,
+  'the backend can read normalized Codex and Claude response usage'
 );
 
 select * from finish();

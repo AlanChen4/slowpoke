@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 
 import { revokeInstallation, type OrganizationFlowActionState } from "@/app/organization-actions";
+import { useErrorToast } from "@/components/error-toast";
 import { Button } from "@/components/ui/button";
-import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 const initialState: OrganizationFlowActionState = {};
@@ -19,6 +19,7 @@ export function RevokeInstallationButton({
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(revokeInstallation, initialState);
+  useErrorToast(state.error, "Could not revoke installation", state);
   useEffect(() => {
     if (state.message) {
       router.refresh();
@@ -32,7 +33,6 @@ export function RevokeInstallationButton({
       <Button type="submit" variant="destructive" size="sm" disabled={pending}>
         {pending ? "Revoking…" : "Revoke"}
       </Button>
-      {state.error ? <FieldError>{state.error}</FieldError> : null}
     </form>
   );
 }

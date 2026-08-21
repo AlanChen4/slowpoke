@@ -11,6 +11,11 @@ type PromptSourceIdentityProps = ProviderIdentityProps & {
   eventName: string;
 };
 
+type InstallationToolIdentityProps = {
+  className?: string;
+  tool: "codex" | "claude_code";
+};
+
 type IdentityProps = {
   className?: string;
   fallback: string;
@@ -39,6 +44,12 @@ function promptSourceDetails(eventName: string, provider: string) {
   }
 }
 
+function installationToolDetails(tool: InstallationToolIdentityProps["tool"]) {
+  return tool === "codex"
+    ? { label: "Codex", logo: "/openai-logo.png" }
+    : { label: "Claude Code", logo: "/claude-logo.png" };
+}
+
 function Identity({ className, identity, fallback }: IdentityProps) {
   return (
     <span className={cn("inline-flex items-center gap-1.5", className)}>
@@ -57,9 +68,9 @@ function Identity({ className, identity, fallback }: IdentityProps) {
   );
 }
 
-export function ProviderIdentity({ className, provider }: ProviderIdentityProps) {
+export function InstallationToolIdentity({ className, tool }: InstallationToolIdentityProps) {
   return (
-    <Identity className={className} identity={providerDetails(provider)} fallback={provider} />
+    <Identity className={className} identity={installationToolDetails(tool)} fallback={tool} />
   );
 }
 

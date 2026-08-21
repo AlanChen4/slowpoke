@@ -6,12 +6,21 @@ import {
   InvitationSettings,
   type SettingsInvitation,
 } from "@/app/dashboard/settings/invitation-settings";
+import { AddInstallationDialog } from "@/app/dashboard/settings/add-installation-dialog";
 import { OrganizationProfileForm } from "@/app/dashboard/settings/organization-profile-form";
 import { RevokeInstallationButton } from "@/app/dashboard/settings/revoke-installation-button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ErrorToast } from "@/components/error-toast";
+import { InstallationToolIdentity } from "@/components/provider-identity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -42,8 +51,8 @@ type Installation = {
   created_at: string;
   created_by_user_id: string;
   id: string;
+  installation_type: "personal" | "team";
   last_seen_at: string | null;
-  revoked_at: string | null;
   tool: "codex" | "claude_code";
   verified_at: string | null;
 };
@@ -67,9 +76,6 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 function installationState(installation: Installation) {
-  if (installation.revoked_at) {
-    return "Revoked";
-  }
   return installation.verified_at ? "Active" : "Pending";
 }
 
@@ -87,9 +93,10 @@ export default async function SettingsPage() {
     ? await supabase
         .from("installations")
         .select(
-          "id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at,revoked_at",
+          "id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at,installation_type",
         )
         .eq("organization_id", selectedOrganization.id)
+        .is("revoked_at", null)
         .order("created_at", { ascending: false })
         .overrideTypes<Installation[], { merge: false }>()
     : { data: [], error: null };
@@ -137,11 +144,7 @@ export default async function SettingsPage() {
   return (
     <div className="flex w-full flex-col gap-8">
       {dataError ? (
-        <Alert variant="destructive">
-          <WarningCircleIcon />
-          <AlertTitle>Some settings could not be loaded</AlertTitle>
-          <AlertDescription>{dataError.message}</AlertDescription>
-        </Alert>
+        <ErrorToast title="Some settings could not be loaded" message={dataError.message} />
       ) : null}
 
       <section id="organization" className="scroll-mt-20">
@@ -197,6 +200,14 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Installations</CardTitle>
+            {selectedOrganization ? (
+              <CardAction>
+                <AddInstallationDialog
+                  isAdmin={selectedOrganization.role === "admin"}
+                  organizationId={selectedOrganization.id}
+                />
+              </CardAction>
+            ) : null}
           </CardHeader>
           <CardContent>
             {installations.length === 0 ? (
@@ -217,7 +228,7 @@ export default async function SettingsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Tool</TableHead>
-                      <TableHead>Computer</TableHead>
+                      <TableHead>Installation</TableHead>
                       <TableHead>Owner</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Last seen</TableHead>
@@ -230,7 +241,7 @@ export default async function SettingsPage() {
                       return (
                         <TableRow key={installation.id}>
                           <TableCell>
-                            {installation.tool === "codex" ? "Codex" : "Claude Code"}
+                            <InstallationToolIdentity tool={installation.tool} />
                           </TableCell>
                           <TableCell>{installation.computer_name}</TableCell>
                           <TableCell>
@@ -247,7 +258,7 @@ export default async function SettingsPage() {
                               : "Never"}
                           </TableCell>
                           <TableCell className="text-right">
-                            {state !== "Revoked" && selectedOrganization ? (
+                            {selectedOrganization ? (
                               <RevokeInstallationButton
                                 installationId={installation.id}
                                 organizationId={selectedOrganization.id}

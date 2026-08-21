@@ -45,6 +45,7 @@ class PublicInstallations(BaseModel):
     created_at: datetime.datetime = Field(alias="created_at")
     created_by_user_id: uuid.UUID = Field(alias="created_by_user_id")
     id: uuid.UUID = Field(alias="id")
+    installation_type: str = Field(alias="installation_type")
     last_seen_at: Optional[datetime.datetime] = Field(alias="last_seen_at")
     organization_id: uuid.UUID = Field(alias="organization_id")
     revoked_at: Optional[datetime.datetime] = Field(alias="revoked_at")
@@ -57,6 +58,7 @@ class PublicInstallationsInsert(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     created_by_user_id: Annotated[uuid.UUID, Field(alias="created_by_user_id")]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_type: NotRequired[Annotated[str, Field(alias="installation_type")]]
     last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
@@ -69,6 +71,7 @@ class PublicInstallationsUpdate(TypedDict):
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     created_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="created_by_user_id")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_type: NotRequired[Annotated[str, Field(alias="installation_type")]]
     last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
@@ -250,6 +253,7 @@ class PublicInstallationSetupSessions(BaseModel):
     created_by_user_id: uuid.UUID = Field(alias="created_by_user_id")
     expires_at: datetime.datetime = Field(alias="expires_at")
     id: uuid.UUID = Field(alias="id")
+    installation_type: str = Field(alias="installation_type")
     organization_id: uuid.UUID = Field(alias="organization_id")
     redeemed_at: Optional[datetime.datetime] = Field(alias="redeemed_at")
     selected_tools: List[str] = Field(alias="selected_tools")
@@ -260,6 +264,7 @@ class PublicInstallationSetupSessionsInsert(TypedDict):
     created_by_user_id: Annotated[uuid.UUID, Field(alias="created_by_user_id")]
     expires_at: Annotated[datetime.datetime, Field(alias="expires_at")]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_type: NotRequired[Annotated[str, Field(alias="installation_type")]]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
     selected_tools: Annotated[List[str], Field(alias="selected_tools")]
@@ -270,6 +275,7 @@ class PublicInstallationSetupSessionsUpdate(TypedDict):
     created_by_user_id: NotRequired[Annotated[uuid.UUID, Field(alias="created_by_user_id")]]
     expires_at: NotRequired[Annotated[datetime.datetime, Field(alias="expires_at")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    installation_type: NotRequired[Annotated[str, Field(alias="installation_type")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
     selected_tools: NotRequired[Annotated[List[str], Field(alias="selected_tools")]]
@@ -294,8 +300,9 @@ class PublicHumanPromptEvents(BaseModel):
     session_id: Optional[str] = Field(alias="session_id")
     slug: Optional[str] = Field(alias="slug")
 
-class PublicCodexResponseUsageEvents(BaseModel):
+class PublicResponseUsageEvents(BaseModel):
     batch_id: Optional[uuid.UUID] = Field(alias="batch_id")
+    cache_creation_token_count: Optional[str] = Field(alias="cache_creation_token_count")
     cached_token_count: Optional[str] = Field(alias="cached_token_count")
     conversation_id: Optional[str] = Field(alias="conversation_id")
     cost_usd: Optional[str] = Field(alias="cost_usd")
@@ -303,9 +310,12 @@ class PublicCodexResponseUsageEvents(BaseModel):
     event_timestamp: Optional[str] = Field(alias="event_timestamp")
     input_token_count: Optional[str] = Field(alias="input_token_count")
     installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
+    model: Optional[str] = Field(alias="model")
     observed_time_unix_nano: Optional[str] = Field(alias="observed_time_unix_nano")
     organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
     output_token_count: Optional[str] = Field(alias="output_token_count")
+    prompt_id: Optional[str] = Field(alias="prompt_id")
+    provider: Optional[str] = Field(alias="provider")
     reasoning_token_count: Optional[str] = Field(alias="reasoning_token_count")
     received_at: Optional[datetime.datetime] = Field(alias="received_at")
     time_unix_nano: Optional[str] = Field(alias="time_unix_nano")

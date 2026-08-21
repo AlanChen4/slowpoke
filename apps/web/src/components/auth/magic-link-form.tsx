@@ -5,12 +5,12 @@ import { useActionState } from "react";
 
 import { continueWithEmail, type AuthActionState } from "@/app/auth/actions";
 import { AuthBrand } from "@/components/auth/auth-brand";
+import { useErrorToast } from "@/components/error-toast";
 import { GitHubLogo, GoogleLogo } from "@/components/auth/provider-logos";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
-  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -27,6 +27,8 @@ type MagicLinkFormProps = React.ComponentProps<"div"> & {
 
 export function MagicLinkForm({ authError, showOAuth, className, ...props }: MagicLinkFormProps) {
   const [state, formAction, pending] = useActionState(continueWithEmail, initialState);
+  useErrorToast(authError, "Could not sign in");
+  useErrorToast(state.error, "Could not send sign-in link", state);
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -35,7 +37,6 @@ export function MagicLinkForm({ authError, showOAuth, className, ...props }: Mag
           <div className="flex justify-center">
             <AuthBrand />
           </div>
-          {authError ? <FieldError className="text-center">{authError}</FieldError> : null}
           <Field data-invalid={Boolean(state.error)}>
             <FieldLabel htmlFor="auth-email">Email</FieldLabel>
             <Input
@@ -47,7 +48,6 @@ export function MagicLinkForm({ authError, showOAuth, className, ...props }: Mag
               aria-invalid={Boolean(state.error)}
               required
             />
-            <FieldError>{state.error}</FieldError>
           </Field>
           {state.message ? (
             <FieldDescription className="text-center">{state.message}</FieldDescription>

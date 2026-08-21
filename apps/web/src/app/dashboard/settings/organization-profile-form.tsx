@@ -5,9 +5,10 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { type OrganizationActionState, updateOrganization } from "@/app/dashboard/actions";
+import { useErrorToast } from "@/components/error-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -36,6 +37,7 @@ export function OrganizationProfileForm({ organization }: OrganizationProfileFor
   const [name, setName] = useState(organization.name);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string>();
   const logoInputRef = useRef<HTMLInputElement>(null);
+  useErrorToast(state.error, "Could not update organization", state);
 
   useEffect(
     () => () => {
@@ -117,7 +119,6 @@ export function OrganizationProfileForm({ organization }: OrganizationProfileFor
           </Field>
         </FieldGroup>
       </div>
-      {state.error ? <FieldError>{state.error}</FieldError> : null}
       {state.message ? (
         <output className="text-xs text-muted-foreground">{state.message}</output>
       ) : null}

@@ -10,11 +10,15 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from postgrest.exceptions import APIError
 from supabase import Client, create_client
 
 from slowpoke_backend.app import create_app
 from slowpoke_backend.enrollment import SupabaseEnrollmentRepository
-from slowpoke_backend.errors import ExpiredEnrollmentCodeError
+from slowpoke_backend.errors import (
+    DuplicateTeamInstallationError,
+    ExpiredEnrollmentCodeError,
+)
 from slowpoke_backend.repository import SupabaseRepository
 from slowpoke_backend.settings import Settings
 
@@ -109,7 +113,10 @@ def _api(secret_key: str, url: str, collector_token: str) -> TestClient:
 
 @contextmanager
 def _setup_session_fixture(
-    selected_tools: list[str], expires_at: datetime
+    selected_tools: list[str],
+    expires_at: datetime,
+    *,
+    installation_type: str = "personal",
 ) -> Iterator[tuple[Client, str, str, str]]:
     url, secret_key = _credentials()
     client = create_client(url, secret_key)
@@ -137,6 +144,7 @@ def _setup_session_fixture(
                 "code_digest": digest,
                 "selected_tools": selected_tools,
                 "expires_at": expires_at.isoformat(),
+                "installation_type": installation_type,
             }
         )
         .execute()
@@ -338,7 +346,130 @@ def test_enrollment_redeem_is_idempotent_for_each_selected_tool() -> None:
         }
         assert len(stored) == 2
         assert {row["computer_name"] for row in stored} == {"Test laptop"}
+        assert {row["installation_type"] for row in stored} == {"personal"}
         assert all("token" not in row for row in stored)
+
+
+@pytest.mark.parametrize("tool", ["codex", "claude_code"])
+def test_team_enrollment_uses_generic_name_and_rejects_active_duplicate(
+    tool: str,
+) -> None:
+    url, secret_key = _credentials()
+    now = datetime.now(UTC)
+    expires_at = now + timedelta(minutes=10)
+    with _setup_session_fixture(
+        [tool],
+        expires_at,
+        installation_type="team",
+    ) as (client, organization_id, digest, setup_session_id):
+        repository = SupabaseEnrollmentRepository(url, secret_key)
+
+        repository.redeem(digest, "Ignored computer", now)
+        stored = (
+            client.table("installations")
+            .select("id,computer_name,installation_type")
+            .eq("setup_session_id", setup_session_id)
+            .single()
+            .execute()
+            .data
+        )
+        assert stored["computer_name"] == "Team"
+        assert stored["installation_type"] == "team"
+
+        duplicate_digest = secrets.token_hex(32)
+        duplicate_session = (
+            client.table("installation_setup_sessions")
+            .insert(
+                {
+                    "organization_id": organization_id,
+                    "created_by_user_id": LOCAL_USER_ID,
+                    "code_digest": duplicate_digest,
+                    "selected_tools": [tool],
+                    "expires_at": expires_at.isoformat(),
+                    "installation_type": "team",
+                }
+            )
+            .execute()
+            .data[0]
+        )
+        with pytest.raises(DuplicateTeamInstallationError):
+            repository.redeem(duplicate_digest, "Ignored computer", now)
+
+        other_tool = "claude_code" if tool == "codex" else "codex"
+        other_digest = secrets.token_hex(32)
+        client.table("installation_setup_sessions").insert(
+            {
+                "organization_id": organization_id,
+                "created_by_user_id": LOCAL_USER_ID,
+                "code_digest": other_digest,
+                "selected_tools": [other_tool],
+                "expires_at": expires_at.isoformat(),
+                "installation_type": "team",
+            }
+        ).execute()
+        with pytest.raises(DuplicateTeamInstallationError):
+            repository.redeem(other_digest, "Ignored computer", now)
+
+        client.table("installations").update({"revoked_at": now.isoformat()}).eq(
+            "id", stored["id"]
+        ).execute()
+        replacement = repository.redeem(
+            duplicate_digest, "Ignored computer", now + timedelta(seconds=1)
+        )
+        assert len(replacement) == 1
+        assert str(replacement[0].id) != stored["id"]
+        replacement_row = (
+            client.table("installations")
+            .select("computer_name,revoked_at")
+            .eq("setup_session_id", duplicate_session["id"])
+            .single()
+            .execute()
+            .data
+        )
+        assert replacement_row == {"computer_name": "Team", "revoked_at": None}
+
+
+def test_team_schema_requires_exactly_one_tool() -> None:
+    url, secret_key = _credentials()
+    client = create_client(url, secret_key)
+    suffix = secrets.token_hex(8)
+    organization = (
+        client.table("organizations")
+        .insert(
+            {
+                "name": f"Team schema test {suffix}",
+                "created_by_user_id": LOCAL_USER_ID,
+                "idempotency_key": str(uuid4()),
+            }
+        )
+        .execute()
+        .data[0]
+    )
+    organization_id = str(organization["id"])
+    expires_at = (datetime.now(UTC) + timedelta(minutes=10)).isoformat()
+
+    def setup_session(**overrides: object) -> dict[str, object]:
+        values: dict[str, object] = {
+            "organization_id": organization_id,
+            "created_by_user_id": LOCAL_USER_ID,
+            "code_digest": secrets.token_hex(32),
+            "selected_tools": ["claude_code"],
+            "expires_at": expires_at,
+            "installation_type": "team",
+        }
+        values.update(overrides)
+        return values
+
+    try:
+        with pytest.raises(APIError):
+            client.table("installation_setup_sessions").insert(
+                setup_session(selected_tools=["codex", "claude_code"])
+            ).execute()
+        client.table("installation_setup_sessions").insert(
+            setup_session(selected_tools=["codex"])
+        ).execute()
+    finally:
+        client.table("organizations").delete().eq("id", organization_id).execute()
 
 
 def test_enrollment_rejects_expired_code() -> None:

@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { promptRecordMetadata, responseUsageForPrompt, type ResponseUsageEvent } from "./telemetry";
+import { responseUsageForPrompt, type ResponseUsageEvent } from "./telemetry";
 
 function usageEvent(overrides: Partial<ResponseUsageEvent> = {}): ResponseUsageEvent {
   return {
+    prompt_id: null,
     event_timestamp: "2026-08-10T10:00:01.000Z",
     time_unix_nano: null,
     observed_time_unix_nano: null,
     input_token_count: null,
     cached_token_count: null,
+    cache_creation_token_count: null,
     output_token_count: null,
     reasoning_token_count: null,
     tool_token_count: null,
@@ -48,6 +50,7 @@ describe("responseUsageForPrompt", () => {
     expect(usage).toEqual({
       inputTokens: 220,
       cachedTokens: 120,
+      cacheCreationTokens: null,
       outputTokens: 15,
       reasoningTokens: 3,
       totalTokens: 235,
@@ -90,37 +93,37 @@ describe("responseUsageForPrompt", () => {
 
     expect(usage?.totalTokens).toBe(42);
   });
-});
 
-describe("promptRecordMetadata", () => {
-  it("parses supported OTLP attributes and skips malformed entries", () => {
-    const metadata = promptRecordMetadata(
-      {
-        resourceLogs: [
-          {
-            scopeLogs: [
-              {
-                logRecords: [
-                  {
-                    attributes: [
-                      { key: "model", value: { stringValue: "gpt-5" } },
-                      { key: "prompt_length", value: { intValue: "42" } },
-                      { value: { stringValue: "missing key" } },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-      0,
+  it("associates Claude usage by prompt ID and includes cache creation", () => {
+    const usage = responseUsageForPrompt(
+      [
+        usageEvent({
+          prompt_id: "other-prompt",
+          input_token_count: "999",
+          output_token_count: "999",
+        }),
+        usageEvent({
+          prompt_id: "selected-prompt",
+          input_token_count: "10",
+          cached_token_count: "25823",
+          cache_creation_token_count: "15242",
+          output_token_count: "478",
+          cost_usd: "0.0354663",
+        }),
+      ],
+      "2026-08-10T10:00:00.000Z",
+      null,
+      "selected-prompt",
     );
 
-    expect(metadata).toEqual({ model: "gpt-5", prompt_length: 42 });
-  });
-
-  it("returns no metadata for an invalid payload", () => {
-    expect(promptRecordMetadata("not an OTLP payload", 0)).toEqual({});
+    expect(usage).toEqual({
+      inputTokens: 10,
+      cachedTokens: 25823,
+      cacheCreationTokens: 15242,
+      outputTokens: 478,
+      reasoningTokens: null,
+      totalTokens: 41553,
+      costUsd: 0.0354663,
+    });
   });
 });

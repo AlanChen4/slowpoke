@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from slowpoke_backend.app import create_app
 from slowpoke_backend.domain import Installation
 from slowpoke_backend.errors import (
+    DuplicateTeamInstallationError,
     ExpiredEnrollmentCodeError,
     InvalidEnrollmentCodeError,
     RepositoryError,
@@ -179,6 +180,7 @@ def test_enrollment_errors_are_statused_and_redacted() -> None:
     for error, status_code in (
         (InvalidEnrollmentCodeError(), 400),
         (ExpiredEnrollmentCodeError(), 410),
+        (DuplicateTeamInstallationError(), 409),
         (RepositoryError("database unavailable"), 503),
     ):
         response = _client(

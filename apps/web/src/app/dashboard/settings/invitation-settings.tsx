@@ -9,9 +9,10 @@ import {
   resendInvitation,
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
+import { useErrorToast } from "@/components/error-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 const initialState: OrganizationFlowActionState = {};
@@ -27,6 +28,8 @@ function InvitationActions({ invitationId }: { invitationId: string }) {
   const router = useRouter();
   const [resendState, resendAction, resending] = useActionState(resendInvitation, initialState);
   const [cancelState, cancelAction, canceling] = useActionState(cancelInvitation, initialState);
+  useErrorToast(resendState.error, "Could not resend invitation", resendState);
+  useErrorToast(cancelState.error, "Could not cancel invitation", cancelState);
   useEffect(() => {
     if (resendState.message || cancelState.message) {
       router.refresh();
@@ -49,9 +52,6 @@ function InvitationActions({ invitationId }: { invitationId: string }) {
           </Button>
         </form>
       </div>
-      {resendState.error || cancelState.error ? (
-        <FieldError>{resendState.error ?? cancelState.error}</FieldError>
-      ) : null}
     </div>
   );
 }
@@ -65,6 +65,7 @@ export function InvitationSettings({
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(createOrganizationInvitation, initialState);
+  useErrorToast(state.error, "Could not send invitation", state);
   useEffect(() => {
     if (state.message) {
       router.refresh();
@@ -100,7 +101,6 @@ export function InvitationSettings({
           {pending ? "Inviting…" : "Invite"}
         </Button>
       </form>
-      {state.error ? <FieldError>{state.error}</FieldError> : null}
       {state.message ? (
         <output className="text-xs text-muted-foreground">{state.message}</output>
       ) : null}

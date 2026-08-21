@@ -4,7 +4,6 @@
 /* oxlint-disable jsx-a11y/prefer-tag-over-role */
 
 import { CheckCircleIcon, CircleNotchIcon } from "@phosphor-icons/react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
@@ -18,21 +17,13 @@ import {
   declineInvitation,
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
+import { useErrorToast } from "@/components/error-toast";
 import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InstallationToolFields } from "@/components/installation-tool-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSeparator,
-  FieldSet,
-  FieldTitle,
-} from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { PendingInvitation } from "@/lib/onboarding-data";
 
@@ -90,6 +81,8 @@ function InvitationChoice({
 }) {
   const [acceptState, acceptAction, accepting] = useActionState(acceptInvitation, initialState);
   const [declineState, declineAction, declining] = useActionState(declineInvitation, initialState);
+  useErrorToast(acceptState.error, "Could not accept invitation", acceptState);
+  useErrorToast(declineState.error, "Could not decline invitation", declineState);
 
   useEffect(() => {
     if (acceptState.organizationId) {
@@ -126,9 +119,6 @@ function InvitationChoice({
         <Badge variant="outline">{invitation.role === "admin" ? "Administrator" : "Member"}</Badge>
         <span>Expires {new Date(invitation.expiresAt).toLocaleDateString()}</span>
       </OrganizationChoiceRow>
-      {acceptState.error || declineState.error ? (
-        <FieldError>{acceptState.error ?? declineState.error}</FieldError>
-      ) : null}
     </div>
   );
 }
@@ -166,6 +156,7 @@ function OrganizationStep({
   onInvitationDeclined: (invitationId: string) => void;
 }) {
   const [state, action, pending] = useActionState(createOrganization, initialState);
+  useErrorToast(state.error, "Could not create organization", state);
   useEffect(() => {
     if (state.organizationId && state.organizationName) {
       onOrganization({ id: state.organizationId, name: state.organizationName });
@@ -193,7 +184,6 @@ function OrganizationStep({
               </div>
             </Field>
           </FieldGroup>
-          {state.error ? <FieldError>{state.error}</FieldError> : null}
         </form>
         {unfinishedOrganizations.length > 0 || invitations.length > 0 ? (
           <FieldSeparator>or</FieldSeparator>
@@ -237,6 +227,7 @@ function ToolStep({
   onSetupSession: (state: OrganizationFlowActionState) => void;
 }) {
   const [state, action, pending] = useActionState(createInstallationSetupSession, initialState);
+  useErrorToast(state.error, "Could not create installation", state);
   useEffect(() => {
     if (state.setupCommand && state.setupSessionId) {
       onSetupSession(state);
@@ -253,37 +244,7 @@ function ToolStep({
       <CardContent>
         <form action={action} className="flex flex-col gap-5">
           <Input type="hidden" name="organizationId" value={organization.id} />
-          <FieldSet className="grid gap-3 sm:grid-cols-2">
-            <FieldLegend className="sr-only">AI tools</FieldLegend>
-            {[
-              ["codex", "Codex", "/openai-logo.png"],
-              ["claude_code", "Claude Code", "/claude-logo.png"],
-            ].map(([value, label, logo]) => (
-              <FieldLabel key={value} variant="secondary" className="cursor-pointer">
-                <Field orientation="horizontal">
-                  <Input
-                    type="checkbox"
-                    name="tools"
-                    value={value}
-                    aria-label={label}
-                    className="size-4"
-                  />
-                  <FieldTitle>
-                    <Image
-                      src={logo}
-                      alt=""
-                      aria-hidden="true"
-                      width={18}
-                      height={18}
-                      className="shrink-0 object-contain"
-                    />
-                    {label}
-                  </FieldTitle>
-                </Field>
-              </FieldLabel>
-            ))}
-          </FieldSet>
-          {state.error ? <FieldError>{state.error}</FieldError> : null}
+          <InstallationToolFields />
           <div className="flex items-center justify-between">
             <Button type="button" variant="outline" onClick={onBack}>
               Back
@@ -354,6 +315,8 @@ export function OnboardingFlow({
   const [checking, setChecking] = useState(false);
   const [complete, setComplete] = useState(false);
   const [checkError, setCheckError] = useState<string>();
+  useErrorToast(loadError, "Onboarding could not be fully loaded");
+  useErrorToast(checkError, "Verification failed");
   const chooseOrganization = useCallback(
     (choice: OrganizationChoice) => {
       setOrganization(choice);
@@ -413,12 +376,6 @@ export function OnboardingFlow({
   return (
     <div className="flex w-full flex-col gap-6">
       <Progress current={currentStep} />
-      {loadError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Onboarding could not be fully loaded</AlertTitle>
-          <AlertDescription>{loadError}</AlertDescription>
-        </Alert>
-      ) : null}
       {complete ? (
         <Card>
           <CardHeader>
@@ -438,7 +395,7 @@ export function OnboardingFlow({
       ) : checking ? (
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2 text-center">
               <div className="flex size-4 animate-spin items-center justify-center text-primary">
                 <CircleNotchIcon />
               </div>
@@ -447,12 +404,7 @@ export function OnboardingFlow({
               </CardTitle>
             </div>
           </CardHeader>
-          {checkError ? (
-            <CardContent>
-              <FieldError>{checkError}</FieldError>
-            </CardContent>
-          ) : null}
-          <CardFooter className="justify-between">
+          <CardFooter>
             <Button
               type="button"
               variant="outline"
@@ -462,19 +414,6 @@ export function OnboardingFlow({
               }}
             >
               Back
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setCheckError(undefined);
-                setChecking(false);
-                setSetupSession(undefined);
-                setOrganization(null);
-                router.replace("/onboarding?create=1");
-              }}
-            >
-              Skip
             </Button>
           </CardFooter>
         </Card>

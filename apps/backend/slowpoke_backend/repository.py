@@ -36,7 +36,8 @@ class SupabaseRepository:
                 self._client.table("installations")
                 .select(
                     "id,organization_id,created_at,revoked_at,created_by_user_id,"
-                    "tool,computer_name,setup_session_id,verified_at,last_seen_at"
+                    "tool,computer_name,setup_session_id,verified_at,last_seen_at,"
+                    "installation_type"
                 )
                 .eq("id", str(installation_id))
                 .limit(1)

@@ -8,6 +8,11 @@ import * as z from "zod";
 
 import { env } from "@/env";
 import {
+  createTeamManagedSettings,
+  teamEnrollmentSchema,
+  teamToolSchema,
+} from "@/lib/team-installation";
+import {
   cancelOrganizationInvitation,
   createInvitationForOrganization,
   createOrganizationForUser,
@@ -18,6 +23,7 @@ import {
 } from "@/lib/organizations/service";
 import { SupabaseOrganizationRepository } from "@/lib/organizations/supabase-repository";
 import { ORGANIZATION_COOKIE } from "@/lib/organization-context";
+import { isInstallationSetupComplete } from "@/lib/installation-setup-status";
 import { createSetupCommand } from "@/lib/setup-command";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -30,6 +36,8 @@ export type OrganizationFlowActionState = {
   organizationId?: string;
   organizationName?: string;
   setupCommand?: string;
+  teamSettings?: string;
+  teamTool?: "codex" | "claude_code";
 };
 
 const organizationIdSchema = z.uuid();
@@ -49,6 +57,10 @@ const createSetupSessionSchema = z.object({
     .array(z.enum(["codex", "claude_code"]))
     .min(1, "Choose at least one AI tool.")
     .transform((tools) => [...new Set(tools)].sort((left) => (left === "codex" ? -1 : 1))),
+});
+const createTeamInstallationSchema = z.object({
+  organizationId: organizationIdSchema,
+  tool: teamToolSchema,
 });
 
 async function getActor(): Promise<OrganizationActor | null> {
@@ -292,6 +304,97 @@ export async function createInstallationSetupSession(
   }
 }
 
+export async function createTeamInstallation(
+  _previousState: OrganizationFlowActionState,
+  formData: FormData,
+): Promise<OrganizationFlowActionState> {
+  const parsed = createTeamInstallationSchema.safeParse({
+    organizationId: formData.get("organizationId"),
+    tool: formData.get("tool"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Check the team details." };
+  }
+  const actor = await getActor();
+  if (!actor) {
+    return { error: "Sign in again to connect a team." };
+  }
+
+  const admin = createAdminClient();
+  const organizationRepository = new SupabaseOrganizationRepository(admin);
+  let setupSessionId: string | undefined;
+  try {
+    const role = await organizationRepository.getMembershipRole(
+      parsed.data.organizationId,
+      actor.id,
+    );
+    if (role !== "admin") {
+      return { error: "Only organization administrators can connect a team." };
+    }
+
+    const code = randomBytes(24).toString("base64url");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const { data: setupSession, error } = await admin
+      .from("installation_setup_sessions")
+      .insert({
+        organization_id: parsed.data.organizationId,
+        created_by_user_id: actor.id,
+        code_digest: createHash("sha256").update(code).digest("hex"),
+        selected_tools: [parsed.data.tool],
+        expires_at: expiresAt,
+        installation_type: "team",
+      })
+      .select("id")
+      .single<{ id: string }>();
+    if (error || !setupSession) {
+      throw new Error(error?.message ?? "Team setup session was not created");
+    }
+    setupSessionId = setupSession.id;
+
+    const response = await fetch(
+      `${env.SLOWPOKE_SETUP_SERVER.replace(/\/$/, "")}/api/setup/enroll`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, computer_name: "Team" }),
+        cache: "no-store",
+      },
+    );
+    if (response.status === 409) {
+      await admin.from("installation_setup_sessions").delete().eq("id", setupSessionId);
+      return {
+        error:
+          "This organization already has a team installation. Revoke it before creating another.",
+      };
+    }
+    if (!response.ok) {
+      throw new Error(`Team enrollment failed with status ${response.status}`);
+    }
+    const enrollment = teamEnrollmentSchema.parse(await response.json());
+    const installation = enrollment.installations[0];
+    if (installation.tool !== parsed.data.tool) {
+      throw new Error("Team enrollment returned the wrong tool");
+    }
+    refreshOrganizationViews();
+    return {
+      message: "Team installation created.",
+      organizationId: parsed.data.organizationId,
+      setupSessionId,
+      teamSettings: createTeamManagedSettings(
+        parsed.data.tool,
+        enrollment.collector_url,
+        installation.token,
+      ),
+      teamTool: parsed.data.tool,
+    };
+  } catch (error) {
+    if (setupSessionId) {
+      await admin.from("installation_setup_sessions").delete().eq("id", setupSessionId);
+    }
+    return actionError(error instanceof Error ? error : new Error("Unknown team setup error"));
+  }
+}
+
 export async function checkInstallationSetupSession(
   organizationId: string,
   setupSessionId: string,
@@ -328,9 +431,8 @@ export async function checkInstallationSetupSession(
   if (error) {
     return { complete: false, error: "The connection could not be checked." };
   }
-  const verifiedTools = new Set((installations ?? []).map((installation) => installation.tool));
   return {
-    complete: setupSession.selected_tools.every((tool) => verifiedTools.has(tool)),
+    complete: isInstallationSetupComplete(setupSession.selected_tools, installations ?? []),
   };
 }
 

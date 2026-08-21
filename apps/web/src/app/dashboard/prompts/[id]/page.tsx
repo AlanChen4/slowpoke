@@ -1,7 +1,6 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import type { ReactNode } from "react";
 import * as z from "zod";
 
 import {
@@ -9,14 +8,13 @@ import {
   promptTextSegments,
   type PromptTextSegment,
 } from "@/app/dashboard/human-prompt-text";
-import { PromptSourceIdentity, ProviderIdentity } from "@/components/provider-identity";
 import { env } from "@/env";
 import { getAuthClaims } from "@/lib/auth-context";
 import { getOrganizationContext } from "@/lib/organization-context";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
-import { promptRecordMetadata, responseUsageForPrompt, type ResponseUsageEvent } from "./telemetry";
+import { responseUsageForPrompt, type ResponseUsageEvent } from "./telemetry";
 
 const dateFormatter = new Intl.DateTimeFormat("en", {
   dateStyle: "medium",
@@ -25,7 +23,6 @@ const dateFormatter = new Intl.DateTimeFormat("en", {
 
 const numberFormatter = new Intl.NumberFormat("en");
 
-const rawMetadataKeys = ["app.version", "auth_mode", "prompt_length", "terminal.type"] as const;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 type PromptDetailPageProps = {
@@ -60,18 +57,9 @@ const promptEventSchema = z.object({
 
 type PromptEvent = z.infer<typeof promptEventSchema>;
 
-function DetailItem({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="space-y-1 pt-3">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="break-words text-sm">{children ?? "—"}</dd>
-    </div>
-  );
-}
-
 function PromptBreakdown({ segments }: { segments: PromptTextSegment[] }) {
   return (
-    <article className="min-w-0 border">
+    <article className="min-w-0">
       <header className="flex flex-wrap items-center gap-4 border-b px-4 py-3 text-xs font-medium">
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2.5 bg-human-highlight" aria-hidden="true" />
@@ -207,9 +195,9 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
   const admin = createTelemetryAdminClient();
   const responseUsageQuery = prompt.session_id
     ? admin
-        .from("codex_response_usage_events")
+        .from("response_usage_events")
         .select(
-          "event_timestamp,time_unix_nano,observed_time_unix_nano,input_token_count,cached_token_count,output_token_count,reasoning_token_count,tool_token_count,cost_usd,estimated_cost_usd,total_cost_usd",
+          "prompt_id,event_timestamp,time_unix_nano,observed_time_unix_nano,input_token_count,cached_token_count,cache_creation_token_count,output_token_count,reasoning_token_count,tool_token_count,cost_usd,estimated_cost_usd,total_cost_usd",
         )
         .eq("organization_id", prompt.organization_id)
         .eq("installation_id", prompt.installation_id)
@@ -220,29 +208,21 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
         .overrideTypes<ResponseUsageEvent[], { merge: false }>()
     : Promise.resolve({ data: [], error: null });
 
-  const [conversationBeforeResult, conversationAfterResult, selectedBatchResult, usageResult] =
-    await Promise.all([
-      conversationBeforeQuery,
-      conversationAfterQuery,
-      admin
-        .from("telemetry_batches")
-        .select("raw_payload")
-        .eq("id", prompt.batch_id)
-        .eq("organization_id", prompt.organization_id)
-        .maybeSingle(),
-      responseUsageQuery,
-    ]);
+  const [conversationBeforeResult, conversationAfterResult, usageResult] = await Promise.all([
+    conversationBeforeQuery,
+    conversationAfterQuery,
+    responseUsageQuery,
+  ]);
 
   const conversationError = conversationBeforeResult.error ?? conversationAfterResult.error;
   if (conversationError) {
     throw new Error(`Unable to load conversation: ${conversationError.message}`);
   }
 
-  if (selectedBatchResult.error || usageResult.error) {
+  if (usageResult.error) {
     console.error(
       `[dashboard] telemetry detail query failed ${JSON.stringify({
         promptId: prompt.id,
-        selectedBatchError: selectedBatchResult.error?.message,
         responseUsageError: usageResult.error?.message,
       })}`,
     );
@@ -253,12 +233,13 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
   const conversation = [...conversationBefore.reverse(), prompt, ...conversationAfter];
   const nextPromptOccurredAt = conversationAfter[0]?.occurred_at ?? null;
   const usage = prompt.session_id
-    ? responseUsageForPrompt(usageResult.data ?? [], prompt.occurred_at, nextPromptOccurredAt)
+    ? responseUsageForPrompt(
+        usageResult.data ?? [],
+        prompt.occurred_at,
+        nextPromptOccurredAt,
+        prompt.prompt_id,
+      )
     : null;
-  const rawMetadata = promptRecordMetadata(
-    selectedBatchResult.data?.raw_payload,
-    prompt.record_index,
-  );
   const sentText = prompt.is_redacted ? "Prompt content was redacted." : prompt.prompt_text.trim();
   const promptSegments = prompt.is_redacted
     ? [{ source: "human" as const, text: sentText }]
@@ -266,86 +247,34 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-      <PromptBreakdown segments={promptSegments} />
-
-      <section className="grid gap-6 lg:grid-cols-[1fr_2fr]">
-        <div className="space-y-4 border p-5">
+      <section className="grid divide-y border lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)] lg:divide-x lg:divide-y-0">
+        <PromptBreakdown segments={promptSegments} />
+        <div className="space-y-4 p-5">
           <div>
             {/* HEADING-REASON: Labels the token and cost definition list as one section. */}
             <h2 className="text-lg font-semibold">Usage and cost</h2>
           </div>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <UsageItem label="Input tokens" value={usage?.inputTokens} />
-            <UsageItem label="Cached tokens" value={usage?.cachedTokens} />
+            <UsageItem label="Cache read tokens" value={usage?.cachedTokens} />
+            <UsageItem label="Cache creation tokens" value={usage?.cacheCreationTokens} />
             <UsageItem label="Output tokens" value={usage?.outputTokens} />
             <UsageItem label="Reasoning tokens" value={usage?.reasoningTokens} />
             <UsageItem label="Total tokens" value={usage?.totalTokens} />
-            <div className="pt-3">
-              <dt className="text-xs text-muted-foreground">Cost</dt>
-              <dd className="mt-1 text-lg font-medium">
-                {usage?.costUsd === null || usage?.costUsd === undefined
-                  ? "Not reported"
-                  : `$${usage.costUsd.toFixed(4)}`}
-              </dd>
-            </div>
           </dl>
           {!usage ? (
             <p className="pt-3 text-xs text-muted-foreground">
               No completed response usage was found before the next human prompt.
             </p>
-          ) : usage.costUsd === null ? (
-            <p className="pt-3 text-xs text-muted-foreground">
-              Codex reported token counts for this response, but not a billable dollar amount.
-            </p>
           ) : null}
-        </div>
-
-        <div className="space-y-4 border p-5">
-          <div>
-            {/* HEADING-REASON: Labels the normalized telemetry definition list as one section. */}
-            <h2 className="text-lg font-semibold">Metadata</h2>
-          </div>
-          <dl className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
-            <DetailItem label="Occurred at">
-              <time dateTime={prompt.occurred_at}>
-                {dateFormatter.format(new Date(prompt.occurred_at))}
-              </time>
-            </DetailItem>
-            <DetailItem label="Tool">
-              <PromptSourceIdentity eventName={prompt.event_name} provider={prompt.provider} />
-            </DetailItem>
-            <DetailItem label="Provider">
-              <ProviderIdentity provider={prompt.provider} />
-            </DetailItem>
-            <DetailItem label="Event">{prompt.event_name}</DetailItem>
-            <DetailItem label="Model">{prompt.model}</DetailItem>
-            <DetailItem label="Originator">{prompt.originator}</DetailItem>
-            <DetailItem label="Actor">{prompt.actor_email ?? prompt.actor_account_id}</DetailItem>
-            <DetailItem label="Conversation ID">{prompt.session_id}</DetailItem>
-            <DetailItem label="Prompt ID">{prompt.prompt_id}</DetailItem>
-            <DetailItem label="Installation ID">{prompt.installation_id}</DetailItem>
-            <DetailItem label="Batch ID">{prompt.batch_id}</DetailItem>
-            <DetailItem label="Record index">{prompt.record_index}</DetailItem>
-            {rawMetadataKeys.map((key) => (
-              <DetailItem key={key} label={key}>
-                {rawMetadata[key] === undefined ? null : String(rawMetadata[key])}
-              </DetailItem>
-            ))}
-          </dl>
         </div>
       </section>
 
       <section className="space-y-4" aria-labelledby="conversation-heading">
-        <div>
-          {/* HEADING-REASON: Identifies the labelled ordered list of surrounding messages. */}
-          <h2 id="conversation-heading" className="text-lg font-semibold">
-            Conversation
-          </h2>
-          <output className="text-xs text-muted-foreground">
-            Showing {conversation.length} captured{" "}
-            {conversation.length === 1 ? "prompt" : "prompts"} around the selected prompt.
-          </output>
-        </div>
+        {/* HEADING-REASON: Identifies the labelled ordered list of surrounding messages. */}
+        <h2 id="conversation-heading" className="text-lg font-semibold">
+          Conversation
+        </h2>
         <ol className="divide-y border">
           {conversation.map((event, index) => {
             const displayText = event.is_redacted

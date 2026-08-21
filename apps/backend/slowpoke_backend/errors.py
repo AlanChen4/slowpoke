@@ -31,5 +31,9 @@ class ExpiredEnrollmentCodeError(Exception):
     """The enrollment code has expired."""
 
 
+class DuplicateTeamInstallationError(Exception):
+    """The organization already has a non-revoked team installation."""
+
+
 class RepositoryError(IngestionError):
     """The persistence layer could not complete the request."""

@@ -48,9 +48,10 @@
     "anti-slop/no-unsafe-dictionary-type": "error",
     "anti-slop/no-widen-then-assert": "error",
     "anti-slop/require-safety-comment-for-type-assertion": "error",
-    "slowpoke-ui/card-description-reason": "error",
     "slowpoke-ui/heading-structure": "error",
+    "slowpoke-ui/no-inline-errors": "error",
     "slowpoke-ui/no-ornamental-border": "error",
+    "slowpoke-ui/surface-description-reason": "error",
     "node/no-process-env": "error",
     "react/forbid-elements": [
       "error",
@@ -90,6 +91,7 @@
       "files": ["apps/web/src/components/ui/**/*.{js,jsx,ts,tsx}"],
       "rules": {
         "react/forbid-elements": "off",
+        "slowpoke-ui/no-inline-errors": "off",
         "slowpoke-ui/no-ornamental-border": "off"
       }
     }
