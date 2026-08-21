@@ -47,12 +47,23 @@ describe("team installations", () => {
       env: {
         CLAUDE_CODE_ENABLE_TELEMETRY: "1",
         CLAUDE_CODE_ENHANCED_TELEMETRY_BETA: "1",
+        ENABLE_BETA_TRACING_DETAILED: "1",
+        BETA_TRACING_ENDPOINT: "https://collector.example.test",
         OTEL_LOGS_EXPORTER: "otlp",
         OTEL_METRICS_EXPORTER: "otlp",
         OTEL_TRACES_EXPORTER: "otlp",
         OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf",
         OTEL_LOG_USER_PROMPTS: "1",
-        OTEL_LOG_ASSISTANT_RESPONSES: "0",
+        OTEL_LOG_ASSISTANT_RESPONSES: "1",
+        OTEL_LOG_TOOL_DETAILS: "1",
+        OTEL_LOG_TOOL_CONTENT: "1",
+        OTEL_LOG_RAW_API_BODIES: "1",
+        CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH: "262144",
+        OTEL_METRICS_INCLUDE_SESSION_ID: "true",
+        OTEL_METRICS_INCLUDE_VERSION: "true",
+        OTEL_METRICS_INCLUDE_ACCOUNT_UUID: "true",
+        OTEL_METRICS_INCLUDE_ENTRYPOINT: "true",
+        OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES: "true",
         OTEL_EXPORTER_OTLP_ENDPOINT: "https://collector.example.test",
         OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Bearer signed-token",
       },
@@ -65,8 +76,8 @@ describe("team installations", () => {
 environment = "production"
 log_user_prompt = true
 exporter = { otlp-http = { endpoint = "https://collector.example.test/v1/logs", protocol = "binary", headers = { authorization = "Bearer signed-\\"token" } } }
-metrics_exporter = "none"
-trace_exporter = "none"
+metrics_exporter = { otlp-http = { endpoint = "https://collector.example.test/v1/metrics", protocol = "binary", headers = { authorization = "Bearer signed-\\"token" } } }
+trace_exporter = { otlp-http = { endpoint = "https://collector.example.test/v1/traces", protocol = "binary", headers = { authorization = "Bearer signed-\\"token" } } }
 `);
   });
 });

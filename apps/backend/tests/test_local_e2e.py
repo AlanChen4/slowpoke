@@ -42,7 +42,13 @@ COLLECTOR_IMAGE = (
 )
 LOCAL_USER_ID = "00000000-0000-4000-8000-000000000002"
 CODEX_PROMPT = "Reply with exactly SLOWPOKE_CODEX_OTLP_OK. Do not use tools."
-CLAUDE_PROMPT = "Reply with exactly SLOWPOKE_CLAUDE_OTLP_OK. Do not use tools."
+CLAUDE_RESPONSE = "SLOWPOKE_CLAUDE_OTLP_OK"
+CLAUDE_TOOL_OUTPUT = "SLOWPOKE_CLAUDE_TOOL_OUTPUT"
+CLAUDE_PROMPT = (
+    f"Use the Bash tool exactly once to run `printf {CLAUDE_TOOL_OUTPUT}`. "
+    f"Then reply with exactly {CLAUDE_RESPONSE}."
+)
+MINIMUM_CLAUDE_TELEMETRY_VERSION = (2, 1, 214)
 
 
 def _require_environment() -> tuple[str, str]:
@@ -55,6 +61,20 @@ def _require_environment() -> tuple[str, str]:
     for executable in ("docker", "node", "codex", "claude"):
         if shutil.which(executable) is None:
             pytest.fail(f"{executable} is required")
+    claude_version = subprocess.run(
+        ["claude", "--version"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    ).stdout
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", claude_version)
+    if not match or tuple(map(int, match.groups())) < MINIMUM_CLAUDE_TELEMETRY_VERSION:
+        pytest.fail(
+            "Claude Code 2.1.214 or later is required to verify full content "
+            "telemetry; "
+            f"found {claude_version.strip()}"
+        )
     return url, secret_key
 
 
@@ -215,9 +235,20 @@ def _run_setup(code: str, backend_port: int, setup_home: Path) -> dict[str, obje
 
 def _configured_authorizations(setup_home: Path) -> tuple[str, str]:
     codex_config = (setup_home / ".codex" / "config.toml").read_text()
+    for signal in ("logs", "metrics", "traces"):
+        assert f"/v1/{signal}" in codex_config
     match = re.search(r'authorization\s*=\s*"(Bearer [^"]+)"', codex_config)
     assert match
     claude_settings = json.loads((setup_home / ".claude" / "settings.json").read_text())
+    expected_content_settings = {
+        "OTEL_LOG_ASSISTANT_RESPONSES": "1",
+        "OTEL_LOG_TOOL_DETAILS": "1",
+        "OTEL_LOG_TOOL_CONTENT": "1",
+        "OTEL_LOG_RAW_API_BODIES": "1",
+        "ENABLE_BETA_TRACING_DETAILED": "1",
+    }
+    for key, value in expected_content_settings.items():
+        assert claude_settings["env"][key] == value
     claude_header = claude_settings["env"]["OTEL_EXPORTER_OTLP_HEADERS"]
     assert claude_header.startswith("Authorization=Bearer ")
     return match.group(1), claude_header.removeprefix("Authorization=")
@@ -282,7 +313,11 @@ def _run_claude(endpoint: str, authorization: str) -> None:
             "--print",
             "--no-session-persistence",
             "--tools",
-            "",
+            "Bash",
+            "--allowedTools",
+            "Bash(printf *)",
+            "--permission-mode",
+            "dontAsk",
             "--output-format",
             "text",
             CLAUDE_PROMPT,
@@ -290,6 +325,8 @@ def _run_claude(endpoint: str, authorization: str) -> None:
         {
             "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
             "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA": "1",
+            "ENABLE_BETA_TRACING_DETAILED": "1",
+            "BETA_TRACING_ENDPOINT": endpoint,
             "OTEL_LOGS_EXPORTER": "otlp",
             "OTEL_METRICS_EXPORTER": "otlp",
             "OTEL_TRACES_EXPORTER": "otlp",
@@ -297,11 +334,143 @@ def _run_claude(endpoint: str, authorization: str) -> None:
             "OTEL_EXPORTER_OTLP_ENDPOINT": endpoint,
             "OTEL_EXPORTER_OTLP_HEADERS": f"Authorization={authorization}",
             "OTEL_LOG_USER_PROMPTS": "1",
-            "OTEL_LOG_ASSISTANT_RESPONSES": "0",
+            "OTEL_LOG_ASSISTANT_RESPONSES": "1",
+            "OTEL_LOG_TOOL_DETAILS": "1",
+            "OTEL_LOG_TOOL_CONTENT": "1",
+            "OTEL_LOG_RAW_API_BODIES": "1",
+            "CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH": "262144",
+            "OTEL_METRICS_INCLUDE_SESSION_ID": "true",
+            "OTEL_METRICS_INCLUDE_VERSION": "true",
+            "OTEL_METRICS_INCLUDE_ACCOUNT_UUID": "true",
+            "OTEL_METRICS_INCLUDE_ENTRYPOINT": "true",
+            "OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES": "true",
             "OTEL_LOGS_EXPORT_INTERVAL": "1000",
             "OTEL_METRIC_EXPORT_INTERVAL": "1000",
             "OTEL_TRACES_EXPORT_INTERVAL": "1000",
         },
+    )
+
+
+def _attribute_strings(record: dict[str, object]) -> dict[str, str]:
+    attributes = record.get("attributes", [])
+    if not isinstance(attributes, list):
+        return {}
+    strings: dict[str, str] = {}
+    for attribute in attributes:
+        if not isinstance(attribute, dict):
+            continue
+        key = attribute.get("key")
+        value = attribute.get("value")
+        if not isinstance(key, str) or not isinstance(value, dict):
+            continue
+        string_value = value.get("stringValue")
+        if isinstance(string_value, str):
+            strings[key] = string_value
+    return strings
+
+
+def _log_records(
+    batches: list[dict[str, object]], installation_id: str
+) -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    for batch in batches:
+        if (
+            batch.get("signal") != "logs"
+            or str(batch.get("installation_id")) != installation_id
+        ):
+            continue
+        payload = batch.get("raw_payload")
+        if not isinstance(payload, dict):
+            continue
+        for resource_log in payload.get("resourceLogs", []):
+            for scope_log in resource_log.get("scopeLogs", []):
+                records.extend(scope_log.get("logRecords", []))
+    return records
+
+
+def _event_name(record: dict[str, object]) -> str | None:
+    attributes = _attribute_strings(record)
+    body = record.get("body")
+    body_value = body.get("stringValue") if isinstance(body, dict) else None
+    candidates = (
+        record.get("eventName"),
+        attributes.get("event.name"),
+        body_value,
+    )
+    return next((value for value in candidates if isinstance(value, str)), None)
+
+
+def _event_records(
+    batches: list[dict[str, object]], installation_id: str
+) -> dict[str, list[dict[str, object]]]:
+    events: dict[str, list[dict[str, object]]] = {}
+    for record in _log_records(batches, installation_id):
+        event_name = _event_name(record)
+        if event_name is not None:
+            events.setdefault(event_name, []).append(record)
+    return events
+
+
+def _batch_payload_text(
+    batches: list[dict[str, object]], installation_id: str, signal: str
+) -> str:
+    payloads = [
+        batch["raw_payload"]
+        for batch in batches
+        if batch.get("signal") == signal
+        and str(batch.get("installation_id")) == installation_id
+    ]
+    return json.dumps(payloads, sort_keys=True)
+
+
+def _signals_by_installation(
+    batches: list[dict[str, object]],
+) -> dict[str, set[str]]:
+    signals: dict[str, set[str]] = {}
+    for batch in batches:
+        installation_id = str(batch["installation_id"])
+        signals.setdefault(installation_id, set()).add(str(batch["signal"]))
+    return signals
+
+
+def _has_full_claude_telemetry(
+    batches: list[dict[str, object]], installation_id: str
+) -> bool:
+    events = _event_records(batches, installation_id)
+    required_events = {
+        "claude_code.user_prompt",
+        "claude_code.assistant_response",
+        "claude_code.tool_result",
+        "claude_code.api_request_body",
+        "claude_code.api_response_body",
+    }
+    if not required_events <= events.keys():
+        return False
+
+    assistant_responses = [
+        _attribute_strings(record).get("response")
+        for record in events["claude_code.assistant_response"]
+    ]
+    request_bodies = [
+        _attribute_strings(record).get("body", "")
+        for record in events["claude_code.api_request_body"]
+    ]
+    response_bodies = [
+        _attribute_strings(record).get("body", "")
+        for record in events["claude_code.api_response_body"]
+    ]
+    tool_results = json.dumps(events["claude_code.tool_result"], sort_keys=True)
+    traces = _batch_payload_text(batches, installation_id, "traces")
+    metrics = _batch_payload_text(batches, installation_id, "metrics")
+    return (
+        CLAUDE_RESPONSE in assistant_responses
+        and any(CLAUDE_PROMPT in body for body in request_bodies)
+        and any(CLAUDE_RESPONSE in body for body in response_bodies)
+        and CLAUDE_TOOL_OUTPUT in tool_results
+        and CLAUDE_TOOL_OUTPUT in traces
+        and "response.model_output" in traces
+        and "app.version" in metrics
+        and "app.entrypoint" in metrics
     )
 
 
@@ -444,14 +613,28 @@ def test_real_two_tool_enrollment_flows_through_collector_into_supabase() -> Non
                     .data
                 )
                 prompt_texts = {row["prompt_text"] for row in prompts}
-                signals = {row["signal"] for row in batches}
                 both_verified = len(installations) == 2 and all(
                     row["verified_at"] and row["last_seen_at"] and not row["revoked_at"]
                     for row in installations
                 )
+                installation_by_tool = {
+                    str(row["tool"]): str(row["id"]) for row in installations
+                }
+                signals_by_installation = _signals_by_installation(batches)
+                all_signals_from_both_tools = len(installation_by_tool) == 2 and all(
+                    signals_by_installation.get(installation_id)
+                    == {"logs", "metrics", "traces"}
+                    for installation_id in installation_by_tool.values()
+                )
+                claude_installation_id = installation_by_tool.get("claude_code")
+                full_claude_telemetry = (
+                    claude_installation_id is not None
+                    and _has_full_claude_telemetry(batches, claude_installation_id)
+                )
                 if (
                     {CODEX_PROMPT, CLAUDE_PROMPT} <= prompt_texts
-                    and signals == {"logs", "metrics", "traces"}
+                    and all_signals_from_both_tools
+                    and full_claude_telemetry
                     and both_verified
                 ):
                     break
@@ -466,6 +649,13 @@ def test_real_two_tool_enrollment_flows_through_collector_into_supabase() -> Non
             installation_by_tool = {
                 str(row["tool"]): str(row["id"]) for row in installations
             }
+            assert _signals_by_installation(batches) == {
+                installation_by_tool["codex"]: {"logs", "metrics", "traces"},
+                installation_by_tool["claude_code"]: {"logs", "metrics", "traces"},
+            }
+            assert _has_full_claude_telemetry(
+                batches, installation_by_tool["claude_code"]
+            )
             prompt_installations = {
                 str(row["prompt_text"]): str(row["installation_id"]) for row in prompts
             }
