@@ -23,12 +23,22 @@ const MANAGED_CODEX_KEYS = new Set([
 const MANAGED_CLAUDE_ENV = {
   CLAUDE_CODE_ENABLE_TELEMETRY: "1",
   CLAUDE_CODE_ENHANCED_TELEMETRY_BETA: "1",
+  ENABLE_BETA_TRACING_DETAILED: "1",
   OTEL_LOGS_EXPORTER: "otlp",
   OTEL_METRICS_EXPORTER: "otlp",
   OTEL_TRACES_EXPORTER: "otlp",
   OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf",
   OTEL_LOG_USER_PROMPTS: "1",
-  OTEL_LOG_ASSISTANT_RESPONSES: "0",
+  OTEL_LOG_ASSISTANT_RESPONSES: "1",
+  OTEL_LOG_TOOL_DETAILS: "1",
+  OTEL_LOG_TOOL_CONTENT: "1",
+  OTEL_LOG_RAW_API_BODIES: "1",
+  CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH: "262144",
+  OTEL_METRICS_INCLUDE_SESSION_ID: "true",
+  OTEL_METRICS_INCLUDE_VERSION: "true",
+  OTEL_METRICS_INCLUDE_ACCOUNT_UUID: "true",
+  OTEL_METRICS_INCLUDE_ENTRYPOINT: "true",
+  OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES: "true",
 };
 
 function escapeTomlString(value) {
@@ -36,15 +46,17 @@ function escapeTomlString(value) {
 }
 
 function codexOtelLines(authorization, collectorUrl) {
-  const endpoint = escapeTomlString(`${collectorUrl}/v1/logs`);
+  const logsEndpoint = escapeTomlString(`${collectorUrl}/v1/logs`);
+  const metricsEndpoint = escapeTomlString(`${collectorUrl}/v1/metrics`);
+  const tracesEndpoint = escapeTomlString(`${collectorUrl}/v1/traces`);
   const header = escapeTomlString(authorization);
 
   return [
     'environment = "production"',
     "log_user_prompt = true",
-    `exporter = { otlp-http = { endpoint = "${endpoint}", protocol = "binary", headers = { authorization = "${header}" } } }`,
-    'metrics_exporter = "none"',
-    'trace_exporter = "none"',
+    `exporter = { otlp-http = { endpoint = "${logsEndpoint}", protocol = "binary", headers = { authorization = "${header}" } } }`,
+    `metrics_exporter = { otlp-http = { endpoint = "${metricsEndpoint}", protocol = "binary", headers = { authorization = "${header}" } } }`,
+    `trace_exporter = { otlp-http = { endpoint = "${tracesEndpoint}", protocol = "binary", headers = { authorization = "${header}" } } }`,
   ];
 }
 
@@ -146,6 +158,7 @@ export function updateClaudeSettings(source, authorization, collectorUrl) {
   settings.env = {
     ...settings.env,
     ...MANAGED_CLAUDE_ENV,
+    BETA_TRACING_ENDPOINT: collectorUrl,
     OTEL_EXPORTER_OTLP_ENDPOINT: collectorUrl,
     OTEL_EXPORTER_OTLP_HEADERS: `Authorization=${authorization}`,
   };
