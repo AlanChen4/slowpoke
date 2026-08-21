@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 
 import { exchangeEnrollment, sendVerification, SetupError } from "./client.js";
 import { applyConfigurationPlans, planConfigurations } from "./config.js";
+import { SETUP_PACKAGE_VERSION } from "./version.js";
 
 export const DEFAULT_SERVER = "https://avchen4--slowpoke-backend-web.modal.run";
 
@@ -108,6 +109,7 @@ export async function run(argumentsToParse, dependencies = {}) {
       code: options.code,
       server: options.server,
       computerName: options.computerName,
+      setupPackageVersion: SETUP_PACKAGE_VERSION,
     },
     dependencies,
   );

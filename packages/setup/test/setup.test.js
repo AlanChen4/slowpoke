@@ -12,6 +12,7 @@ import {
   updateClaudeSettings,
   updateCodexConfig,
 } from "../src/config.js";
+import { SETUP_PACKAGE_VERSION } from "../src/version.js";
 
 const CODE = "secret-enrollment-code";
 const CODEX_TOKEN = "secret-codex-token";
@@ -185,6 +186,11 @@ test("enrollment retries transient failures and sends one non-prompt verificatio
 
   assert.equal(enrollmentAttempts, 2);
   assert.equal(requests[0].url, `${DEFAULT_SERVER}/api/setup/enroll`);
+  assert.deepEqual(JSON.parse(requests[0].options.body), {
+    code: CODE,
+    computer_name: "Ada's laptop",
+    setup_package_version: SETUP_PACKAGE_VERSION,
+  });
   const verifications = requests.filter(({ url }) => url === `${COLLECTOR}/v1/logs`);
   assert.equal(verifications.length, 2);
   assert.deepEqual(
