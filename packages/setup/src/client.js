@@ -56,7 +56,10 @@ function validInstallation(value) {
   );
 }
 
-export async function exchangeEnrollment({ code, server, computerName }, dependencies = {}) {
+export async function exchangeEnrollment(
+  { code, server, computerName, setupPackageVersion },
+  dependencies = {},
+) {
   const fetchImplementation = dependencies.fetch ?? globalThis.fetch;
   const response = await requestWithRetries(
     fetchImplementation,
@@ -64,7 +67,11 @@ export async function exchangeEnrollment({ code, server, computerName }, depende
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, computer_name: computerName }),
+      body: JSON.stringify({
+        code,
+        computer_name: computerName,
+        setup_package_version: setupPackageVersion,
+      }),
     },
     dependencies,
   );

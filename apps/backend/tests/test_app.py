@@ -62,10 +62,16 @@ class FakeEnrollmentRepository:
     ):
         self.installations = installations
         self.error = error
-        self.calls: list[tuple[str, str, datetime]] = []
+        self.calls: list[tuple[str, str, datetime, str | None]] = []
 
-    def redeem(self, code_digest: str, computer_name: str, now: datetime):
-        self.calls.append((code_digest, computer_name, now))
+    def redeem(
+        self,
+        code_digest: str,
+        computer_name: str,
+        now: datetime,
+        setup_package_version: str | None = None,
+    ):
+        self.calls.append((code_digest, computer_name, now, setup_package_version))
         if self.error:
             raise self.error
         return self.installations
@@ -141,7 +147,11 @@ def test_enrolls_each_tool_with_signed_installation_claims() -> None:
 
     response = client.post(
         "/api/setup/enroll",
-        json={"code": code, "computer_name": "Ada's laptop"},
+        json={
+            "code": code,
+            "computer_name": "Ada's laptop",
+            "setup_package_version": "0.1.2",
+        },
     )
 
     assert response.status_code == 200
@@ -149,6 +159,7 @@ def test_enrolls_each_tool_with_signed_installation_claims() -> None:
         enrollment_repository.calls[0][0] == hashlib.sha256(code.encode()).hexdigest()
     )
     assert enrollment_repository.calls[0][1] == "Ada's laptop"
+    assert enrollment_repository.calls[0][3] == "0.1.2"
     assert [item["installation_id"] for item in response.json()["installations"]] == [
         str(KNOWN),
         str(KNOWN_A),

@@ -106,6 +106,9 @@ create table public.installations (
   installation_type text not null default 'personal' check (
     installation_type in ('personal', 'team')
   ),
+  setup_package_version text check (
+    char_length(setup_package_version) between 1 and 64
+  ),
   foreign key (setup_session_id, organization_id)
     references public.installation_setup_sessions (id, organization_id),
   unique (id, organization_id),

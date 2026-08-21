@@ -29,6 +29,7 @@ class EnrollmentRepository(Protocol):
         code_digest: str,
         computer_name: str,
         now: datetime,
+        setup_package_version: str | None = None,
     ) -> tuple[Installation, ...]: ...
 
 
@@ -41,6 +42,7 @@ class SupabaseEnrollmentRepository:
         code_digest: str,
         computer_name: str,
         now: datetime,
+        setup_package_version: str | None = None,
     ) -> tuple[Installation, ...]:
         try:
             response = (
@@ -74,6 +76,7 @@ class SupabaseEnrollmentRepository:
                     "computer_name": installation_name,
                     "setup_session_id": str(setup_session.id),
                     "installation_type": setup_session.installation_type,
+                    "setup_package_version": setup_package_version,
                 }
                 for tool in setup_session.selected_tools
             ]
@@ -100,7 +103,7 @@ class SupabaseEnrollmentRepository:
                 .select(
                     "id,organization_id,created_at,revoked_at,created_by_user_id,"
                     "tool,computer_name,setup_session_id,verified_at,last_seen_at,"
-                    "installation_type"
+                    "installation_type,setup_package_version"
                 )
                 .eq("setup_session_id", str(setup_session.id))
                 .execute()
