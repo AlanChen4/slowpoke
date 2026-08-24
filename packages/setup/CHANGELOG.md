@@ -1,5 +1,11 @@
 # @slowpokeai/setup
 
+## 0.1.4
+
+### Patch Changes
+
+- 6b85839: Collect all available Codex and Claude Code telemetry signals and content.
+
 ## 0.1.3
 
 ### Patch Changes
