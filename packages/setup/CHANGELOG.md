@@ -1,5 +1,11 @@
 # @slowpokeai/setup
 
+## 0.1.3
+
+### Patch Changes
+
+- 4017cd3: Report the setup package version when enrolling installations.
+
 ## 0.1.2
 
 ### Patch Changes
