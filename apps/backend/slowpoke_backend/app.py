@@ -33,6 +33,7 @@ class EnrollmentRequest(BaseModel):
 
     code: SecretStr
     computer_name: str = Field(min_length=1, max_length=255)
+    setup_package_version: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class EnrolledInstallationResponse(BaseModel):
@@ -107,6 +108,7 @@ def create_app(
                 code_digest,
                 request.computer_name,
                 datetime.now(UTC),
+                request.setup_package_version,
             )
         except InvalidEnrollmentCodeError as error:
             raise HTTPException(

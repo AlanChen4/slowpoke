@@ -11,7 +11,7 @@ import {
   createTeamManagedSettings,
   teamEnrollmentSchema,
   teamToolSchema,
-} from "@/lib/team-installation";
+} from "@/lib/installations/team-installation";
 import {
   cancelOrganizationInvitation,
   createInvitationForOrganization,
@@ -22,9 +22,9 @@ import {
   type OrganizationActor,
 } from "@/lib/organizations/service";
 import { SupabaseOrganizationRepository } from "@/lib/organizations/supabase-repository";
-import { ORGANIZATION_COOKIE } from "@/lib/organization-context";
-import { isInstallationSetupComplete } from "@/lib/installation-setup-status";
-import { createSetupCommand } from "@/lib/setup-command";
+import { isInstallationSetupComplete } from "@/lib/installations/installation-setup-status";
+import { createSetupCommand } from "@/lib/installations/setup-command";
+import { ORGANIZATION_COOKIE } from "@/lib/organizations/organization-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 

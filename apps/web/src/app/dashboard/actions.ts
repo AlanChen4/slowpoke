@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import * as z from "zod";
 
 import { env } from "@/env";
-import { ORGANIZATION_COOKIE } from "@/lib/organization-context";
+import { ORGANIZATION_COOKIE } from "@/lib/organizations/organization-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 

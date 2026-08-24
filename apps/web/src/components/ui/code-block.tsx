@@ -7,7 +7,7 @@ import type { BundledLanguage } from "shiki";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui/utils";
 
 export type CodeBlockFile = {
   filename: string;

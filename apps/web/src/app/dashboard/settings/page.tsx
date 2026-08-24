@@ -36,8 +36,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAuthClaims } from "@/lib/auth-context";
-import { getOrganizationContext } from "@/lib/organization-context";
+import { getAuthClaims } from "@/lib/auth/auth-context";
+import {
+  getLatestSetupPackageVersion,
+  getSetupPackageVersionState,
+} from "@/lib/installations/installation-setup-status";
+import { getOrganizationContext } from "@/lib/organizations/organization-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -53,6 +57,7 @@ type Installation = {
   id: string;
   installation_type: "personal" | "team";
   last_seen_at: string | null;
+  setup_package_version: string | null;
   tool: "codex" | "claude_code";
   verified_at: string | null;
 };
@@ -88,12 +93,13 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  const { selectedOrganization, error: organizationError } = await getOrganizationContext();
+  const [{ selectedOrganization, error: organizationError }, latestSetupPackageVersion] =
+    await Promise.all([getOrganizationContext(), getLatestSetupPackageVersion()]);
   const installationsResult = selectedOrganization
     ? await supabase
         .from("installations")
         .select(
-          "id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at,installation_type",
+          "id,created_at,created_by_user_id,tool,computer_name,verified_at,last_seen_at,installation_type,setup_package_version",
         )
         .eq("organization_id", selectedOrganization.id)
         .is("revoked_at", null)
@@ -231,6 +237,12 @@ export default async function SettingsPage() {
                       <TableHead>Installation</TableHead>
                       <TableHead>Owner</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>
+                        Setup version
+                        {latestSetupPackageVersion
+                          ? ` (latest ${latestSetupPackageVersion})`
+                          : null}
+                      </TableHead>
                       <TableHead>Last seen</TableHead>
                       <TableHead aria-label="Actions" />
                     </TableRow>
@@ -238,6 +250,10 @@ export default async function SettingsPage() {
                   <TableBody>
                     {installations.map((installation) => {
                       const state = installationState(installation);
+                      const versionState = getSetupPackageVersionState(
+                        installation.setup_package_version,
+                        latestSetupPackageVersion,
+                      );
                       return (
                         <TableRow key={installation.id}>
                           <TableCell>
@@ -251,6 +267,26 @@ export default async function SettingsPage() {
                             <Badge variant={state === "Active" ? "secondary" : "outline"}>
                               {state}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <code>{installation.setup_package_version ?? "Not reported"}</code>
+                              <Badge
+                                variant={
+                                  versionState === "outdated"
+                                    ? "destructive"
+                                    : versionState === "current"
+                                      ? "secondary"
+                                      : "outline"
+                                }
+                              >
+                                {versionState === "outdated"
+                                  ? "Update available"
+                                  : versionState === "current"
+                                    ? "Current"
+                                    : "Unknown"}
+                              </Badge>
+                            </div>
                           </TableCell>
                           <TableCell>
                             {installation.last_seen_at

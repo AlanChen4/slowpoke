@@ -9,10 +9,10 @@ import {
   type PromptTextSegment,
 } from "@/app/dashboard/human-prompt-text";
 import { env } from "@/env";
-import { getAuthClaims } from "@/lib/auth-context";
-import { getOrganizationContext } from "@/lib/organization-context";
+import { getAuthClaims } from "@/lib/auth/auth-context";
+import { getOrganizationContext } from "@/lib/organizations/organization-context";
 import { createClient } from "@/lib/supabase/server";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui/utils";
 
 import { responseUsageForPrompt, type ResponseUsageEvent } from "./telemetry";
 

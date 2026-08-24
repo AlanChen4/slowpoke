@@ -3,8 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { buttonVariants } from "@/components/ui/button";
-import { getAuthClaims } from "@/lib/auth-context";
-import { getOrganizationContext } from "@/lib/organization-context";
+import { getAuthClaims } from "@/lib/auth/auth-context";
+import { getOrganizationContext } from "@/lib/organizations/organization-context";
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const { data, error } = await getAuthClaims();

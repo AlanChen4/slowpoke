@@ -49,6 +49,7 @@ class PublicInstallations(BaseModel):
     last_seen_at: Optional[datetime.datetime] = Field(alias="last_seen_at")
     organization_id: uuid.UUID = Field(alias="organization_id")
     revoked_at: Optional[datetime.datetime] = Field(alias="revoked_at")
+    setup_package_version: Optional[str] = Field(alias="setup_package_version")
     setup_session_id: uuid.UUID = Field(alias="setup_session_id")
     tool: str = Field(alias="tool")
     verified_at: Optional[datetime.datetime] = Field(alias="verified_at")
@@ -62,6 +63,7 @@ class PublicInstallationsInsert(TypedDict):
     last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
+    setup_package_version: NotRequired[Annotated[Optional[str], Field(alias="setup_package_version")]]
     setup_session_id: Annotated[uuid.UUID, Field(alias="setup_session_id")]
     tool: Annotated[str, Field(alias="tool")]
     verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]
@@ -75,6 +77,7 @@ class PublicInstallationsUpdate(TypedDict):
     last_seen_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="last_seen_at")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     revoked_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="revoked_at")]]
+    setup_package_version: NotRequired[Annotated[Optional[str], Field(alias="setup_package_version")]]
     setup_session_id: NotRequired[Annotated[uuid.UUID, Field(alias="setup_session_id")]]
     tool: NotRequired[Annotated[str, Field(alias="tool")]]
     verified_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="verified_at")]]

@@ -325,9 +325,9 @@ def test_enrollment_redeem_is_idempotent_for_each_selected_tool() -> None:
     ):
         repository = SupabaseEnrollmentRepository(url, secret_key)
 
-        first = repository.redeem(digest, "Test laptop", now)
+        first = repository.redeem(digest, "Test laptop", now, "0.1.2")
         second = repository.redeem(
-            digest, "Ignored retry name", now + timedelta(seconds=1)
+            digest, "Ignored retry name", now + timedelta(seconds=1), "0.1.2"
         )
         stored = (
             client.table("installations")
@@ -347,6 +347,7 @@ def test_enrollment_redeem_is_idempotent_for_each_selected_tool() -> None:
         assert len(stored) == 2
         assert {row["computer_name"] for row in stored} == {"Test laptop"}
         assert {row["installation_type"] for row in stored} == {"personal"}
+        assert {row["setup_package_version"] for row in stored} == {"0.1.2"}
         assert all("token" not in row for row in stored)
 
 

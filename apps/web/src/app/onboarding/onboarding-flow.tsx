@@ -25,7 +25,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import type { PendingInvitation } from "@/lib/onboarding-data";
+import type { PendingInvitation } from "@/lib/organizations/onboarding-data";
 
 const initialState: OrganizationFlowActionState = {};
 const stepLabels = ["Organization", "AI tools", "Connect", "Check", "Complete"];
