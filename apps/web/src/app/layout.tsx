@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { JetBrains_Mono, Geist } from "next/font/google";
 import { Toaster } from "@/components/ui/toast";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui/utils";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 

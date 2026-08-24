@@ -4,7 +4,7 @@ import * as React from "react";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui/utils";
 import { CaretDownIcon, CheckIcon, CaretUpIcon } from "@phosphor-icons/react";
 
 const Select = SelectPrimitive.Root;

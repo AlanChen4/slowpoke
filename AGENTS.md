@@ -54,6 +54,13 @@ rebuild it from migrations and seed data without an interactive confirmation.
   user explicitly supplies or approves the rationale.
 - Do not place a `p` element immediately above or below a native heading.
 
+## Web library organization
+
+- Keep JavaScript and TypeScript modules below a cohesive domain folder in
+  `apps/web/src/lib`; do not put modules directly in `lib`.
+- Consolidate related helpers and tests into an existing domain folder when
+  their responsibilities overlap. Do not create one folder per module.
+
 ## Supabase
 
 - Read `.agents/skills/supabase/SKILL.md` for every Supabase task.

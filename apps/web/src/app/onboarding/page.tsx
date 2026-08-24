@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 
 import { OnboardingFlow } from "@/app/onboarding/onboarding-flow";
-import { getAuthClaims } from "@/lib/auth-context";
-import { getPendingInvitations } from "@/lib/onboarding-data";
-import { getOrganizationContext } from "@/lib/organization-context";
+import { getAuthClaims } from "@/lib/auth/auth-context";
+import { getPendingInvitations } from "@/lib/organizations/onboarding-data";
+import { getOrganizationContext } from "@/lib/organizations/organization-context";
 
 type OnboardingPageProps = {
   searchParams: Promise<{ create?: string; organization?: string }>;

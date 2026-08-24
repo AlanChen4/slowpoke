@@ -27,6 +27,10 @@
     {
       "name": "slowpoke-ui",
       "specifier": "./tools/oxlint/slowpoke-ui/index.ts"
+    },
+    {
+      "name": "slowpoke-structure",
+      "specifier": "./tools/oxlint/slowpoke-structure/index.ts"
     }
   ],
   "options": {
@@ -52,6 +56,7 @@
     "slowpoke-ui/no-inline-errors": "error",
     "slowpoke-ui/no-ornamental-border": "error",
     "slowpoke-ui/surface-description-reason": "error",
+    "slowpoke-structure/lib-directory-structure": "error",
     "node/no-process-env": "error",
     "react/forbid-elements": [
       "error",

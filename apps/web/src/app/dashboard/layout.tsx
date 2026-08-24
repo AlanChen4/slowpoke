@@ -6,8 +6,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardTitle } from "@/components/dashboard-title";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { getAuthClaims } from "@/lib/auth-context";
-import { getOrganizationContext } from "@/lib/organization-context";
+import { getAuthClaims } from "@/lib/auth/auth-context";
+import { getOrganizationContext } from "@/lib/organizations/organization-context";
 
 type DashboardLayoutProps = {
   children: React.ReactNode;

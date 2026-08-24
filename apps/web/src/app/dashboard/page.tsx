@@ -27,9 +27,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { getOrganizationContext } from "@/lib/organization-context";
+import { getOrganizationContext } from "@/lib/organizations/organization-context";
 import { createClient } from "@/lib/supabase/server";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/ui/utils";
 
 const promptsPerPage = 25;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;

@@ -36,12 +36,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAuthClaims } from "@/lib/auth-context";
+import { getAuthClaims } from "@/lib/auth/auth-context";
 import {
   getLatestSetupPackageVersion,
   getSetupPackageVersionState,
-} from "@/lib/installation-setup-status";
-import { getOrganizationContext } from "@/lib/organization-context";
+} from "@/lib/installations/installation-setup-status";
+import { getOrganizationContext } from "@/lib/organizations/organization-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
