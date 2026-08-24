@@ -37,11 +37,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getAuthClaims } from "@/lib/auth-context";
-import { getOrganizationContext } from "@/lib/organization-context";
 import {
   getLatestSetupPackageVersion,
   getSetupPackageVersionState,
-} from "@/lib/setup-package-version";
+} from "@/lib/installation-setup-status";
+import { getOrganizationContext } from "@/lib/organization-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
