@@ -45,9 +45,10 @@ CODEX_PROMPT = "Reply with exactly SLOWPOKE_CODEX_OTLP_OK. Do not use tools."
 CLAUDE_RESPONSE = "SLOWPOKE_CLAUDE_OTLP_OK"
 CLAUDE_TOOL_OUTPUT = "SLOWPOKE_CLAUDE_TOOL_OUTPUT"
 CLAUDE_PROMPT = (
-    f"Use the Bash tool exactly once to run `printf {CLAUDE_TOOL_OUTPUT}`. "
-    f"Then reply with exactly {CLAUDE_RESPONSE}."
+    f"Run `printf {CLAUDE_TOOL_OUTPUT}` with the Bash tool. Do not respond "
+    f"until Bash returns, then reply with exactly {CLAUDE_RESPONSE}."
 )
+CLAUDE_SYSTEM_PROMPT = "You must complete the requested Bash call before answering."
 MINIMUM_CLAUDE_TELEMETRY_VERSION = (2, 1, 214)
 
 
@@ -318,6 +319,10 @@ def _run_claude(endpoint: str, authorization: str) -> None:
             "Bash(printf *)",
             "--permission-mode",
             "dontAsk",
+            "--append-system-prompt",
+            CLAUDE_SYSTEM_PROMPT,
+            "--max-turns",
+            "3",
             "--output-format",
             "text",
             CLAUDE_PROMPT,
@@ -393,9 +398,9 @@ def _event_name(record: dict[str, object]) -> str | None:
     body = record.get("body")
     body_value = body.get("stringValue") if isinstance(body, dict) else None
     candidates = (
+        body_value,
         record.get("eventName"),
         attributes.get("event.name"),
-        body_value,
     )
     return next((value for value in candidates if isinstance(value, str)), None)
 
@@ -433,9 +438,9 @@ def _signals_by_installation(
     return signals
 
 
-def _has_full_claude_telemetry(
+def _missing_claude_telemetry(
     batches: list[dict[str, object]], installation_id: str
-) -> bool:
+) -> set[str]:
     events = _event_records(batches, installation_id)
     required_events = {
         "claude_code.user_prompt",
@@ -444,8 +449,9 @@ def _has_full_claude_telemetry(
         "claude_code.api_request_body",
         "claude_code.api_response_body",
     }
-    if not required_events <= events.keys():
-        return False
+    missing = {f"event:{event}" for event in required_events - events.keys()}
+    if missing:
+        return missing
 
     assistant_responses = [
         _attribute_strings(record).get("response")
@@ -462,16 +468,17 @@ def _has_full_claude_telemetry(
     tool_results = json.dumps(events["claude_code.tool_result"], sort_keys=True)
     traces = _batch_payload_text(batches, installation_id, "traces")
     metrics = _batch_payload_text(batches, installation_id, "metrics")
-    return (
-        CLAUDE_RESPONSE in assistant_responses
-        and any(CLAUDE_PROMPT in body for body in request_bodies)
-        and any(CLAUDE_RESPONSE in body for body in response_bodies)
-        and CLAUDE_TOOL_OUTPUT in tool_results
-        and CLAUDE_TOOL_OUTPUT in traces
-        and "response.model_output" in traces
-        and "app.version" in metrics
-        and "app.entrypoint" in metrics
-    )
+    checks = {
+        "assistant_response": CLAUDE_RESPONSE in assistant_responses,
+        "api_request_body": any(CLAUDE_PROMPT in body for body in request_bodies),
+        "api_response_body": any(CLAUDE_RESPONSE in body for body in response_bodies),
+        "tool_result": CLAUDE_TOOL_OUTPUT in tool_results,
+        "trace_tool_output": CLAUDE_TOOL_OUTPUT in traces,
+        "trace_model_output": "response.model_output" in traces,
+        "metric_app_version": "app.version" in metrics,
+        "metric_entrypoint": "app.entrypoint" in metrics,
+    }
+    return {name for name, present in checks.items() if not present}
 
 
 def _post_raw(backend_port: int, signal: str, payload: object, token: str) -> None:
@@ -590,6 +597,7 @@ def test_real_two_tool_enrollment_flows_through_collector_into_supabase() -> Non
             prompts: list[dict[str, object]] = []
             batches: list[dict[str, object]] = []
             installations: list[dict[str, object]] = []
+            claude_missing: set[str] = set()
             while time.monotonic() < deadline:
                 prompts = (
                     service_client.table("prompt_events")
@@ -627,14 +635,15 @@ def test_real_two_tool_enrollment_flows_through_collector_into_supabase() -> Non
                     for installation_id in installation_by_tool.values()
                 )
                 claude_installation_id = installation_by_tool.get("claude_code")
-                full_claude_telemetry = (
-                    claude_installation_id is not None
-                    and _has_full_claude_telemetry(batches, claude_installation_id)
+                claude_missing = (
+                    _missing_claude_telemetry(batches, claude_installation_id)
+                    if claude_installation_id is not None
+                    else {"installation"}
                 )
                 if (
                     {CODEX_PROMPT, CLAUDE_PROMPT} <= prompt_texts
                     and all_signals_from_both_tools
-                    and full_claude_telemetry
+                    and not claude_missing
                     and both_verified
                 ):
                     break
@@ -642,8 +651,10 @@ def test_real_two_tool_enrollment_flows_through_collector_into_supabase() -> Non
             else:
                 pytest.fail(
                     "timed out waiting for two-tool prompts and signals; "
-                    f"prompts={prompts}, batches={batches}, "
-                    f"installations={installations}"
+                    f"prompt_texts={prompt_texts}, "
+                    f"signals={signals_by_installation}, "
+                    f"claude_missing={sorted(claude_missing)}, "
+                    f"installation_count={len(installations)}"
                 )
 
             installation_by_tool = {
@@ -653,7 +664,7 @@ def test_real_two_tool_enrollment_flows_through_collector_into_supabase() -> Non
                 installation_by_tool["codex"]: {"logs", "metrics", "traces"},
                 installation_by_tool["claude_code"]: {"logs", "metrics", "traces"},
             }
-            assert _has_full_claude_telemetry(
+            assert not _missing_claude_telemetry(
                 batches, installation_by_tool["claude_code"]
             )
             prompt_installations = {
