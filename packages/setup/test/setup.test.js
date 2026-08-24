@@ -78,6 +78,8 @@ test("Codex merge preserves unrelated settings", () => {
 custom_setting = "keep"
 environment = "staging"
 exporter = "none"
+metrics_exporter = "none"
+trace_exporter = "none"
 
 [features]
 memories = true
@@ -88,8 +90,13 @@ memories = true
   assert.match(updated, /# Keep this comment\./);
   assert.match(updated, /custom_setting = "keep"/);
   assert.match(updated, /authorization = "Bearer secret-codex-token"/);
+  assert.match(updated, /endpoint = "https:\/\/collector\.example\.test\/v1\/logs"/);
+  assert.match(updated, /endpoint = "https:\/\/collector\.example\.test\/v1\/metrics"/);
+  assert.match(updated, /endpoint = "https:\/\/collector\.example\.test\/v1\/traces"/);
   assert.match(updated, /\[features\]\nmemories = true/);
   assert.equal(updated.match(/^\s*exporter\s*=/gm)?.length, 1);
+  assert.equal(updated.match(/^\s*metrics_exporter\s*=/gm)?.length, 1);
+  assert.equal(updated.match(/^\s*trace_exporter\s*=/gm)?.length, 1);
 });
 
 test("Claude Code merge preserves unrelated settings and env values", () => {
@@ -102,6 +109,13 @@ test("Claude Code merge preserves unrelated settings and env values", () => {
 
   assert.deepEqual(parsed.permissions, { allow: ["Read"] });
   assert.equal(parsed.env.KEEP_ME, "yes");
+  assert.equal(parsed.env.OTEL_LOG_ASSISTANT_RESPONSES, "1");
+  assert.equal(parsed.env.OTEL_LOG_TOOL_DETAILS, "1");
+  assert.equal(parsed.env.OTEL_LOG_TOOL_CONTENT, "1");
+  assert.equal(parsed.env.OTEL_LOG_RAW_API_BODIES, "1");
+  assert.equal(parsed.env.CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH, "262144");
+  assert.equal(parsed.env.ENABLE_BETA_TRACING_DETAILED, "1");
+  assert.equal(parsed.env.BETA_TRACING_ENDPOINT, COLLECTOR);
   assert.equal(parsed.env.OTEL_EXPORTER_OTLP_ENDPOINT, COLLECTOR);
   assert.equal(parsed.env.OTEL_EXPORTER_OTLP_HEADERS, `Authorization=Bearer ${CLAUDE_TOKEN}`);
 });
