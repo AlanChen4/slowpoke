@@ -20,6 +20,7 @@ const suites = new Map([
         { command: "pnpm", args: ["exec", "supabase", "test", "db"] },
         { command: "bash", args: ["scripts/run-backend-database-tests.sh"] },
         { command: "bash", args: ["scripts/check-python-db-types.sh"] },
+        { command: "bash", args: ["scripts/check-web-db-types.sh"] },
       ],
     },
   ],

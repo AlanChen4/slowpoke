@@ -1,6 +1,6 @@
 begin;
 
-select plan(11);
+select plan(23);
 
 set local role authenticated;
 select set_config(
@@ -10,99 +10,133 @@ select set_config(
 );
 
 select lives_ok(
-  $$select public.get_prompt_analytics(
+  $$select public.get_prompt_analytics_summary(
     (select id from public.organizations where name = 'Slowpoke' limit 1),
     30,
-    'America/New_York'
+    'America/New_York',
+    statement_timestamp()
   )$$,
-  'an administrator can load prompt analytics'
+  'an administrator can load the analytics summary'
 );
 
 select is(
-  jsonb_array_length(
-    public.get_prompt_analytics(
+  (
+    select count(*)
+    from public.get_prompt_analytics_daily(
       (select id from public.organizations where name = 'Slowpoke' limit 1),
       30,
-      'America/New_York'
-    )->'daily'
+      'America/New_York',
+      statement_timestamp()
+    )
   ),
-  30,
+  30::bigint,
   'daily analytics contain one zero-filled bucket per selected day'
 );
 
 select is(
   (
-    select sum((day->>'prompts')::integer)
-    from jsonb_array_elements(
-      public.get_prompt_analytics(
-        (select id from public.organizations where name = 'Slowpoke' limit 1),
-        30,
-        'America/New_York'
-      )->'daily'
-    ) as day
-  ),
-  (
-    public.get_prompt_analytics(
+    select sum(prompts)::bigint
+    from public.get_prompt_analytics_daily(
       (select id from public.organizations where name = 'Slowpoke' limit 1),
       30,
-      'America/New_York'
-    )#>>'{summary,current,totalPrompts}'
-  )::bigint,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  (
+    select current_total_prompts
+    from public.get_prompt_analytics_summary(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      30,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
   'daily totals equal the current prompt total'
 );
 
 select ok(
   not exists (
     select 1
-    from jsonb_array_elements(
-      public.get_prompt_analytics(
-        (select id from public.organizations where name = 'Slowpoke' limit 1),
-        30,
-        'America/New_York'
-      )->'daily'
-    ) as day
-    where jsonb_array_length(day->'users') > 5
+    from public.get_prompt_analytics_daily_users(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      30,
+      'America/New_York',
+      statement_timestamp()
+    )
+    where rank > 5
   ),
   'daily leaderboards contain at most five users'
 );
 
 select is(
   (
-    select sum((provider->>'prompts')::integer)
-    from jsonb_array_elements(
-      public.get_prompt_analytics(
-        (select id from public.organizations where name = 'Slowpoke' limit 1),
-        30,
-        'America/New_York'
-      )->'providers'
-    ) as provider
-  ),
-  (
-    public.get_prompt_analytics(
+    select sum(prompts)::bigint
+    from public.get_prompt_analytics_providers(
       (select id from public.organizations where name = 'Slowpoke' limit 1),
       30,
-      'America/New_York'
-    )#>>'{summary,current,totalPrompts}'
-  )::bigint,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  (
+    select current_total_prompts
+    from public.get_prompt_analytics_summary(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      30,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
   'provider totals equal the current prompt total'
 );
 
-select ok(
-  jsonb_array_length(
-    public.get_prompt_analytics(
+select is(
+  (
+    select count(*)
+    from public.get_prompt_analytics_providers(
       (select id from public.organizations where name = 'Slowpoke' limit 1),
       30,
-      'America/New_York'
-    )->'users'
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  2::bigint,
+  'provider analytics include both supported providers'
+);
+
+select ok(
+  (
+    select count(*)
+    from public.get_prompt_analytics_users(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      30,
+      'America/New_York',
+      statement_timestamp()
+    )
   ) > 1,
   'seed data produces a multi-user leaderboard'
 );
 
+select ok(
+  (
+    select count(*)
+    from public.get_prompt_analytics_models(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      30,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ) > 1,
+  'seed data produces a multi-model breakdown'
+);
+
 select throws_ok(
-  $$select public.get_prompt_analytics(
+  $$select public.get_prompt_analytics_summary(
     (select id from public.organizations where name = 'Slowpoke' limit 1),
     14,
-    'America/New_York'
+    'America/New_York',
+    statement_timestamp()
   )$$,
   '22023',
   'Analytics range must be 7, 30, or 90 days.',
@@ -110,25 +144,27 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$select public.get_prompt_analytics(
-    (select id from public.organizations where name = 'Slowpoke' limit 1),
-    null,
-    'America/New_York'
-  )$$,
-  '22023',
-  'Analytics range must be 7, 30, or 90 days.',
-  'null analytics ranges are rejected'
-);
-
-select throws_ok(
-  $$select public.get_prompt_analytics(
+  $$select public.get_prompt_analytics_daily(
     (select id from public.organizations where name = 'Slowpoke' limit 1),
     30,
-    'Not/A_Timezone'
+    'Not/A_Timezone',
+    statement_timestamp()
   )$$,
   '22023',
   'Analytics timezone is invalid.',
   'invalid analytics timezones are rejected'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_users(
+    (select id from public.organizations where name = 'Slowpoke' limit 1),
+    30,
+    'America/New_York',
+    null
+  )$$,
+  '22023',
+  'Analytics end time is required.',
+  'null analytics end times are rejected'
 );
 
 reset role;
@@ -150,27 +186,119 @@ select set_config(
 );
 
 select throws_ok(
-  $$select public.get_prompt_analytics(
+  $$select public.get_prompt_analytics_summary(
     (select id from public.organizations where name = 'Slowpoke' limit 1),
     30,
-    'America/New_York'
+    'America/New_York',
+    statement_timestamp()
   )$$,
   '42501',
   'Analytics are available only to organization administrators.',
   'members cannot load organization analytics'
 );
 
+select throws_ok(
+  $$select public.get_prompt_analytics_daily(
+    (select id from public.organizations where name = 'Slowpoke' limit 1),
+    30,
+    'America/New_York',
+    statement_timestamp()
+  )$$,
+  '42501',
+  'Analytics are available only to organization administrators.',
+  'members cannot load daily organization analytics'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_daily_users(
+    (select id from public.organizations where name = 'Slowpoke' limit 1),
+    30,
+    'America/New_York',
+    statement_timestamp()
+  )$$,
+  '42501',
+  'Analytics are available only to organization administrators.',
+  'members cannot load daily user analytics'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_users(
+    (select id from public.organizations where name = 'Slowpoke' limit 1),
+    30,
+    'America/New_York',
+    statement_timestamp()
+  )$$,
+  '42501',
+  'Analytics are available only to organization administrators.',
+  'members cannot load user analytics'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_providers(
+    (select id from public.organizations where name = 'Slowpoke' limit 1),
+    30,
+    'America/New_York',
+    statement_timestamp()
+  )$$,
+  '42501',
+  'Analytics are available only to organization administrators.',
+  'members cannot load provider analytics'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_models(
+    (select id from public.organizations where name = 'Slowpoke' limit 1),
+    30,
+    'America/New_York',
+    statement_timestamp()
+  )$$,
+  '42501',
+  'Analytics are available only to organization administrators.',
+  'members cannot load model analytics'
+);
+
 set local role anon;
 
 select throws_ok(
-  $$select public.get_prompt_analytics(
-    null::uuid,
-    30,
-    'America/New_York'
-  )$$,
+  $$select public.get_prompt_analytics_summary(null::uuid, 30, 'America/New_York', statement_timestamp())$$,
   '42501',
-  'permission denied for function get_prompt_analytics',
-  'anonymous clients cannot execute the analytics function'
+  'permission denied for function get_prompt_analytics_summary',
+  'anonymous clients cannot execute the analytics summary function'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_daily(null::uuid, 30, 'America/New_York', statement_timestamp())$$,
+  '42501',
+  'permission denied for function get_prompt_analytics_daily',
+  'anonymous clients cannot execute the daily analytics function'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_daily_users(null::uuid, 30, 'America/New_York', statement_timestamp())$$,
+  '42501',
+  'permission denied for function get_prompt_analytics_daily_users',
+  'anonymous clients cannot execute the daily user analytics function'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_users(null::uuid, 30, 'America/New_York', statement_timestamp())$$,
+  '42501',
+  'permission denied for function get_prompt_analytics_users',
+  'anonymous clients cannot execute the user analytics function'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_providers(null::uuid, 30, 'America/New_York', statement_timestamp())$$,
+  '42501',
+  'permission denied for function get_prompt_analytics_providers',
+  'anonymous clients cannot execute the provider analytics function'
+);
+
+select throws_ok(
+  $$select public.get_prompt_analytics_models(null::uuid, 30, 'America/New_York', statement_timestamp())$$,
+  '42501',
+  'permission denied for function get_prompt_analytics_models',
+  'anonymous clients cannot execute the model analytics function'
 );
 
 select * from finish();

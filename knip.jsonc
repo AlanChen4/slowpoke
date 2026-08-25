@@ -14,6 +14,7 @@
       // shadcn components intentionally expose reusable component APIs.
       "ignoreIssues": {
         "src/components/ui/**": ["exports", "types"],
+        "src/lib/supabase/database.types.ts": ["exports", "types"],
       },
       "ignoreExportsUsedInFile": true,
     },

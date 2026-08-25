@@ -37,7 +37,9 @@
     "format:backend:check": "cd apps/backend && uv run ruff format --check .",
     "format:collector:check": "cd apps/collector && uv run ruff format --check .",
     "db:reset": "bash scripts/reset-local-database.sh",
-    "db:types": "bash scripts/generate-python-db-types.sh > apps/backend/slowpoke_backend/database_types.py",
+    "db:types": "pnpm db:types:python && pnpm db:types:web",
+    "db:types:python": "bash scripts/generate-python-db-types.sh > apps/backend/slowpoke_backend/database_types.py",
+    "db:types:web": "bash scripts/generate-web-db-types.sh > apps/web/src/lib/supabase/database.types.ts",
     "check:metadata": "node scripts/check-metadata.mjs",
     "changeset": "changeset",
     "release": "changeset publish"

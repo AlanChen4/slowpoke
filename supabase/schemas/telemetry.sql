@@ -422,22 +422,30 @@ where batch.signal = 'logs'
     or record.value#>>'{body,stringValue}' = 'claude_code.api_request'
   );
 
-create function public.get_prompt_analytics(
+create function public.get_prompt_analytics_summary(
   p_organization_id uuid,
   p_days integer,
-  p_timezone text
+  p_timezone text,
+  p_end timestamptz
 )
-returns jsonb
+returns table (
+  current_total_prompts bigint,
+  current_active_users bigint,
+  current_prompts_per_day numeric,
+  current_prompts_per_user numeric,
+  previous_total_prompts bigint,
+  previous_active_users bigint,
+  previous_prompts_per_day numeric,
+  previous_prompts_per_user numeric
+)
 language plpgsql
 stable
 security invoker
 set search_path = ''
 as $$
 declare
-  current_end timestamptz := statement_timestamp();
   current_start timestamptz;
   previous_start timestamptz;
-  result jsonb;
 begin
   if p_days is null or p_days not in (7, 30, 90) then
     raise exception using
@@ -458,6 +466,12 @@ begin
       message = 'Analytics timezone is invalid.';
   end if;
 
+  if p_end is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics end time is required.';
+  end if;
+
   if (select auth.uid()) is null or not exists (
     select 1
     from public.organization_members as membership
@@ -471,255 +485,588 @@ begin
   end if;
 
   current_start := (
-    date_trunc('day', current_end at time zone p_timezone)
+    date_trunc('day', p_end at time zone p_timezone)
     - make_interval(days => p_days - 1)
   ) at time zone p_timezone;
-  previous_start := current_start - (current_end - current_start);
+  previous_start := current_start - (p_end - current_start);
 
+  return query
   with events as (
     select
       prompt.occurred_at,
-      prompt.provider,
-      coalesce(nullif(trim(prompt.model), ''), 'Unknown') as model,
       case
         when nullif(trim(prompt.actor_email), '') is not null
           then 'email:' || lower(trim(prompt.actor_email))
         when nullif(trim(prompt.actor_account_id), '') is not null
           then 'account:' || trim(prompt.actor_account_id)
-      end as user_key,
+      end as user_key
+    from public.human_prompt_events as prompt
+    where prompt.organization_id = p_organization_id
+      and prompt.occurred_at >= previous_start
+      and prompt.occurred_at <= p_end
+  ),
+  totals as (
+    select
+      count(*) filter (where events.occurred_at >= current_start) as current_prompts,
+      count(distinct events.user_key) filter (
+        where events.occurred_at >= current_start and events.user_key is not null
+      ) as current_users,
+      count(*) filter (where events.occurred_at < current_start) as previous_prompts,
+      count(distinct events.user_key) filter (
+        where events.occurred_at < current_start and events.user_key is not null
+      ) as previous_users
+    from events
+  )
+  select
+    totals.current_prompts,
+    totals.current_users,
+    round(totals.current_prompts::numeric / p_days, 2),
+    case
+      when totals.current_users = 0 then 0
+      else round(totals.current_prompts::numeric / totals.current_users, 2)
+    end,
+    totals.previous_prompts,
+    totals.previous_users,
+    round(totals.previous_prompts::numeric / p_days, 2),
+    case
+      when totals.previous_users = 0 then 0
+      else round(totals.previous_prompts::numeric / totals.previous_users, 2)
+    end
+  from totals;
+end;
+$$;
+
+create function public.get_prompt_analytics_daily(
+  p_organization_id uuid,
+  p_days integer,
+  p_timezone text,
+  p_end timestamptz
+)
+returns table (
+  day date,
+  prompts bigint,
+  active_users bigint,
+  openai bigint,
+  anthropic bigint
+)
+language plpgsql
+stable
+security invoker
+set search_path = ''
+as $$
+declare
+  current_start timestamptz;
+begin
+  if p_days is null or p_days not in (7, 30, 90) then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics range must be 7, 30, or 90 days.';
+  end if;
+
+  if p_timezone is null
+    or char_length(p_timezone) > 100
+    or not exists (
+      select 1
+      from pg_catalog.pg_timezone_names
+      where name = p_timezone
+    )
+  then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics timezone is invalid.';
+  end if;
+
+  if p_end is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics end time is required.';
+  end if;
+
+  if (select auth.uid()) is null or not exists (
+    select 1
+    from public.organization_members as membership
+    where membership.organization_id = p_organization_id
+      and membership.user_id = (select auth.uid())
+      and membership.role = 'admin'
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Analytics are available only to organization administrators.';
+  end if;
+
+  current_start := (
+    date_trunc('day', p_end at time zone p_timezone)
+    - make_interval(days => p_days - 1)
+  ) at time zone p_timezone;
+
+  return query
+  with events as (
+    select
+      prompt.occurred_at,
+      prompt.provider,
+      case
+        when nullif(trim(prompt.actor_email), '') is not null
+          then 'email:' || lower(trim(prompt.actor_email))
+        when nullif(trim(prompt.actor_account_id), '') is not null
+          then 'account:' || trim(prompt.actor_account_id)
+      end as user_key
+    from public.human_prompt_events as prompt
+    where prompt.organization_id = p_organization_id
+      and prompt.occurred_at >= current_start
+      and prompt.occurred_at <= p_end
+  ),
+  day_series as (
+    select generated_day::date as day
+    from generate_series(
+      (current_start at time zone p_timezone)::date,
+      (p_end at time zone p_timezone)::date,
+      interval '1 day'
+    ) as generated_day
+  ),
+  daily_counts as (
+    select
+      (events.occurred_at at time zone p_timezone)::date as day,
+      count(*) as prompts,
+      count(distinct events.user_key) filter (where events.user_key is not null) as active_users,
+      count(*) filter (where events.provider = 'openai') as openai,
+      count(*) filter (where events.provider = 'anthropic') as anthropic
+    from events
+    group by 1
+  )
+  select
+    day_series.day,
+    coalesce(daily_counts.prompts, 0),
+    coalesce(daily_counts.active_users, 0),
+    coalesce(daily_counts.openai, 0),
+    coalesce(daily_counts.anthropic, 0)
+  from day_series
+  left join daily_counts on daily_counts.day = day_series.day
+  order by day_series.day;
+end;
+$$;
+
+create function public.get_prompt_analytics_daily_users(
+  p_organization_id uuid,
+  p_days integer,
+  p_timezone text,
+  p_end timestamptz
+)
+returns table (
+  day date,
+  rank bigint,
+  user_key text,
+  user_label text,
+  prompts bigint
+)
+language plpgsql
+stable
+security invoker
+set search_path = ''
+as $$
+declare
+  current_start timestamptz;
+begin
+  if p_days is null or p_days not in (7, 30, 90) then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics range must be 7, 30, or 90 days.';
+  end if;
+
+  if p_timezone is null
+    or char_length(p_timezone) > 100
+    or not exists (
+      select 1
+      from pg_catalog.pg_timezone_names
+      where name = p_timezone
+    )
+  then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics timezone is invalid.';
+  end if;
+
+  if p_end is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics end time is required.';
+  end if;
+
+  if (select auth.uid()) is null or not exists (
+    select 1
+    from public.organization_members as membership
+    where membership.organization_id = p_organization_id
+      and membership.user_id = (select auth.uid())
+      and membership.role = 'admin'
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Analytics are available only to organization administrators.';
+  end if;
+
+  current_start := (
+    date_trunc('day', p_end at time zone p_timezone)
+    - make_interval(days => p_days - 1)
+  ) at time zone p_timezone;
+
+  return query
+  with daily_user_counts as (
+    select
+      (prompt.occurred_at at time zone p_timezone)::date as day,
+      coalesce(
+        case
+          when nullif(trim(prompt.actor_email), '') is not null
+            then 'email:' || lower(trim(prompt.actor_email))
+          when nullif(trim(prompt.actor_account_id), '') is not null
+            then 'account:' || trim(prompt.actor_account_id)
+        end,
+        'unknown'
+      ) as user_key,
       coalesce(
         lower(nullif(trim(prompt.actor_email), '')),
         nullif(trim(prompt.actor_account_id), ''),
         'Unknown user'
-      ) as user_label
+      ) as user_label,
+      count(*) as prompts
     from public.human_prompt_events as prompt
     where prompt.organization_id = p_organization_id
-      and prompt.occurred_at >= previous_start
-      and prompt.occurred_at <= current_end
-  ),
-  totals as (
-    select
-      count(*) filter (where occurred_at >= current_start) as current_prompts,
-      count(distinct user_key) filter (
-        where occurred_at >= current_start and user_key is not null
-      ) as current_users,
-      count(*) filter (where occurred_at < current_start) as previous_prompts,
-      count(distinct user_key) filter (
-        where occurred_at < current_start and user_key is not null
-      ) as previous_users
-    from events
-  ),
-  day_series as (
-    select day::date
-    from generate_series(
-      (current_start at time zone p_timezone)::date,
-      (current_end at time zone p_timezone)::date,
-      interval '1 day'
-    ) as day
-  ),
-  daily_counts as (
-    select
-      (occurred_at at time zone p_timezone)::date as day,
-      count(*) as prompts,
-      count(distinct user_key) filter (where user_key is not null) as active_users,
-      count(*) filter (where provider = 'openai') as openai,
-      count(*) filter (where provider = 'anthropic') as anthropic
-    from events
-    where occurred_at >= current_start
-    group by 1
-  ),
-  daily_user_counts as (
-    select
-      (occurred_at at time zone p_timezone)::date as day,
-      coalesce(user_key, 'unknown') as user_key,
-      user_label,
-      count(*) as prompts
-    from events
-    where occurred_at >= current_start
+      and prompt.occurred_at >= current_start
+      and prompt.occurred_at <= p_end
     group by 1, 2, 3
   ),
   ranked_daily_users as (
     select
-      day,
-      user_key,
-      user_label,
-      prompts,
+      daily_user_counts.day,
+      daily_user_counts.user_key,
+      daily_user_counts.user_label,
+      daily_user_counts.prompts,
       row_number() over (
-        partition by day
-        order by prompts desc, user_label
-      ) as day_rank
+        partition by daily_user_counts.day
+        order by daily_user_counts.prompts desc, daily_user_counts.user_label
+      ) as rank
     from daily_user_counts
-  ),
-  daily_users_json as (
+  )
+  select
+    ranked_daily_users.day,
+    ranked_daily_users.rank,
+    ranked_daily_users.user_key,
+    ranked_daily_users.user_label,
+    ranked_daily_users.prompts
+  from ranked_daily_users
+  where ranked_daily_users.rank <= 5
+  order by ranked_daily_users.day, ranked_daily_users.rank;
+end;
+$$;
+
+create function public.get_prompt_analytics_users(
+  p_organization_id uuid,
+  p_days integer,
+  p_timezone text,
+  p_end timestamptz
+)
+returns table (
+  rank bigint,
+  user_key text,
+  user_label text,
+  prompts bigint,
+  share numeric,
+  last_active_at timestamptz
+)
+language plpgsql
+stable
+security invoker
+set search_path = ''
+as $$
+declare
+  current_start timestamptz;
+begin
+  if p_days is null or p_days not in (7, 30, 90) then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics range must be 7, 30, or 90 days.';
+  end if;
+
+  if p_timezone is null
+    or char_length(p_timezone) > 100
+    or not exists (
+      select 1
+      from pg_catalog.pg_timezone_names
+      where name = p_timezone
+    )
+  then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics timezone is invalid.';
+  end if;
+
+  if p_end is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics end time is required.';
+  end if;
+
+  if (select auth.uid()) is null or not exists (
+    select 1
+    from public.organization_members as membership
+    where membership.organization_id = p_organization_id
+      and membership.user_id = (select auth.uid())
+      and membership.role = 'admin'
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Analytics are available only to organization administrators.';
+  end if;
+
+  current_start := (
+    date_trunc('day', p_end at time zone p_timezone)
+    - make_interval(days => p_days - 1)
+  ) at time zone p_timezone;
+
+  return query
+  with user_counts as (
     select
-      day,
-      jsonb_agg(
-        jsonb_build_object(
-          'rank', day_rank,
-          'key', user_key,
-          'label', user_label,
-          'prompts', prompts
-        )
-        order by day_rank
-      ) filter (where day_rank <= 5) as users
-    from ranked_daily_users
-    group by day
-  ),
-  daily_json as (
-    select coalesce(
-      jsonb_agg(
-        jsonb_build_object(
-          'date', day_series.day,
-          'prompts', coalesce(daily_counts.prompts, 0),
-          'activeUsers', coalesce(daily_counts.active_users, 0),
-          'openai', coalesce(daily_counts.openai, 0),
-          'anthropic', coalesce(daily_counts.anthropic, 0),
-          'users', coalesce(daily_users_json.users, '[]'::jsonb)
-        )
-        order by day_series.day
-      ),
-      '[]'::jsonb
-    ) as value
-    from day_series
-    left join daily_counts using (day)
-    left join daily_users_json using (day)
-  ),
-  user_counts as (
-    select
-      coalesce(user_key, 'unknown') as user_key,
-      user_label,
+      coalesce(
+        case
+          when nullif(trim(prompt.actor_email), '') is not null
+            then 'email:' || lower(trim(prompt.actor_email))
+          when nullif(trim(prompt.actor_account_id), '') is not null
+            then 'account:' || trim(prompt.actor_account_id)
+        end,
+        'unknown'
+      ) as user_key,
+      coalesce(
+        lower(nullif(trim(prompt.actor_email), '')),
+        nullif(trim(prompt.actor_account_id), ''),
+        'Unknown user'
+      ) as user_label,
       count(*) as prompts,
-      max(occurred_at) as last_active_at
-    from events
-    where occurred_at >= current_start
+      max(prompt.occurred_at) as last_active_at
+    from public.human_prompt_events as prompt
+    where prompt.organization_id = p_organization_id
+      and prompt.occurred_at >= current_start
+      and prompt.occurred_at <= p_end
     group by 1, 2
+  ),
+  totals as (
+    select count(*) as prompts
+    from public.human_prompt_events as prompt
+    where prompt.organization_id = p_organization_id
+      and prompt.occurred_at >= current_start
+      and prompt.occurred_at <= p_end
   ),
   ranked_users as (
     select
-      row_number() over (order by prompts desc, user_label) as rank,
-      user_key,
-      user_label,
-      prompts,
-      last_active_at
+      row_number() over (
+        order by user_counts.prompts desc, user_counts.user_label
+      ) as rank,
+      user_counts.user_key,
+      user_counts.user_label,
+      user_counts.prompts,
+      user_counts.last_active_at
     from user_counts
-  ),
-  users_json as (
-    select coalesce(
-      jsonb_agg(
-        jsonb_build_object(
-          'rank', rank,
-          'key', user_key,
-          'label', user_label,
-          'prompts', prompts,
-          'share', case
-            when totals.current_prompts = 0 then 0
-            else round(prompts::numeric / totals.current_prompts, 4)
-          end,
-          'lastActiveAt', last_active_at
-        )
-        order by rank
-      ) filter (where rank <= 25),
-      '[]'::jsonb
-    ) as value
-    from ranked_users
-    cross join totals
-  ),
-  provider_series(provider) as (
-    values ('openai'::text), ('anthropic'::text)
+  )
+  select
+    ranked_users.rank,
+    ranked_users.user_key,
+    ranked_users.user_label,
+    ranked_users.prompts,
+    case
+      when totals.prompts = 0 then 0
+      else round(ranked_users.prompts::numeric / totals.prompts, 4)
+    end,
+    ranked_users.last_active_at
+  from ranked_users
+  cross join totals
+  where ranked_users.rank <= 25
+  order by ranked_users.rank;
+end;
+$$;
+
+create function public.get_prompt_analytics_providers(
+  p_organization_id uuid,
+  p_days integer,
+  p_timezone text,
+  p_end timestamptz
+)
+returns table (
+  provider text,
+  prompts bigint
+)
+language plpgsql
+stable
+security invoker
+set search_path = ''
+as $$
+declare
+  current_start timestamptz;
+begin
+  if p_days is null or p_days not in (7, 30, 90) then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics range must be 7, 30, or 90 days.';
+  end if;
+
+  if p_timezone is null
+    or char_length(p_timezone) > 100
+    or not exists (
+      select 1
+      from pg_catalog.pg_timezone_names
+      where name = p_timezone
+    )
+  then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics timezone is invalid.';
+  end if;
+
+  if p_end is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics end time is required.';
+  end if;
+
+  if (select auth.uid()) is null or not exists (
+    select 1
+    from public.organization_members as membership
+    where membership.organization_id = p_organization_id
+      and membership.user_id = (select auth.uid())
+      and membership.role = 'admin'
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Analytics are available only to organization administrators.';
+  end if;
+
+  current_start := (
+    date_trunc('day', p_end at time zone p_timezone)
+    - make_interval(days => p_days - 1)
+  ) at time zone p_timezone;
+
+  return query
+  with provider_series(provider) as (
+    values ('anthropic'::text), ('openai'::text)
   ),
   provider_counts as (
-    select provider, count(*) as prompts
-    from events
-    where occurred_at >= current_start
-    group by provider
-  ),
-  providers_json as (
-    select jsonb_agg(
-      jsonb_build_object(
-        'provider', provider_series.provider,
-        'prompts', coalesce(provider_counts.prompts, 0)
-      )
-      order by provider_series.provider
-    ) as value
-    from provider_series
-    left join provider_counts using (provider)
-  ),
-  model_counts as (
-    select model, count(*) as prompts
-    from events
-    where occurred_at >= current_start
-    group by model
+    select prompt.provider, count(*) as prompts
+    from public.human_prompt_events as prompt
+    where prompt.organization_id = p_organization_id
+      and prompt.occurred_at >= current_start
+      and prompt.occurred_at <= p_end
+    group by prompt.provider
+  )
+  select
+    provider_series.provider,
+    coalesce(provider_counts.prompts, 0)
+  from provider_series
+  left join provider_counts on provider_counts.provider = provider_series.provider
+  order by provider_series.provider;
+end;
+$$;
+
+create function public.get_prompt_analytics_models(
+  p_organization_id uuid,
+  p_days integer,
+  p_timezone text,
+  p_end timestamptz
+)
+returns table (
+  model text,
+  prompts bigint
+)
+language plpgsql
+stable
+security invoker
+set search_path = ''
+as $$
+declare
+  current_start timestamptz;
+begin
+  if p_days is null or p_days not in (7, 30, 90) then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics range must be 7, 30, or 90 days.';
+  end if;
+
+  if p_timezone is null
+    or char_length(p_timezone) > 100
+    or not exists (
+      select 1
+      from pg_catalog.pg_timezone_names
+      where name = p_timezone
+    )
+  then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics timezone is invalid.';
+  end if;
+
+  if p_end is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Analytics end time is required.';
+  end if;
+
+  if (select auth.uid()) is null or not exists (
+    select 1
+    from public.organization_members as membership
+    where membership.organization_id = p_organization_id
+      and membership.user_id = (select auth.uid())
+      and membership.role = 'admin'
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Analytics are available only to organization administrators.';
+  end if;
+
+  current_start := (
+    date_trunc('day', p_end at time zone p_timezone)
+    - make_interval(days => p_days - 1)
+  ) at time zone p_timezone;
+
+  return query
+  with model_counts as (
+    select
+      coalesce(nullif(trim(prompt.model), ''), 'Unknown') as model,
+      count(*) as prompts
+    from public.human_prompt_events as prompt
+    where prompt.organization_id = p_organization_id
+      and prompt.occurred_at >= current_start
+      and prompt.occurred_at <= p_end
+    group by 1
   ),
   ranked_models as (
     select
-      model,
-      prompts,
-      row_number() over (order by prompts desc, model) filter_model_rank
+      model_counts.model,
+      model_counts.prompts,
+      row_number() over (
+        order by model_counts.prompts desc, model_counts.model
+      ) as filter_model_rank
     from model_counts
-    where model <> 'Unknown'
+    where model_counts.model <> 'Unknown'
   ),
   model_buckets as (
-    select model, prompts, filter_model_rank as sort_order
+    select
+      ranked_models.model,
+      ranked_models.prompts,
+      ranked_models.filter_model_rank as sort_order
     from ranked_models
-    where filter_model_rank <= 7
+    where ranked_models.filter_model_rank <= 7
 
     union all
 
-    select 'Unknown', prompts, 8
+    select model_counts.model, model_counts.prompts, 8
     from model_counts
-    where model = 'Unknown'
+    where model_counts.model = 'Unknown'
 
     union all
 
-    select 'Other', sum(prompts), 9
+    select 'Other', sum(ranked_models.prompts)::bigint, 9
     from ranked_models
-    where filter_model_rank > 7
+    where ranked_models.filter_model_rank > 7
     having count(*) > 0
-  ),
-  models_json as (
-    select coalesce(
-      jsonb_agg(
-        jsonb_build_object('model', model, 'prompts', prompts)
-        order by sort_order, model
-      ),
-      '[]'::jsonb
-    ) as value
-    from model_buckets
   )
-  select jsonb_build_object(
-    'summary', jsonb_build_object(
-      'current', jsonb_build_object(
-        'totalPrompts', totals.current_prompts,
-        'activeUsers', totals.current_users,
-        'promptsPerDay', round(totals.current_prompts::numeric / p_days, 2),
-        'promptsPerUser', case
-          when totals.current_users = 0 then 0
-          else round(totals.current_prompts::numeric / totals.current_users, 2)
-        end
-      ),
-      'previous', jsonb_build_object(
-        'totalPrompts', totals.previous_prompts,
-        'activeUsers', totals.previous_users,
-        'promptsPerDay', round(totals.previous_prompts::numeric / p_days, 2),
-        'promptsPerUser', case
-          when totals.previous_users = 0 then 0
-          else round(totals.previous_prompts::numeric / totals.previous_users, 2)
-        end
-      )
-    ),
-    'daily', daily_json.value,
-    'users', users_json.value,
-    'providers', providers_json.value,
-    'models', models_json.value
-  )
-  into result
-  from totals
-  cross join daily_json
-  cross join users_json
-  cross join providers_json
-  cross join models_json;
-
-  return result;
+  select model_buckets.model, model_buckets.prompts
+  from model_buckets
+  order by model_buckets.sort_order, model_buckets.model;
 end;
 $$;
 
@@ -732,7 +1079,17 @@ revoke all on table public.telemetry_batches from anon, authenticated, service_r
 revoke all on table public.prompt_events from anon, authenticated, service_role;
 revoke all on table public.human_prompt_events from anon, authenticated, service_role;
 revoke all on table public.response_usage_events from anon, authenticated, service_role;
-revoke all on function public.get_prompt_analytics(uuid, integer, text)
+revoke all on function public.get_prompt_analytics_summary(uuid, integer, text, timestamptz)
+  from public, anon, authenticated, service_role;
+revoke all on function public.get_prompt_analytics_daily(uuid, integer, text, timestamptz)
+  from public, anon, authenticated, service_role;
+revoke all on function public.get_prompt_analytics_daily_users(uuid, integer, text, timestamptz)
+  from public, anon, authenticated, service_role;
+revoke all on function public.get_prompt_analytics_users(uuid, integer, text, timestamptz)
+  from public, anon, authenticated, service_role;
+revoke all on function public.get_prompt_analytics_providers(uuid, integer, text, timestamptz)
+  from public, anon, authenticated, service_role;
+revoke all on function public.get_prompt_analytics_models(uuid, integer, text, timestamptz)
   from public, anon, authenticated, service_role;
 
 grant select on table public.organizations to authenticated;
@@ -740,7 +1097,18 @@ grant select on table public.organization_members to authenticated;
 grant select on table public.installations to authenticated;
 grant select on table public.prompt_events to authenticated;
 grant select on table public.human_prompt_events to authenticated;
-grant execute on function public.get_prompt_analytics(uuid, integer, text) to authenticated;
+grant execute on function public.get_prompt_analytics_summary(uuid, integer, text, timestamptz)
+  to authenticated;
+grant execute on function public.get_prompt_analytics_daily(uuid, integer, text, timestamptz)
+  to authenticated;
+grant execute on function public.get_prompt_analytics_daily_users(uuid, integer, text, timestamptz)
+  to authenticated;
+grant execute on function public.get_prompt_analytics_users(uuid, integer, text, timestamptz)
+  to authenticated;
+grant execute on function public.get_prompt_analytics_providers(uuid, integer, text, timestamptz)
+  to authenticated;
+grant execute on function public.get_prompt_analytics_models(uuid, integer, text, timestamptz)
+  to authenticated;
 
 grant select, insert, update, delete on table public.organizations to service_role;
 grant select, insert, update, delete on table public.organization_members to service_role;
