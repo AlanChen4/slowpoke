@@ -1,6 +1,6 @@
 begin;
 
-select plan(43);
+select plan(46);
 
 insert into public.organizations (
   id,
@@ -149,6 +149,47 @@ select ok(
     )
   ) > 1,
   'seed data produces a multi-model breakdown'
+);
+
+select ok(
+  (
+    select count(distinct prompts)
+    from public.get_prompt_analytics_daily(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ) >= 6,
+  'seed data produces varied daily prompt volumes'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.get_prompt_analytics_daily(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+    where prompts = 0
+  ),
+  'seed data includes realistic quiet days'
+);
+
+select ok(
+  (
+    select avg(prompts) filter (where extract(isodow from day) between 1 and 5)
+      > avg(prompts) filter (where extract(isodow from day) between 6 and 7)
+    from public.get_prompt_analytics_daily(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  'seed data has stronger weekday activity than weekend activity'
 );
 
 select lives_ok(

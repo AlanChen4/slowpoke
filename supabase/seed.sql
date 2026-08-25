@@ -185,6 +185,57 @@ order by organization.id
 limit 2
 on conflict (id) do nothing;
 
+with seed_organization as (
+  select organization.id
+  from public.organizations as organization
+  where organization.name = 'Slowpoke'
+  order by organization.id
+  limit 1
+),
+daily_activity as (
+  select
+    day_offset,
+    current_date - day_offset as activity_day,
+    case
+      when day_offset in (6, 17, 43, 72, 109, 144, 165) then 0
+      else greatest(
+        0,
+        case extract(isodow from current_date - day_offset)::integer
+          when 1 then 8
+          when 2 then 10
+          when 3 then 11
+          when 4 then 9
+          when 5 then 7
+          when 6 then 3
+          else 2
+        end
+        + (day_offset * 7) % 5 - 2
+        + case
+          when day_offset <= 30 then 2
+          when day_offset <= 90 then 1
+          else 0
+        end
+        + case when day_offset % 31 = 0 then 7 else 0 end
+      )
+    end as prompt_count
+  from generate_series(1, 180) as offsets(day_offset)
+),
+samples as (
+  select
+    row_number() over (order by daily_activity.day_offset desc, event.index_within_day)::integer
+      - 1 as sample_index,
+    daily_activity.day_offset,
+    daily_activity.activity_day,
+    event.index_within_day,
+    (daily_activity.day_offset * 13 + event.index_within_day * 17) % 100 as user_bucket,
+    case
+      when (daily_activity.day_offset + event.index_within_day) % 10 < 4
+        then 'anthropic'
+      else 'openai'
+    end as provider
+  from daily_activity
+  cross join lateral generate_series(1, daily_activity.prompt_count) as event(index_within_day)
+)
 insert into public.prompt_events (
   organization_id,
   installation_id,
@@ -204,57 +255,54 @@ insert into public.prompt_events (
 )
 select
   organization.id,
-  case when sample.index % 3 = 0
+  case when sample.provider = 'anthropic'
     then '50000000-0000-4000-8000-000000000002'::uuid
     else '50000000-0000-4000-8000-000000000001'::uuid
   end,
-  case when sample.index % 3 = 0
+  case when sample.provider = 'anthropic'
     then '52000000-0000-4000-8000-000000000002'::uuid
     else '52000000-0000-4000-8000-000000000001'::uuid
   end,
-  sample.index,
-  case when sample.index % 3 = 0 then 'anthropic' else 'openai' end,
-  case when sample.index % 3 = 0 then 'claude_code.user_prompt' else 'codex.user_prompt' end,
-  date_trunc('day', now()) - interval '1 day'
-    - make_interval(days => sample.index % 118)
-    + make_interval(hours => 7 + (sample.index * 5) % 14)
-    + make_interval(mins => (sample.index * 11) % 60),
-  'demo-prompt-' || sample.index,
-  'demo-session-' || sample.index / 3,
-  case when sample.index % 19 = 0 then 'account-' || sample.index % 5 end,
-  case sample.index % 17
-    when 0 then null
-    when 1 then 'dev@slowpoke.ai'
-    when 2 then 'alex@slowpoke.ai'
-    when 3 then 'alex@slowpoke.ai'
-    when 4 then 'casey@slowpoke.ai'
-    when 5 then 'casey@slowpoke.ai'
-    when 6 then 'casey@slowpoke.ai'
-    when 7 then 'jordan@slowpoke.ai'
-    when 8 then 'jordan@slowpoke.ai'
-    when 9 then 'morgan@slowpoke.ai'
-    when 10 then 'riley@slowpoke.ai'
-    when 11 then 'sam@slowpoke.ai'
-    when 12 then 'taylor@slowpoke.ai'
-    when 13 then 'taylor@slowpoke.ai'
-    when 14 then 'taylor@slowpoke.ai'
-    when 15 then 'taylor@slowpoke.ai'
+  sample.sample_index,
+  sample.provider,
+  case
+    when sample.provider = 'anthropic' then 'claude_code.user_prompt'
+    else 'codex.user_prompt'
+  end,
+  sample.activity_day::timestamptz
+    + make_interval(hours => 7 + (sample.index_within_day * 3 + sample.day_offset) % 13)
+    + make_interval(mins => (sample.index_within_day * 17 + sample.day_offset * 11) % 60),
+  'demo-prompt-' || sample.sample_index,
+  'demo-session-' || sample.day_offset || '-' || (sample.index_within_day - 1) / 4,
+  case when sample.user_bucket >= 96 then 'account-' || sample.user_bucket % 3 end,
+  case
+    when sample.user_bucket < 20 then 'taylor@slowpoke.ai'
+    when sample.user_bucket < 36 then 'casey@slowpoke.ai'
+    when sample.user_bucket < 50 then 'alex@slowpoke.ai'
+    when sample.user_bucket < 62 then 'jordan@slowpoke.ai'
+    when sample.user_bucket < 72 then 'dev@slowpoke.ai'
+    when sample.user_bucket < 80 then 'morgan@slowpoke.ai'
+    when sample.user_bucket < 87 then 'riley@slowpoke.ai'
+    when sample.user_bucket < 92 then 'sam@slowpoke.ai'
     else null
   end,
-  'Analytics demo prompt ' || sample.index || ': help the team complete a realistic task.',
-  sample.index % 23 = 0,
+  case (sample.day_offset + sample.index_within_day) % 5
+    when 0 then 'Summarize customer feedback and identify recurring themes.'
+    when 1 then 'Draft a concise implementation plan for the next product change.'
+    when 2 then 'Review this code path for correctness, security, and maintainability.'
+    when 3 then 'Turn these notes into a clear status update for the team.'
+    else 'Analyze the latest support trends and recommend follow-up actions.'
+  end,
+  sample.sample_index % 29 = 0,
   case
-    when sample.index % 3 = 0 and sample.index % 5 = 0 then 'claude-opus-4-1'
-    when sample.index % 3 = 0 then 'claude-sonnet-4-5'
-    when sample.index % 7 = 0 then 'gpt-5.2-codex'
-    when sample.index % 5 = 0 then 'gpt-5.1-codex-mini'
-    when sample.index % 11 = 0 then null
+    when sample.provider = 'anthropic' and sample.sample_index % 5 = 0 then 'claude-opus-4-1'
+    when sample.provider = 'anthropic' then 'claude-sonnet-4-5'
+    when sample.sample_index % 11 = 0 then null
+    when sample.sample_index % 7 = 0 then 'gpt-5.2-codex'
+    when sample.sample_index % 5 = 0 then 'gpt-5.1-codex-mini'
     else 'gpt-5.3-codex'
   end,
-  case when sample.index % 3 = 0 then 'claude-code' else 'codex' end
-from public.organizations as organization
-cross join generate_series(0, 359) as sample(index)
-where organization.name = 'Slowpoke'
-order by organization.id
-limit 360
+  case when sample.provider = 'anthropic' then 'claude-code' else 'codex' end
+from seed_organization as organization
+cross join samples as sample
 on conflict (batch_id, record_index) do nothing;
