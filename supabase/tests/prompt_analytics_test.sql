@@ -1,6 +1,26 @@
 begin;
 
-select plan(23);
+select plan(43);
+
+insert into public.organizations (
+  id,
+  name,
+  created_by_user_id,
+  idempotency_key
+)
+values (
+  '10000000-0000-4000-8000-000000000010',
+  'Empty analytics tenant',
+  '00000000-0000-4000-8000-000000000002',
+  '10000000-0000-4000-8000-000000000011'
+);
+
+insert into public.organization_members (organization_id, user_id, role)
+values (
+  '10000000-0000-4000-8000-000000000010',
+  '00000000-0000-4000-8000-000000000002',
+  'admin'
+);
 
 set local role authenticated;
 select set_config(
@@ -129,6 +149,317 @@ select ok(
     )
   ) > 1,
   'seed data produces a multi-model breakdown'
+);
+
+select lives_ok(
+  $$
+    select * from public.get_prompt_analytics_summary(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      7,
+      'UTC',
+      statement_timestamp()
+    )
+    union all
+    select * from public.get_prompt_analytics_summary(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/Los_Angeles',
+      statement_timestamp()
+    )
+  $$,
+  'summary analytics accept every supported range and valid timezone'
+);
+
+select lives_ok(
+  $$
+    select * from public.get_prompt_analytics_daily(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      7,
+      'UTC',
+      statement_timestamp()
+    )
+    union all
+    select * from public.get_prompt_analytics_daily(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/Los_Angeles',
+      statement_timestamp()
+    )
+  $$,
+  'daily analytics accept every supported range and valid timezone'
+);
+
+select lives_ok(
+  $$
+    select * from public.get_prompt_analytics_daily_users(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      7,
+      'UTC',
+      statement_timestamp()
+    )
+    union all
+    select * from public.get_prompt_analytics_daily_users(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/Los_Angeles',
+      statement_timestamp()
+    )
+  $$,
+  'daily user analytics accept every supported range and valid timezone'
+);
+
+select lives_ok(
+  $$
+    select * from public.get_prompt_analytics_users(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      7,
+      'UTC',
+      statement_timestamp()
+    )
+    union all
+    select * from public.get_prompt_analytics_users(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/Los_Angeles',
+      statement_timestamp()
+    )
+  $$,
+  'user analytics accept every supported range and valid timezone'
+);
+
+select lives_ok(
+  $$
+    select * from public.get_prompt_analytics_providers(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      7,
+      'UTC',
+      statement_timestamp()
+    )
+    union all
+    select * from public.get_prompt_analytics_providers(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/Los_Angeles',
+      statement_timestamp()
+    )
+  $$,
+  'provider analytics accept every supported range and valid timezone'
+);
+
+select lives_ok(
+  $$
+    select * from public.get_prompt_analytics_models(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      7,
+      'UTC',
+      statement_timestamp()
+    )
+    union all
+    select * from public.get_prompt_analytics_models(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/Los_Angeles',
+      statement_timestamp()
+    )
+  $$,
+  'model analytics accept every supported range and valid timezone'
+);
+
+select is(
+  (
+    select max(day)
+    from public.get_prompt_analytics_daily(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      7,
+      'America/New_York',
+      '2026-08-25 02:00:00+00'
+    )
+  ),
+  '2026-08-24'::date,
+  'daily buckets use the requested timezone for the reporting date'
+);
+
+select ok(
+  (
+    select array_agg(day) = array_agg(day order by day)
+    from public.get_prompt_analytics_daily(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      30,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  'daily analytics are ordered by date ascending'
+);
+
+select ok(
+  (
+    select array_agg(day::text || ':' || rank::text)
+      = array_agg(day::text || ':' || rank::text order by day, rank)
+    from public.get_prompt_analytics_daily_users(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      30,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  'daily user analytics are ordered by date and rank'
+);
+
+select ok(
+  (
+    select array_agg(rank) = array_agg(rank order by rank)
+    from public.get_prompt_analytics_users(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      30,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  'overall user analytics are ordered by rank'
+);
+
+select is(
+  (
+    select array_agg(provider)
+    from public.get_prompt_analytics_providers(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      30,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  array['anthropic', 'openai']::text[],
+  'provider analytics use a stable provider order'
+);
+
+select ok(
+  not exists (
+    select 1
+    from (
+      select prompts, lag(prompts) over () as previous_prompts
+      from public.get_prompt_analytics_models(
+        (select id from public.organizations where name = 'Slowpoke' limit 1),
+        30,
+        'America/New_York',
+        statement_timestamp()
+      )
+      where model not in ('Unknown', 'Other')
+    ) as ordered_models
+    where ordered_models.prompts > ordered_models.previous_prompts
+  ),
+  'named model analytics are ordered by prompt count descending'
+);
+
+select ok(
+  (
+    select count(*) <= 25 and coalesce(max(rank), 0) <= 25
+    from public.get_prompt_analytics_users(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  'overall user analytics are limited to 25 users'
+);
+
+select ok(
+  (
+    select count(*) <= 9
+      and count(*) filter (where model not in ('Unknown', 'Other')) <= 7
+    from public.get_prompt_analytics_models(
+      (select id from public.organizations where name = 'Slowpoke' limit 1),
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  'model analytics are limited to seven named models plus special buckets'
+);
+
+select is(
+  (
+    select current_total_prompts
+    from public.get_prompt_analytics_summary(
+      '10000000-0000-4000-8000-000000000010',
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  0::bigint,
+  'summary analytics do not leak prompts from another tenant into an empty tenant'
+);
+
+select is(
+  (
+    select jsonb_build_array(count(*), coalesce(sum(prompts), 0))
+    from public.get_prompt_analytics_daily(
+      '10000000-0000-4000-8000-000000000010',
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  '[90, 0]'::jsonb,
+  'daily analytics return zero-filled buckets without cross-tenant activity'
+);
+
+select is(
+  (
+    select count(*)
+    from public.get_prompt_analytics_daily_users(
+      '10000000-0000-4000-8000-000000000010',
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  0::bigint,
+  'daily user analytics return an empty tenant-scoped result'
+);
+
+select is(
+  (
+    select count(*)
+    from public.get_prompt_analytics_users(
+      '10000000-0000-4000-8000-000000000010',
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  0::bigint,
+  'overall user analytics return an empty tenant-scoped result'
+);
+
+select is(
+  (
+    select jsonb_object_agg(provider, prompts)
+    from public.get_prompt_analytics_providers(
+      '10000000-0000-4000-8000-000000000010',
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  '{"anthropic": 0, "openai": 0}'::jsonb,
+  'provider analytics return zero-filled tenant-scoped buckets'
+);
+
+select is(
+  (
+    select count(*)
+    from public.get_prompt_analytics_models(
+      '10000000-0000-4000-8000-000000000010',
+      90,
+      'America/New_York',
+      statement_timestamp()
+    )
+  ),
+  0::bigint,
+  'model analytics return an empty tenant-scoped result'
 );
 
 select throws_ok(

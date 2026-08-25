@@ -58,28 +58,28 @@ function AnalyticsContent({
   days: AnalyticsRange;
   timezone: string;
 }) {
-  if (analytics.summary.current.totalPrompts === 0) {
-    return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <WarningCircleIcon />
-          </EmptyMedia>
-          <EmptyTitle>No prompt activity</EmptyTitle>
-          <EmptyDescription>
-            No human prompts were recorded during the selected {days}-day range.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <OverviewCards analytics={analytics} />
       <UsageHeatmap analytics={analytics} />
-      <UserLeaderboard analytics={analytics} timezone={timezone} />
-      <AnalyticsCharts analytics={analytics} />
+      {analytics.summary.current.totalPrompts === 0 ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <WarningCircleIcon />
+            </EmptyMedia>
+            <EmptyTitle>No prompt activity</EmptyTitle>
+            <EmptyDescription>
+              No human prompts were recorded during the selected {days}-day range.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <>
+          <UserLeaderboard analytics={analytics} timezone={timezone} />
+          <AnalyticsCharts analytics={analytics} />
+        </>
+      )}
     </div>
   );
 }

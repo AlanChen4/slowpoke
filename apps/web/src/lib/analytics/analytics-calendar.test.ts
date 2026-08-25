@@ -38,4 +38,27 @@ describe("buildAnalyticsCalendar", () => {
     expect(cells.find((cell) => cell.date === "2026-08-24")?.day?.prompts).toBe(3);
     expect(cells.find((cell) => cell.date === "2026-08-22")?.day).toBeNull();
   });
+
+  it("renders 90 active dates and eight calendar-padding cells", () => {
+    const daily = Array.from({ length: 90 }, (_, index) => {
+      const date = new Date("2026-05-28T00:00:00Z");
+      date.setUTCDate(date.getUTCDate() + index);
+      return analyticsDay(date.toISOString().slice(0, 10));
+    });
+    const cells = buildAnalyticsCalendar(daily).flat();
+
+    expect(cells).toHaveLength(98);
+    expect(cells.filter((cell) => cell.day)).toHaveLength(90);
+    expect(cells.filter((cell) => !cell.day)).toHaveLength(8);
+    expect(cells.filter((cell) => !cell.day).map((cell) => cell.date)).toEqual([
+      "2026-05-25",
+      "2026-05-26",
+      "2026-05-27",
+      "2026-08-26",
+      "2026-08-27",
+      "2026-08-28",
+      "2026-08-29",
+      "2026-08-30",
+    ]);
+  });
 });

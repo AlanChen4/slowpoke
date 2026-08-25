@@ -88,7 +88,7 @@ export function UsageHeatmap({ analytics }: { analytics: PromptAnalytics }) {
         )}
       >
         <div className="overflow-x-auto">
-          <table className="border-separate border-spacing-1 text-xs">
+          <table className="w-max border-separate border-spacing-1 text-xs">
             <caption className="sr-only">Prompt activity by date</caption>
             <thead>
               <tr>
@@ -123,9 +123,9 @@ export function UsageHeatmap({ analytics }: { analytics: PromptAnalytics }) {
                     const { day } = cell;
                     if (!day) {
                       return (
-                        <td key={cell.date} aria-hidden="true">
+                        <td key={cell.date} aria-hidden="true" data-calendar-padding>
                           <span className="flex size-9 items-center justify-center">
-                            <span className="block size-8 border border-border bg-background" />
+                            <span className="block size-8 border border-border/60 bg-muted/30" />
                           </span>
                         </td>
                       );

@@ -6,8 +6,11 @@ import {
   analyticsRangeSchema,
   analyticsTimezoneSchema,
   type PromptAnalytics,
-  promptAnalyticsSchema,
 } from "@/lib/analytics/prompt-analytics";
+import {
+  buildPromptAnalyticsRpcArguments,
+  composePromptAnalytics,
+} from "@/lib/analytics/compose-prompt-analytics";
 import { getOrganizationContext } from "@/lib/organizations/organization-context";
 import { createClient } from "@/lib/supabase/server";
 
@@ -40,20 +43,20 @@ export async function loadPromptAnalytics(input: AnalyticsRequest): Promise<Anal
   }
 
   const end = new Date().toISOString();
-  const rpcArguments = {
-    p_days: request.data.days,
-    p_end: end,
-    p_organization_id: selectedOrganization.id,
-    p_timezone: request.data.timezone,
-  };
+  const rpcArguments = buildPromptAnalyticsRpcArguments({
+    days: request.data.days,
+    end,
+    organizationId: selectedOrganization.id,
+    timezone: request.data.timezone,
+  });
   const [summaryResult, dailyResult, dailyUsersResult, usersResult, providersResult, modelsResult] =
     await Promise.all([
-      supabase.rpc("get_prompt_analytics_summary", rpcArguments).single(),
-      supabase.rpc("get_prompt_analytics_daily", rpcArguments),
-      supabase.rpc("get_prompt_analytics_daily_users", rpcArguments),
-      supabase.rpc("get_prompt_analytics_users", rpcArguments),
-      supabase.rpc("get_prompt_analytics_providers", rpcArguments),
-      supabase.rpc("get_prompt_analytics_models", rpcArguments),
+      supabase.rpc("get_prompt_analytics_summary", rpcArguments.report).single(),
+      supabase.rpc("get_prompt_analytics_daily", rpcArguments.heatmap),
+      supabase.rpc("get_prompt_analytics_daily_users", rpcArguments.heatmap),
+      supabase.rpc("get_prompt_analytics_users", rpcArguments.report),
+      supabase.rpc("get_prompt_analytics_providers", rpcArguments.report),
+      supabase.rpc("get_prompt_analytics_models", rpcArguments.report),
     ]);
   const failedQuery = [
     { query: "summary", error: summaryResult.error },
@@ -75,53 +78,11 @@ export async function loadPromptAnalytics(input: AnalyticsRequest): Promise<Anal
     return { error: "Slowpoke received an invalid analytics response." };
   }
 
-  const dailyUsers = new Map<
-    string,
-    { rank: number; key: string; label: string; prompts: number }[]
-  >();
-  for (const row of dailyUsersResult.data ?? []) {
-    const users = dailyUsers.get(row.day) ?? [];
-    users.push({
-      rank: row.rank,
-      key: row.user_key,
-      label: row.user_label,
-      prompts: row.prompts,
-    });
-    dailyUsers.set(row.day, users);
-  }
-
-  const summary = summaryResult.data;
-  const analytics = promptAnalyticsSchema.safeParse({
-    summary: {
-      current: {
-        totalPrompts: summary.current_total_prompts,
-        activeUsers: summary.current_active_users,
-        promptsPerDay: summary.current_prompts_per_day,
-        promptsPerUser: summary.current_prompts_per_user,
-      },
-      previous: {
-        totalPrompts: summary.previous_total_prompts,
-        activeUsers: summary.previous_active_users,
-        promptsPerDay: summary.previous_prompts_per_day,
-        promptsPerUser: summary.previous_prompts_per_user,
-      },
-    },
-    daily: (dailyResult.data ?? []).map((row) => ({
-      date: row.day,
-      prompts: row.prompts,
-      activeUsers: row.active_users,
-      openai: row.openai,
-      anthropic: row.anthropic,
-      users: dailyUsers.get(row.day) ?? [],
-    })),
-    users: (usersResult.data ?? []).map((row) => ({
-      rank: row.rank,
-      key: row.user_key,
-      label: row.user_label,
-      prompts: row.prompts,
-      share: row.share,
-      lastActiveAt: row.last_active_at,
-    })),
+  const analytics = composePromptAnalytics({
+    summary: summaryResult.data,
+    daily: dailyResult.data ?? [],
+    dailyUsers: dailyUsersResult.data ?? [],
+    users: usersResult.data ?? [],
     providers: providersResult.data ?? [],
     models: modelsResult.data ?? [],
   });
