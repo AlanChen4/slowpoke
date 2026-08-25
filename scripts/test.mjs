@@ -10,7 +10,7 @@ const suites = new Map([
   [
     "database",
     {
-      description: "pgTAP, backend database tests, and generated database types",
+      description: "pgTAP, database contract tests, and generated database types",
       steps: [
         {
           command: "bash",
@@ -18,10 +18,9 @@ const suites = new Map([
           quiet: true,
         },
         { command: "pnpm", args: ["exec", "supabase", "test", "db"] },
-        { command: "bash", args: ["scripts/run-backend-database-tests.sh"] },
         { command: "bash", args: ["scripts/check-python-db-types.sh"] },
         { command: "bash", args: ["scripts/check-web-db-types.sh"] },
-        { command: "bash", args: ["scripts/run-analytics-contract-test.sh"] },
+        { command: "bash", args: ["scripts/run-database-contract-tests.sh"] },
       ],
     },
   ],
