@@ -35,7 +35,11 @@ export function DashboardTitle() {
     );
   }
 
-  const title = pathname.startsWith("/dashboard/settings") ? "Settings" : "Prompts";
+  const title = pathname.startsWith("/dashboard/settings")
+    ? "Settings"
+    : pathname.startsWith("/dashboard/analytics")
+      ? "Analytics"
+      : "Prompts";
 
   return (
     <Breadcrumb>

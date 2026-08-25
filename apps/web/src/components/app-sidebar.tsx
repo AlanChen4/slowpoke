@@ -1,6 +1,12 @@
 "use client";
 
-import { ChatsCircleIcon, GearIcon, PlusIcon, WaveformIcon } from "@phosphor-icons/react";
+import {
+  ChartLineUpIcon,
+  ChatsCircleIcon,
+  GearIcon,
+  PlusIcon,
+  WaveformIcon,
+} from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -44,7 +50,15 @@ type AppSidebarProps = {
   selectedOrganizationId: string | null;
 };
 
-const navigation = [
+type NavigationItem = {
+  title: string;
+  href: string;
+  icon: typeof ChatsCircleIcon;
+  adminOnly?: boolean;
+  isActive: (pathname: string) => boolean;
+};
+
+const navigation: readonly NavigationItem[] = [
   {
     title: "Prompts",
     href: "/dashboard?scope=human",
@@ -53,12 +67,19 @@ const navigation = [
       pathname === "/dashboard" || pathname.startsWith("/dashboard/prompts/"),
   },
   {
+    title: "Analytics",
+    href: "/dashboard/analytics",
+    icon: ChartLineUpIcon,
+    adminOnly: true,
+    isActive: (pathname: string) => pathname.startsWith("/dashboard/analytics"),
+  },
+  {
     title: "Settings",
     href: "/dashboard/settings",
     icon: GearIcon,
     isActive: (pathname: string) => pathname.startsWith("/dashboard/settings"),
   },
-] as const;
+];
 
 export function AppSidebar({ organizations, selectedOrganizationId }: AppSidebarProps) {
   const pathname = usePathname();
@@ -173,18 +194,20 @@ export function AppSidebar({ organizations, selectedOrganizationId }: AppSidebar
           <SidebarGroupLabel className="pointer-events-none">Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigation.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    tooltip={{ children: item.title }}
-                    isActive={item.isActive(pathname)}
-                    render={<Link href={item.href} />}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {navigation
+                .filter((item) => !item.adminOnly || selectedOrganization?.role === "admin")
+                .map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      tooltip={{ children: item.title }}
+                      isActive={item.isActive(pathname)}
+                      render={<Link href={item.href} />}
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -7,6 +7,17 @@ type ProviderIdentityProps = {
   provider: string;
 };
 
+type ProviderLogoProps = {
+  className?: string;
+  provider: "anthropic" | "openai";
+  size?: number;
+};
+
+const providerIdentities = {
+  anthropic: { label: "Claude", logo: "/claude-logo.png" },
+  openai: { label: "OpenAI", logo: "/openai-logo.png" },
+} as const;
+
 type PromptSourceIdentityProps = ProviderIdentityProps & {
   eventName: string;
 };
@@ -16,18 +27,23 @@ type InstallationToolIdentityProps = {
   tool: "codex" | "claude_code";
 };
 
+type IdentitySpec = {
+  label: string;
+  logo: string;
+};
+
 type IdentityProps = {
   className?: string;
   fallback: string;
-  identity: ReturnType<typeof providerDetails>;
+  identity: IdentitySpec | null;
 };
 
 function providerDetails(provider: string) {
   switch (provider.toLowerCase()) {
     case "anthropic":
-      return { label: "Claude", logo: "/claude-logo.png" };
+      return providerIdentities.anthropic;
     case "openai":
-      return { label: "OpenAI", logo: "/openai-logo.png" };
+      return providerIdentities.openai;
     default:
       return null;
   }
@@ -65,6 +81,21 @@ function Identity({ className, identity, fallback }: IdentityProps) {
       ) : null}
       <span>{identity?.label ?? fallback}</span>
     </span>
+  );
+}
+
+export function ProviderLogo({ className, provider, size = 14 }: ProviderLogoProps) {
+  const identity = providerIdentities[provider];
+
+  return (
+    <Image
+      src={identity.logo}
+      alt=""
+      aria-hidden="true"
+      width={size}
+      height={size}
+      className={cn("shrink-0 object-contain", className)}
+    />
   );
 }
 
