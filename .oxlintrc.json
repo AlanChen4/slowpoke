@@ -55,6 +55,7 @@
     "slowpoke-ui/heading-structure": "error",
     "slowpoke-ui/no-inline-errors": "error",
     "slowpoke-ui/no-ornamental-border": "error",
+    "slowpoke-ui/refresh-button-style": "error",
     "slowpoke-ui/surface-description-reason": "error",
     "slowpoke-structure/lib-directory-structure": "error",
     "node/no-process-env": "error",

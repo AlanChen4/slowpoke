@@ -50,6 +50,49 @@ test("allows full borders and semantic page chrome", () => {
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
 
+test("rejects refresh buttons with text or non-ghost styling", () => {
+  const result = lintFixture(`
+    import { ArrowClockwiseIcon } from "@phosphor-icons/react";
+    import { Button } from "./button";
+
+    export function Example({ refreshData }) {
+      return (
+        <>
+          <Button variant="outline" onClick={refreshData}>Refresh</Button>
+          <Button size="icon" aria-label="Refresh data" onClick={refreshData}>
+            <ArrowClockwiseIcon />
+          </Button>
+        </>
+      );
+    }
+  `);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stdout + result.stderr, /slowpoke-ui\(refresh-button-style\)/u);
+});
+
+test("allows accessible icon-only ghost refresh buttons", () => {
+  const result = lintFixture(`
+    import { ArrowClockwiseIcon } from "@phosphor-icons/react";
+    import { Button } from "./button";
+
+    export function Example({ refreshData }) {
+      return (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Refresh data"
+          onClick={refreshData}
+        >
+          <ArrowClockwiseIcon aria-hidden="true" />
+        </Button>
+      );
+    }
+  `);
+
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
 test("rejects surface descriptions without an explicit rationale", () => {
   const result = lintFixture(`
     import { CardDescription } from "./card";

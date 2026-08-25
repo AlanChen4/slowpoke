@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useState, useTransition } from "react";
 
@@ -44,8 +45,16 @@ export function PromptRefreshButton() {
   const { isPending, refreshPrompts } = usePromptRefresh();
 
   return (
-    <Button type="button" variant="outline" disabled={isPending} onClick={refreshPrompts}>
-      Refresh
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      aria-label="Refresh prompts"
+      aria-busy={isPending}
+      disabled={isPending}
+      onClick={refreshPrompts}
+    >
+      <ArrowClockwiseIcon className={isPending ? "animate-spin" : undefined} aria-hidden="true" />
     </Button>
   );
 }
