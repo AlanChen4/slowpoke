@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 
 import { revokeInstallation, type OrganizationFlowActionState } from "@/app/organization-actions";
-import { useErrorToast } from "@/components/error-toast";
+import { useErrorToast } from "@/components/feedback/error-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

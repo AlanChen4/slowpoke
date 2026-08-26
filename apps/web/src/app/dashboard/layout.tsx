@@ -2,8 +2,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { PromptRefreshProvider } from "@/app/dashboard/prompt-refresh";
-import { AppSidebar } from "@/components/app-sidebar";
-import { DashboardTitle } from "@/components/dashboard-title";
+import { AppSidebar } from "@/components/dashboard/app-sidebar";
+import { DashboardTitle } from "@/components/dashboard/dashboard-title";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getAuthClaims } from "@/lib/auth/auth-context";

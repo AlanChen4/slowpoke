@@ -5,7 +5,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { type OrganizationActionState, updateOrganization } from "@/app/dashboard/actions";
-import { useErrorToast } from "@/components/error-toast";
+import { useErrorToast } from "@/components/feedback/error-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";

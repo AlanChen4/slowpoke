@@ -12,7 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { selectOrganization } from "@/app/dashboard/actions";
-import { useErrorToast } from "@/components/error-toast";
+import { useErrorToast } from "@/components/feedback/error-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {

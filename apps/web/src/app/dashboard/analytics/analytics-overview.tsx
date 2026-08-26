@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { ProviderLogo } from "@/components/provider-identity";
+import { ProviderLogo } from "@/components/ai-tools/provider-identity";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {

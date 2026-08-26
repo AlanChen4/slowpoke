@@ -9,7 +9,7 @@ import { AnalyticsCharts, OverviewCards } from "@/app/dashboard/analytics/analyt
 import { UsageHeatmap } from "@/app/dashboard/analytics/usage-heatmap";
 import { UserLeaderboard } from "@/app/dashboard/analytics/user-leaderboard";
 import { PromptRefreshButton, usePromptRefresh } from "@/app/dashboard/prompt-refresh";
-import { ErrorToast } from "@/components/error-toast";
+import { ErrorToast } from "@/components/feedback/error-toast";
 import {
   Empty,
   EmptyDescription,

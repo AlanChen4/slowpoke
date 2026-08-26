@@ -9,8 +9,8 @@ import {
 import { AddInstallationDialog } from "@/app/dashboard/settings/add-installation-dialog";
 import { OrganizationProfileForm } from "@/app/dashboard/settings/organization-profile-form";
 import { RevokeInstallationButton } from "@/app/dashboard/settings/revoke-installation-button";
-import { ErrorToast } from "@/components/error-toast";
-import { InstallationToolIdentity } from "@/components/provider-identity";
+import { InstallationToolIdentity } from "@/components/ai-tools/provider-identity";
+import { ErrorToast } from "@/components/feedback/error-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

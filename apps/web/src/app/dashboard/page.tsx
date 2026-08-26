@@ -8,8 +8,8 @@ import { PromptRefreshButton } from "@/app/dashboard/prompt-refresh";
 import { PromptSearch } from "@/app/dashboard/prompt-search";
 import { PromptScopeFilter, type PromptScope } from "@/app/dashboard/prompt-scope-filter";
 import { PromptTime } from "@/app/dashboard/prompt-time";
-import { ErrorToast } from "@/components/error-toast";
-import { PromptSourceIdentity } from "@/components/provider-identity";
+import { PromptSourceIdentity } from "@/components/ai-tools/provider-identity";
+import { ErrorToast } from "@/components/feedback/error-toast";
 import {
   Empty,
   EmptyDescription,
