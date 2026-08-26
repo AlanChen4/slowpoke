@@ -122,13 +122,7 @@ export function UsageHeatmap({ analytics }: { analytics: PromptAnalytics }) {
                     const cell = week[weekdayIndex];
                     const { day } = cell;
                     if (!day) {
-                      return (
-                        <td key={cell.date} aria-hidden="true" data-calendar-padding>
-                          <span className="flex size-9 items-center justify-center">
-                            <span className="block size-8 border border-border/60 bg-muted/30" />
-                          </span>
-                        </td>
-                      );
+                      return <td key={cell.date} aria-hidden="true" data-calendar-padding />;
                     }
 
                     const date = analyticsDate(day.date);
