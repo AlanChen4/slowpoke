@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { env } from "@/env";
+import { type Database } from "@/lib/supabase/database.types";
 
 function redirectWithCookies(request: NextRequest, pathname: string, cookieSource: NextResponse) {
   const url = request.nextUrl.clone();
@@ -15,7 +16,7 @@ function redirectWithCookies(request: NextRequest, pathname: string, cookieSourc
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {

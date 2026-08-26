@@ -61,6 +61,14 @@ rebuild it from migrations and seed data without an interactive confirmation.
 - Consolidate related helpers and tests into an existing domain folder when
   their responsibilities overlap. Do not create one folder per module.
 
+## Web component organization
+
+- Keep JavaScript and TypeScript modules below a cohesive domain folder in
+  `apps/web/src/components`; do not put modules directly in `components`.
+- Keep shadcn primitives in `components/ui` and app-specific components in a
+  relevant domain folder. Consolidate related components instead of creating
+  one folder per module.
+
 ## Supabase
 
 - Read `.agents/skills/supabase/SKILL.md` for every Supabase task.

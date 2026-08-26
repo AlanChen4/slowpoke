@@ -9,7 +9,7 @@ import {
   resendInvitation,
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
-import { useErrorToast } from "@/components/error-toast";
+import { useErrorToast } from "@/components/feedback/error-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";

@@ -5,8 +5,8 @@ import { useActionState } from "react";
 
 import { continueWithEmail, type AuthActionState } from "@/app/auth/actions";
 import { AuthBrand } from "@/components/auth/auth-brand";
-import { useErrorToast } from "@/components/error-toast";
 import { GitHubLogo, GoogleLogo } from "@/components/auth/provider-logos";
+import { useErrorToast } from "@/components/feedback/error-toast";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Field,

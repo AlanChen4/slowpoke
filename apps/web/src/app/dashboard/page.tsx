@@ -8,8 +8,8 @@ import { PromptRefreshButton } from "@/app/dashboard/prompt-refresh";
 import { PromptSearch } from "@/app/dashboard/prompt-search";
 import { PromptScopeFilter, type PromptScope } from "@/app/dashboard/prompt-scope-filter";
 import { PromptTime } from "@/app/dashboard/prompt-time";
-import { ErrorToast } from "@/components/error-toast";
-import { PromptSourceIdentity } from "@/components/provider-identity";
+import { PromptSourceIdentity } from "@/components/ai-tools/provider-identity";
+import { ErrorToast } from "@/components/feedback/error-toast";
 import {
   Empty,
   EmptyDescription,
@@ -28,6 +28,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { getOrganizationContext } from "@/lib/organizations/organization-context";
+import { type Tables } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/ui/utils";
 
@@ -83,6 +84,11 @@ type DashboardPageProps = {
   }>;
 };
 
+type PromptListRow = Pick<
+  Tables<"prompt_events">,
+  "id" | "provider" | "event_name" | "actor_email" | "prompt_text" | "is_redacted" | "occurred_at"
+>;
+
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const { page: requestedPage, q: requestedQuery, scope: requestedScope } = await searchParams;
   const scope: PromptScope =
@@ -98,12 +104,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     getOrganizationContext(),
   ]);
   let promptQuery = selectedOrganization
-    ? supabase
-        .from(promptSource)
-        .select("id,provider,event_name,actor_email,prompt_text,is_redacted,occurred_at", {
-          count: "exact",
-        })
-        .eq("organization_id", selectedOrganization.id)
+    ? scope === "human"
+      ? supabase
+          .from("human_prompt_events")
+          .select("id,provider,event_name,actor_email,prompt_text,is_redacted,occurred_at", {
+            count: "exact",
+          })
+          .eq("organization_id", selectedOrganization.id)
+      : supabase
+          .from("prompt_events")
+          .select("id,provider,event_name,actor_email,prompt_text,is_redacted,occurred_at", {
+            count: "exact",
+          })
+          .eq("organization_id", selectedOrganization.id)
     : null;
 
   if (promptQuery && searchQuery) {
@@ -121,6 +134,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         .order("occurred_at", { ascending: false })
         .order("id", { ascending: false })
         .range(rangeStart, rangeStart + promptsPerPage - 1)
+        .overrideTypes<PromptListRow[], { merge: false }>()
     : { count: 0, data: [], error: null };
 
   if (promptsError) {

@@ -17,9 +17,9 @@ import {
   declineInvitation,
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
-import { useErrorToast } from "@/components/error-toast";
+import { InstallationToolFields } from "@/components/ai-tools/installation-tool-fields";
+import { useErrorToast } from "@/components/feedback/error-toast";
 import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
-import { InstallationToolFields } from "@/components/installation-tool-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";

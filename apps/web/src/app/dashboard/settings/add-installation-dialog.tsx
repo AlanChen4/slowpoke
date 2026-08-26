@@ -16,9 +16,9 @@ import {
   createTeamInstallation,
   type OrganizationFlowActionState,
 } from "@/app/organization-actions";
-import { useErrorToast } from "@/components/error-toast";
-import { InstallationToolFields } from "@/components/installation-tool-fields";
-import { InstallationToolIdentity } from "@/components/provider-identity";
+import { InstallationToolFields } from "@/components/ai-tools/installation-tool-fields";
+import { InstallationToolIdentity } from "@/components/ai-tools/provider-identity";
+import { useErrorToast } from "@/components/feedback/error-toast";
 import EnrollmentCodeBlock from "@/components/shadcn-studio/code-block/code-block-07";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "@/components/ui/code-block";

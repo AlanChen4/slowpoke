@@ -35,3 +35,19 @@ test("allows modules grouped below a lib directory", () => {
 
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
+
+test("rejects modules stored directly in a components directory", () => {
+  const result = lintFixture("src/components/direct-component.tsx");
+
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stdout + result.stderr,
+    /slowpoke-structure\(components-directory-structure\)/u,
+  );
+});
+
+test("allows components grouped below a components directory", () => {
+  const result = lintFixture("src/components/dashboard/app-sidebar.tsx");
+
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
