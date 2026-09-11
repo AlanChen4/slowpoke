@@ -251,6 +251,177 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
         assert after_replay["last_seen_at"] >= timestamps["last_seen_at"]
 
 
+@pytest.mark.parametrize("delivery", ["together", "prompt_first", "response_first"])
+def test_claude_model_is_recovered_across_batches_and_replays(delivery: str) -> None:
+    url, secret_key = _credentials()
+    token = secrets.token_urlsafe(24)
+    with _database_fixture() as (service_client, organization_id, installation_id):
+        service_client.table("installations").update({"tool": "claude_code"}).eq(
+            "id", installation_id
+        ).execute()
+        client = _api(secret_key, url, token)
+        prompt = resource_group(
+            installation_id,
+            tool="claude_code",
+            prompt_event="claude_code.user_prompt",
+            prompt_text="Which model is this?",
+        )
+        response = resource_group(
+            installation_id,
+            tool="claude_code",
+            prompt_event="claude_code.api_request",
+            model="claude-sonnet-5",
+        )
+        # Claude identifies API events in the OTLP body.
+        response["scopeLogs"][0]["logRecords"][0]["body"] = {
+            "stringValue": "claude_code.api_request"
+        }
+        groups = {
+            "together": [[prompt, response]],
+            "prompt_first": [[prompt], [response]],
+            "response_first": [[response], [prompt]],
+        }[delivery]
+        for group in groups:
+            assert (
+                _post(client, "logs", {"resourceLogs": group}, token).status_code == 200
+            )
+
+        def models():
+            return (
+                service_client.table("prompt_events")
+                .select("model")
+                .eq("organization_id", organization_id)
+                .execute()
+                .data
+            )
+
+        assert models() == [{"model": "claude-sonnet-5"}]
+        # Replaying a prompt without a model must retain the recovered model.
+        for group in groups:
+            assert (
+                _post(client, "logs", {"resourceLogs": group}, token).status_code == 200
+            )
+        assert models() == [{"model": "claude-sonnet-5"}]
+
+
+@pytest.mark.parametrize("mismatch", ["prompt_id", "session_id", "installation_id"])
+def test_claude_model_does_not_cross_prompt_identity(mismatch: str) -> None:
+    url, secret_key = _credentials()
+    token = secrets.token_urlsafe(24)
+    with _database_fixture() as (service_client, organization_id, installation_id):
+        service_client.table("installations").update({"tool": "claude_code"}).eq(
+            "id", installation_id
+        ).execute()
+        client = _api(secret_key, url, token)
+        payload = {
+            "resourceLogs": [
+                resource_group(
+                    installation_id,
+                    tool="claude_code",
+                    prompt_event="claude_code.user_prompt",
+                    prompt_text="Unmatched prompt",
+                )
+            ]
+        }
+        assert _post(client, "logs", payload, token).status_code == 200
+        prompt = (
+            service_client.table("prompt_events")
+            .select("*")
+            .eq("organization_id", organization_id)
+            .single()
+            .execute()
+            .data
+        )
+        response = resource_group(
+            installation_id,
+            tool="claude_code",
+            prompt_event="claude_code.api_request",
+            model="claude-opus-5",
+        )
+        response["scopeLogs"][0]["logRecords"][0]["body"] = {
+            "stringValue": "claude_code.api_request"
+        }
+        if mismatch == "installation_id":
+            # A second valid installation in the same tenant has the same prompt IDs.
+            other = (
+                service_client.table("installations")
+                .insert(
+                    {
+                        "organization_id": organization_id,
+                        "created_by_user_id": LOCAL_USER_ID,
+                        "tool": "codex",
+                        "computer_name": "Other installation",
+                        "setup_session_id": service_client.table("installations")
+                        .select("setup_session_id")
+                        .eq("id", installation_id)
+                        .single()
+                        .execute()
+                        .data["setup_session_id"],
+                    }
+                )
+                .execute()
+                .data[0]
+            )
+            service_client.table("prompt_events").update(
+                {"installation_id": other["id"]}
+            ).eq("id", prompt["id"]).execute()
+        else:
+            service_client.table("prompt_events").update(
+                {mismatch: "another-identity"}
+            ).eq("id", prompt["id"]).execute()
+        assert (
+            _post(client, "logs", {"resourceLogs": [response]}, token).status_code
+            == 200
+        )
+        stored = (
+            service_client.table("prompt_events")
+            .select("model")
+            .eq("id", prompt["id"])
+            .single()
+            .execute()
+            .data
+        )
+        assert stored["model"] is None
+
+
+def test_claude_model_preserves_reported_model_on_replay() -> None:
+    url, secret_key = _credentials()
+    token = secrets.token_urlsafe(24)
+    with _database_fixture() as (service_client, organization_id, installation_id):
+        service_client.table("installations").update({"tool": "claude_code"}).eq(
+            "id", installation_id
+        ).execute()
+        client = _api(secret_key, url, token)
+        prompt = resource_group(
+            installation_id,
+            tool="claude_code",
+            prompt_event="claude_code.user_prompt",
+            prompt_text="Prompt with a reported model",
+            model="claude-opus-5",
+        )
+        response = resource_group(
+            installation_id,
+            tool="claude_code",
+            prompt_event="claude_code.api_request",
+            model="claude-sonnet-5",
+        )
+        response["scopeLogs"][0]["logRecords"][0]["body"] = {
+            "stringValue": "claude_code.api_request"
+        }
+        payload = {"resourceLogs": [prompt, response]}
+        assert _post(client, "logs", payload, token).status_code == 200
+        assert _post(client, "logs", payload, token).status_code == 200
+        stored = (
+            service_client.table("prompt_events")
+            .select("model")
+            .eq("organization_id", organization_id)
+            .single()
+            .execute()
+            .data
+        )
+        assert stored["model"] == "claude-opus-5"
+
+
 def test_unknown_installation_is_retryable_and_stores_nothing() -> None:
     url, secret_key = _credentials()
     token = secrets.token_urlsafe(24)
