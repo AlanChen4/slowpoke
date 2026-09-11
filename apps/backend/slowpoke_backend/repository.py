@@ -109,6 +109,8 @@ class SupabaseRepository:
             batch_id = UUID(str(cast(dict[str, Any], response.data[0])["id"]))
 
             if not partition.prompts:
+                if partition.tool == "claude_code" and partition.signal == "logs":
+                    self._fill_prompt_models(installation, batch_id)
                 return
             prompt_rows: list[PublicPromptEventsInsert] = []
             for prompt in partition.prompts:
@@ -147,9 +149,78 @@ class SupabaseRepository:
                 .upsert(
                     serialized_prompt_rows,
                     on_conflict="batch_id,record_index",
+                    # A replay must not erase models recovered after ingestion.
+                    ignore_duplicates=True,
                 )
                 .execute()
             )
+            if partition.tool == "claude_code":
+                self._fill_prompt_models(installation, batch_id)
+                # API events can arrive before their user_prompt event.
+                prompt_ids = [
+                    prompt.prompt_id
+                    for prompt in partition.prompts
+                    if prompt.model is None and prompt.prompt_id
+                ]
+                if prompt_ids:
+                    self._fill_prompt_models(
+                        installation, batch_id, prompt_ids=prompt_ids
+                    )
         except Exception as error:
             logger.exception("Failed to persist telemetry")
             raise RepositoryError("failed to persist telemetry") from error
+
+    def _fill_prompt_models(
+        self,
+        installation: Installation,
+        batch_id: UUID,
+        *,
+        prompt_ids: list[str] | None = None,
+    ) -> None:
+        """Fill missing models for an ingested batch or its new prompts."""
+        offset = 0
+        seen: set[tuple[str, str]] = set()
+        while True:
+            query = (
+                self._client.table("response_usage_events")
+                .select("prompt_id,conversation_id,model")
+                .eq("organization_id", str(installation.organization_id))
+                .eq("installation_id", str(installation.id))
+                .eq("provider", "anthropic")
+                .neq("model", "")
+                .order("event_timestamp")
+                .order("prompt_id")
+                .order("model")
+            )
+            if prompt_ids is None:
+                query = query.eq("batch_id", str(batch_id))
+            else:
+                query = query.in_("prompt_id", prompt_ids)
+            rows = cast(
+                list[dict[str, str | None]],
+                query.range(offset, offset + 999).execute().data,
+            )
+            for row in rows:
+                prompt_id, session_id = row["prompt_id"], row["conversation_id"]
+                model = (row["model"] or "").strip()
+                if not prompt_id or not session_id or not model:
+                    continue
+                key = (prompt_id, session_id)
+                if key in seen:
+                    continue
+                seen.add(key)
+                (
+                    self._client.table("prompt_events")
+                    .update({"model": model})
+                    .eq("organization_id", str(installation.organization_id))
+                    .eq("installation_id", str(installation.id))
+                    .eq("provider", "anthropic")
+                    .eq("prompt_id", prompt_id)
+                    .eq("session_id", session_id)
+                    .is_("model", "null")
+                    .select("id")
+                    .execute()
+                )
+            if len(rows) < 1000:
+                return
+            offset += len(rows)
