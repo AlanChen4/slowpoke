@@ -46,48 +46,6 @@ Vercel requires `SLOWPOKE_SETUP_SERVER`. Set it to the public HTTPS backend
 origin that setup commands can reach. Configure it for Production and for
 Preview when preview deployments must build.
 
-## Recover missing Claude prompt models
-
-Claude user-prompt events omit the model. Ingestion fills it from the first
-available API request with the same organization, installation, session, and
-prompt IDs. Prompts without a matching request remain unknown.
-
-After merging and deploying the ingestion fix, run this one-time SQL command
-in the production SQL editor as `postgres`. It repairs Lumos Fellows' historical
-prompts, changes only null models, and returns the number of updated prompts.
-It can be rerun safely. Prompts without matching API events remain unknown.
-
-```sql
-with request_models as (
-  select distinct on (installation_id, conversation_id, prompt_id)
-    organization_id,
-    installation_id,
-    conversation_id,
-    prompt_id,
-    btrim(model) as model
-  from public.response_usage_events
-  where organization_id = '01320ba3-adcc-46b2-8cfa-5933c8073edb'::uuid
-    and provider = 'anthropic'
-    and nullif(btrim(model), '') is not null
-    and nullif(conversation_id, '') is not null
-    and nullif(prompt_id, '') is not null
-  order by installation_id, conversation_id, prompt_id, event_timestamp, model
-),
-updated as (
-  update public.prompt_events as prompt
-  set model = request.model
-  from request_models as request
-  where prompt.organization_id = request.organization_id
-    and prompt.installation_id = request.installation_id
-    and prompt.session_id = request.conversation_id
-    and prompt.prompt_id = request.prompt_id
-    and prompt.provider = 'anthropic'
-    and prompt.model is null
-  returning prompt.id
-)
-select count(*) as recovered_prompts from updated;
-```
-
 ## Setup package publishing
 
 Add a Changeset when a pull request changes `@slowpokeai/setup`. After the
