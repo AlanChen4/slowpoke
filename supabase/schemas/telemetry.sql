@@ -173,6 +173,8 @@ create table public.prompt_events (
   model_from_error boolean not null default false,
   slug text,
   originator text,
+  command_name text,
+  command_source text,
   foreign key (installation_id, organization_id)
     references public.installations (id, organization_id) on delete cascade,
   foreign key (batch_id, organization_id)
@@ -327,7 +329,22 @@ where coalesce(model, '') <> 'codex-auto-review'
   and strpos(
     prompt_text,
     'Generate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this '
-  ) = 0;
+  ) = 0
+  and not (
+    provider = 'anthropic'
+    and (
+      -- Setup and session maintenance are not human task prompts.
+      (coalesce(command_source, '') = 'builtin' and coalesce(command_name, '') in (
+        'clear', 'resume', 'compact', 'auto-mode-setup', 'rate-limit-options',
+        'plugin', 'plugins', 'branch', 'logout'
+      ))
+      or starts_with(prompt_text, '<agent-message from=')
+      or starts_with(prompt_text, E'<task-notification>\n')
+      or starts_with(prompt_text, E'<system-reminder>\nThe session''s working directory has changed to ')
+      or starts_with(prompt_text, E'The dev server failed to start with the following error:\n')
+      or prompt_text = 'The app was quit while you were working. Please continue from where you left off.'
+    )
+  );
 
 create view public.response_usage_events
 with (security_invoker = true) as

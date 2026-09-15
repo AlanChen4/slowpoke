@@ -127,6 +127,8 @@ class PublicPromptEvents(BaseModel):
     actor_account_id: Optional[str] = Field(alias="actor_account_id")
     actor_email: Optional[str] = Field(alias="actor_email")
     batch_id: uuid.UUID = Field(alias="batch_id")
+    command_name: Optional[str] = Field(alias="command_name")
+    command_source: Optional[str] = Field(alias="command_source")
     created_at: datetime.datetime = Field(alias="created_at")
     event_name: str = Field(alias="event_name")
     id: uuid.UUID = Field(alias="id")
@@ -148,6 +150,8 @@ class PublicPromptEventsInsert(TypedDict):
     actor_account_id: NotRequired[Annotated[Optional[str], Field(alias="actor_account_id")]]
     actor_email: NotRequired[Annotated[Optional[str], Field(alias="actor_email")]]
     batch_id: Annotated[uuid.UUID, Field(alias="batch_id")]
+    command_name: NotRequired[Annotated[Optional[str], Field(alias="command_name")]]
+    command_source: NotRequired[Annotated[Optional[str], Field(alias="command_source")]]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     event_name: Annotated[str, Field(alias="event_name")]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
@@ -169,6 +173,8 @@ class PublicPromptEventsUpdate(TypedDict):
     actor_account_id: NotRequired[Annotated[Optional[str], Field(alias="actor_account_id")]]
     actor_email: NotRequired[Annotated[Optional[str], Field(alias="actor_email")]]
     batch_id: NotRequired[Annotated[uuid.UUID, Field(alias="batch_id")]]
+    command_name: NotRequired[Annotated[Optional[str], Field(alias="command_name")]]
+    command_source: NotRequired[Annotated[Optional[str], Field(alias="command_source")]]
     created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
     event_name: NotRequired[Annotated[str, Field(alias="event_name")]]
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
