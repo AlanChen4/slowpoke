@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any, Protocol, cast
+from typing import Protocol, cast
 from uuid import UUID
 
+from pydantic import BaseModel, JsonValue, TypeAdapter
 from supabase import Client, create_client
 
 from .database_types import (
@@ -16,6 +17,15 @@ from .domain import Installation, Partition, Tool
 from .errors import RepositoryError, RevokedInstallationError, UnknownInstallationError
 
 logger = logging.getLogger(__name__)
+_batch_adapter = TypeAdapter(PublicTelemetryBatchesInsert)
+_prompts_adapter = TypeAdapter(list[PublicPromptEventsInsert])
+
+
+class PromptModelEvent(BaseModel):
+    prompt_id: str | None
+    conversation_id: str | None
+    model: str | None
+    is_error: bool
 
 
 class IngestionRepository(Protocol):
@@ -90,23 +100,18 @@ class SupabaseRepository:
                 "installation_id": installation.id,
                 "signal": partition.signal,
                 "content_sha256": partition.content_sha256,
-                "raw_payload": cast(Any, partition.payload),
-            }
-            serialized_batch = {
-                **cast(dict[str, Any], batch),
-                "organization_id": str(batch["organization_id"]),
-                "installation_id": str(batch["installation_id"]),
+                "raw_payload": cast(JsonValue, partition.payload),
             }
             response = (
                 self._client.table("telemetry_batches")
                 .upsert(
-                    serialized_batch,
+                    _batch_adapter.dump_python(batch, mode="json"),
                     on_conflict="installation_id,signal,content_sha256",
                 )
                 .select("id")
                 .execute()
             )
-            batch_id = UUID(str(cast(dict[str, Any], response.data[0])["id"]))
+            batch_id = UUID(str(cast(dict[str, object], response.data[0])["id"]))
 
             if not partition.prompts:
                 if partition.tool == "claude_code" and partition.signal == "logs":
@@ -134,20 +139,10 @@ class SupabaseRepository:
                         "is_redacted": prompt.is_redacted,
                     }
                 )
-            serialized_prompt_rows = [
-                {
-                    **cast(dict[str, Any], row),
-                    "occurred_at": cast(dict[str, Any], row)["occurred_at"].isoformat(),
-                    "organization_id": str(row["organization_id"]),
-                    "installation_id": str(row["installation_id"]),
-                    "batch_id": str(row["batch_id"]),
-                }
-                for row in prompt_rows
-            ]
             (
                 self._client.table("prompt_events")
                 .upsert(
-                    serialized_prompt_rows,
+                    _prompts_adapter.dump_python(prompt_rows, mode="json"),
                     on_conflict="batch_id,record_index",
                     # A replay must not erase models recovered after ingestion.
                     ignore_duplicates=True,
@@ -198,20 +193,18 @@ class SupabaseRepository:
                 query = query.eq("batch_id", str(batch_id))
             else:
                 query = query.in_("prompt_id", prompt_ids)
-            rows = cast(
-                list[dict[str, Any]],
-                query.range(offset, offset + 999).execute().data,
-            )
-            for row in rows:
-                prompt_id, session_id = row["prompt_id"], row["conversation_id"]
-                model = (row["model"] or "").strip()
+            rows = query.range(offset, offset + 999).execute().data
+            for raw_row in rows:
+                row = PromptModelEvent.model_validate(raw_row)
+                prompt_id, session_id = row.prompt_id, row.conversation_id
+                model = (row.model or "").strip()
                 if not prompt_id or not session_id or not model:
                     continue
                 key = (prompt_id, session_id)
                 if key in seen:
                     continue
                 seen.add(key)
-                is_error = row["is_error"]
+                is_error = row.is_error
                 update = (
                     self._client.table("prompt_events")
                     .update({"model": model, "model_from_error": is_error})

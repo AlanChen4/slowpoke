@@ -7,7 +7,6 @@ import datetime
 import uuid
 from typing import (
     Annotated,
-    Any,
     List,
     Literal,
     NotRequired,
@@ -16,7 +15,7 @@ from typing import (
     TypedDict,
 )
 
-from pydantic import BaseModel, Field, Json
+from pydantic import BaseModel, Field, JsonValue
 
 NetRequestStatus: TypeAlias = Literal["PENDING", "SUCCESS", "ERROR"]
 
@@ -192,7 +191,7 @@ class PublicTelemetryBatches(BaseModel):
     id: uuid.UUID = Field(alias="id")
     installation_id: uuid.UUID = Field(alias="installation_id")
     organization_id: uuid.UUID = Field(alias="organization_id")
-    raw_payload: Json[Any] = Field(alias="raw_payload")
+    raw_payload: JsonValue = Field(alias="raw_payload")
     received_at: datetime.datetime = Field(alias="received_at")
     signal: str = Field(alias="signal")
 
@@ -201,7 +200,7 @@ class PublicTelemetryBatchesInsert(TypedDict):
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
     installation_id: Annotated[uuid.UUID, Field(alias="installation_id")]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
-    raw_payload: Annotated[Json[Any], Field(alias="raw_payload")]
+    raw_payload: Annotated[JsonValue, Field(alias="raw_payload")]
     received_at: NotRequired[Annotated[datetime.datetime, Field(alias="received_at")]]
     signal: Annotated[str, Field(alias="signal")]
 
@@ -210,7 +209,7 @@ class PublicTelemetryBatchesUpdate(TypedDict):
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
     installation_id: NotRequired[Annotated[uuid.UUID, Field(alias="installation_id")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
-    raw_payload: NotRequired[Annotated[Json[Any], Field(alias="raw_payload")]]
+    raw_payload: NotRequired[Annotated[JsonValue, Field(alias="raw_payload")]]
     received_at: NotRequired[Annotated[datetime.datetime, Field(alias="received_at")]]
     signal: NotRequired[Annotated[str, Field(alias="signal")]]
 

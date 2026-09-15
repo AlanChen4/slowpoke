@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import cast
 
 import jwt
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
@@ -48,7 +48,7 @@ class InstallationTokenIssuer:
 
     def jwks(self) -> dict[str, object]:
         public_jwk = cast(
-            dict[str, Any],
+            dict[str, object],
             RSAAlgorithm.to_jwk(self._private_key.public_key(), as_dict=True),
         )
         public_jwk.update({"alg": "RS256", "kid": self._key_id, "use": "sig"})
