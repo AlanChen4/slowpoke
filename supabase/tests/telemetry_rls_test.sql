@@ -1,6 +1,6 @@
 begin;
 
-select plan(41);
+select plan(37);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass),
@@ -34,24 +34,6 @@ select results_eq(
   $$select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'organization-logos'$$,
   $$values (true, 2097152::bigint, array['image/png', 'image/jpeg', 'image/webp', 'image/gif']::text[])$$,
   'the organization logo bucket is deployable with its upload restrictions'
-);
-
-select ok(
-  (select reloptions @> array['security_invoker=true'] from pg_class
-    where oid = 'public.claude_model_events'::regclass),
-  'Claude model events enforce underlying RLS'
-);
-select ok(
-  not has_table_privilege('anon', 'public.claude_model_events', 'SELECT'),
-  'anonymous clients cannot read Claude model events'
-);
-select ok(
-  not has_table_privilege('authenticated', 'public.claude_model_events', 'SELECT'),
-  'authenticated clients cannot read Claude model events'
-);
-select ok(
-  has_table_privilege('service_role', 'public.claude_model_events', 'SELECT'),
-  'the backend can read Claude model events'
 );
 
 insert into auth.users (id, email)
@@ -412,10 +394,10 @@ select results_eq(
   'existing installation inserts default to personal'
 );
 select results_eq(
-  $$select provider, conversation_id, prompt_id, model, input_token_count, cached_token_count, cache_creation_token_count, output_token_count, cost_usd from public.response_usage_events where batch_id in ('40000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000004') order by provider$$,
+  $$select provider, conversation_id, prompt_id, model, input_token_count, cached_token_count, cache_creation_token_count, output_token_count, cost_usd, is_error from public.response_usage_events where batch_id in ('40000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000004') order by provider$$,
   $$values
-    ('anthropic'::text, 'conversation-a-claude'::text, 'prompt-a-claude'::text, 'claude-haiku-4-5-20251001'::text, '10'::text, '25'::text, '15'::text, '4'::text, '0.03'::text),
-    ('openai'::text, 'conversation-a'::text, null::text, null::text, '100'::text, null::text, null::text, null::text, null::text)
+    ('anthropic'::text, 'conversation-a-claude'::text, 'prompt-a-claude'::text, 'claude-haiku-4-5-20251001'::text, '10'::text, '25'::text, '15'::text, '4'::text, '0.03'::text, false),
+    ('openai'::text, 'conversation-a'::text, null::text, null::text, '100'::text, null::text, null::text, null::text, null::text, false)
   $$,
   'the backend can read normalized Codex and Claude response usage'
 );

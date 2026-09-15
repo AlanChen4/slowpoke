@@ -1,14 +1,31 @@
 alter table public.prompt_events add column model_is_fallback boolean not null default false;
 
-create view public.claude_model_events with (security_invoker = true) as
+create or replace view public.response_usage_events with (security_invoker = true) as
  SELECT batch.organization_id,
     batch.installation_id,
     batch.id AS batch_id,
-    COALESCE(metadata.attributes ->> 'conversation.id'::text, metadata.attributes ->> 'session.id'::text) AS session_id,
+    batch.received_at,
+        CASE
+            WHEN COALESCE(metadata.attributes ->> 'event.name'::text, record.value ->> 'eventName'::text) = 'codex.sse_event'::text THEN 'openai'::text
+            WHEN (record.value #>> '{body,stringValue}'::text[]) = ANY (ARRAY['claude_code.api_request'::text, 'claude_code.api_error'::text]) THEN 'anthropic'::text
+            ELSE NULL::text
+        END AS provider,
+    COALESCE(metadata.attributes ->> 'conversation.id'::text, metadata.attributes ->> 'session.id'::text) AS conversation_id,
     metadata.attributes ->> 'prompt.id'::text AS prompt_id,
     metadata.attributes ->> 'model'::text AS model,
     metadata.attributes ->> 'event.timestamp'::text AS event_timestamp,
-    (record.value #>> '{body,stringValue}'::text[]) = 'claude_code.api_error'::text AS is_error
+    record.value ->> 'timeUnixNano'::text AS time_unix_nano,
+    record.value ->> 'observedTimeUnixNano'::text AS observed_time_unix_nano,
+    COALESCE(metadata.attributes ->> 'input_token_count'::text, metadata.attributes ->> 'input_tokens'::text) AS input_token_count,
+    COALESCE(metadata.attributes ->> 'cached_token_count'::text, metadata.attributes ->> 'cache_read_tokens'::text) AS cached_token_count,
+    COALESCE(metadata.attributes ->> 'cache_write_token_count'::text, metadata.attributes ->> 'cache_creation_tokens'::text) AS cache_creation_token_count,
+    COALESCE(metadata.attributes ->> 'output_token_count'::text, metadata.attributes ->> 'output_tokens'::text) AS output_token_count,
+    metadata.attributes ->> 'reasoning_token_count'::text AS reasoning_token_count,
+    metadata.attributes ->> 'tool_token_count'::text AS tool_token_count,
+    metadata.attributes ->> 'cost_usd'::text AS cost_usd,
+    metadata.attributes ->> 'estimated_cost_usd'::text AS estimated_cost_usd,
+    metadata.attributes ->> 'total_cost_usd'::text AS total_cost_usd,
+    COALESCE((record.value #>> '{body,stringValue}'::text[]) = 'claude_code.api_error'::text, false) AS is_error
    FROM public.telemetry_batches batch
      CROSS JOIN LATERAL jsonb_array_elements(
         CASE
@@ -31,7 +48,4 @@ create view public.claude_model_events with (security_invoker = true) as
                     WHEN jsonb_typeof(record.value -> 'attributes'::text) = 'array'::text THEN record.value -> 'attributes'::text
                     ELSE '[]'::jsonb
                 END) attribute(value)) metadata
-  WHERE batch.signal = 'logs'::text AND ((record.value #>> '{body,stringValue}'::text[]) = ANY (ARRAY['claude_code.api_request'::text, 'claude_code.api_error'::text]));
-
-revoke all on table public.claude_model_events from anon, authenticated, service_role;
-grant select on table public.claude_model_events to service_role;
+  WHERE batch.signal = 'logs'::text AND (COALESCE(metadata.attributes ->> 'event.name'::text, record.value ->> 'eventName'::text) = 'codex.sse_event'::text AND (metadata.attributes ->> 'event.kind'::text) = 'response.completed'::text OR ((record.value #>> '{body,stringValue}'::text[]) = ANY (ARRAY['claude_code.api_request'::text, 'claude_code.api_error'::text])));

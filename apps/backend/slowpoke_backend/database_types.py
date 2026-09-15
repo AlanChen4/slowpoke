@@ -316,6 +316,7 @@ class PublicResponseUsageEvents(BaseModel):
     event_timestamp: Optional[str] = Field(alias="event_timestamp")
     input_token_count: Optional[str] = Field(alias="input_token_count")
     installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
+    is_error: Optional[bool] = Field(alias="is_error")
     model: Optional[str] = Field(alias="model")
     observed_time_unix_nano: Optional[str] = Field(alias="observed_time_unix_nano")
     organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
@@ -327,13 +328,3 @@ class PublicResponseUsageEvents(BaseModel):
     time_unix_nano: Optional[str] = Field(alias="time_unix_nano")
     tool_token_count: Optional[str] = Field(alias="tool_token_count")
     total_cost_usd: Optional[str] = Field(alias="total_cost_usd")
-
-class PublicClaudeModelEvents(BaseModel):
-    batch_id: Optional[uuid.UUID] = Field(alias="batch_id")
-    event_timestamp: Optional[str] = Field(alias="event_timestamp")
-    installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
-    is_error: Optional[bool] = Field(alias="is_error")
-    model: Optional[str] = Field(alias="model")
-    organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
-    prompt_id: Optional[str] = Field(alias="prompt_id")
-    session_id: Optional[str] = Field(alias="session_id")

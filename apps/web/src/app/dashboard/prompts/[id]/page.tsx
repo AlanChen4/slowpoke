@@ -199,6 +199,7 @@ export default async function PromptDetailPage({ params, searchParams }: PromptD
         .select(
           "prompt_id,event_timestamp,time_unix_nano,observed_time_unix_nano,input_token_count,cached_token_count,cache_creation_token_count,output_token_count,reasoning_token_count,tool_token_count,cost_usd,estimated_cost_usd,total_cost_usd",
         )
+        .eq("is_error", false)
         .eq("organization_id", prompt.organization_id)
         .eq("installation_id", prompt.installation_id)
         .eq("conversation_id", prompt.session_id)

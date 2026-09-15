@@ -182,10 +182,11 @@ class SupabaseRepository:
         seen: set[tuple[str, str]] = set()
         while True:
             query = (
-                self._client.table("claude_model_events")
-                .select("prompt_id,session_id,model,is_error")
+                self._client.table("response_usage_events")
+                .select("prompt_id,conversation_id,model,is_error")
                 .eq("organization_id", str(installation.organization_id))
                 .eq("installation_id", str(installation.id))
+                .eq("provider", "anthropic")
                 .neq("model", "")
                 .order("is_error")
                 .order("event_timestamp")
@@ -201,7 +202,7 @@ class SupabaseRepository:
                 query.range(offset, offset + 999).execute().data,
             )
             for row in rows:
-                prompt_id, session_id = row["prompt_id"], row["session_id"]
+                prompt_id, session_id = row["prompt_id"], row["conversation_id"]
                 model = (row["model"] or "").strip()
                 if not prompt_id or not session_id or not model:
                     continue

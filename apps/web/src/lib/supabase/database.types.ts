@@ -285,13 +285,6 @@ export type Database = {
             foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
             columns: ["batch_id", "organization_id"];
             isOneToOne: false;
-            referencedRelation: "claude_model_events";
-            referencedColumns: ["batch_id", "organization_id"];
-          },
-          {
-            foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
-            columns: ["batch_id", "organization_id"];
-            isOneToOne: false;
             referencedRelation: "response_usage_events";
             referencedColumns: ["batch_id", "organization_id"];
           },
@@ -365,34 +358,6 @@ export type Database = {
       };
     };
     Views: {
-      claude_model_events: {
-        Row: {
-          batch_id: string | null;
-          event_timestamp: string | null;
-          installation_id: string | null;
-          is_error: boolean | null;
-          model: string | null;
-          organization_id: string | null;
-          prompt_id: string | null;
-          session_id: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "telemetry_batches_installation_id_organization_id_fkey";
-            columns: ["installation_id", "organization_id"];
-            isOneToOne: false;
-            referencedRelation: "installations";
-            referencedColumns: ["id", "organization_id"];
-          },
-          {
-            foreignKeyName: "telemetry_batches_organization_id_fkey";
-            columns: ["organization_id"];
-            isOneToOne: false;
-            referencedRelation: "organizations";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       human_prompt_events: {
         Row: {
           actor_account_id: string | null;
@@ -459,13 +424,6 @@ export type Database = {
             foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
             columns: ["batch_id", "organization_id"];
             isOneToOne: false;
-            referencedRelation: "claude_model_events";
-            referencedColumns: ["batch_id", "organization_id"];
-          },
-          {
-            foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
-            columns: ["batch_id", "organization_id"];
-            isOneToOne: false;
             referencedRelation: "response_usage_events";
             referencedColumns: ["batch_id", "organization_id"];
           },
@@ -503,6 +461,7 @@ export type Database = {
           event_timestamp: string | null;
           input_token_count: string | null;
           installation_id: string | null;
+          is_error: boolean | null;
           model: string | null;
           observed_time_unix_nano: string | null;
           organization_id: string | null;
