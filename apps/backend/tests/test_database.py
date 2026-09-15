@@ -251,8 +251,11 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
         assert after_replay["last_seen_at"] >= timestamps["last_seen_at"]
 
 
+@pytest.mark.parametrize("event", ["claude_code.api_request", "claude_code.api_error"])
 @pytest.mark.parametrize("delivery", ["together", "prompt_first", "response_first"])
-def test_claude_model_is_recovered_across_batches_and_replays(delivery: str) -> None:
+def test_claude_model_is_recovered_across_batches_and_replays(
+    delivery: str, event: str
+) -> None:
     url, secret_key = _credentials()
     token = secrets.token_urlsafe(24)
     with _database_fixture() as (service_client, organization_id, installation_id):
@@ -269,13 +272,11 @@ def test_claude_model_is_recovered_across_batches_and_replays(delivery: str) -> 
         response = resource_group(
             installation_id,
             tool="claude_code",
-            prompt_event="claude_code.api_request",
+            prompt_event=event,
             model="claude-sonnet-5",
         )
         # Claude identifies API events in the OTLP body.
-        response["scopeLogs"][0]["logRecords"][0]["body"] = {
-            "stringValue": "claude_code.api_request"
-        }
+        response["scopeLogs"][0]["logRecords"][0]["body"] = {"stringValue": event}
         groups = {
             "together": [[prompt, response]],
             "prompt_first": [[prompt], [response]],
@@ -289,23 +290,34 @@ def test_claude_model_is_recovered_across_batches_and_replays(delivery: str) -> 
         def models():
             return (
                 service_client.table("prompt_events")
-                .select("model")
+                .select("model,model_is_fallback")
                 .eq("organization_id", organization_id)
                 .execute()
                 .data
             )
 
-        assert models() == [{"model": "claude-sonnet-5"}]
+        assert models() == [
+            {
+                "model": "claude-sonnet-5",
+                "model_is_fallback": event == "claude_code.api_error",
+            }
+        ]
         # Replaying a prompt without a model must retain the recovered model.
         for group in groups:
             assert (
                 _post(client, "logs", {"resourceLogs": group}, token).status_code == 200
             )
-        assert models() == [{"model": "claude-sonnet-5"}]
+        assert models() == [
+            {
+                "model": "claude-sonnet-5",
+                "model_is_fallback": event == "claude_code.api_error",
+            }
+        ]
 
 
+@pytest.mark.parametrize("event", ["claude_code.api_request", "claude_code.api_error"])
 @pytest.mark.parametrize("mismatch", ["prompt_id", "session_id", "installation_id"])
-def test_claude_model_does_not_cross_prompt_identity(mismatch: str) -> None:
+def test_claude_model_does_not_cross_prompt_identity(mismatch: str, event: str) -> None:
     url, secret_key = _credentials()
     token = secrets.token_urlsafe(24)
     with _database_fixture() as (service_client, organization_id, installation_id):
@@ -335,12 +347,10 @@ def test_claude_model_does_not_cross_prompt_identity(mismatch: str) -> None:
         response = resource_group(
             installation_id,
             tool="claude_code",
-            prompt_event="claude_code.api_request",
+            prompt_event=event,
             model="claude-opus-5",
         )
-        response["scopeLogs"][0]["logRecords"][0]["body"] = {
-            "stringValue": "claude_code.api_request"
-        }
+        response["scopeLogs"][0]["logRecords"][0]["body"] = {"stringValue": event}
         if mismatch == "installation_id":
             # A second valid installation in the same tenant has the same prompt IDs.
             other = (
@@ -384,7 +394,8 @@ def test_claude_model_does_not_cross_prompt_identity(mismatch: str) -> None:
         assert stored["model"] is None
 
 
-def test_claude_model_preserves_reported_model_on_replay() -> None:
+@pytest.mark.parametrize("event", ["claude_code.api_request", "claude_code.api_error"])
+def test_claude_model_preserves_reported_model_on_replay(event: str) -> None:
     url, secret_key = _credentials()
     token = secrets.token_urlsafe(24)
     with _database_fixture() as (service_client, organization_id, installation_id):
@@ -402,12 +413,10 @@ def test_claude_model_preserves_reported_model_on_replay() -> None:
         response = resource_group(
             installation_id,
             tool="claude_code",
-            prompt_event="claude_code.api_request",
+            prompt_event=event,
             model="claude-sonnet-5",
         )
-        response["scopeLogs"][0]["logRecords"][0]["body"] = {
-            "stringValue": "claude_code.api_request"
-        }
+        response["scopeLogs"][0]["logRecords"][0]["body"] = {"stringValue": event}
         payload = {"resourceLogs": [prompt, response]}
         assert _post(client, "logs", payload, token).status_code == 200
         assert _post(client, "logs", payload, token).status_code == 200
@@ -420,6 +429,172 @@ def test_claude_model_preserves_reported_model_on_replay() -> None:
             .data
         )
         assert stored["model"] == "claude-opus-5"
+
+
+@pytest.mark.parametrize(
+    "delivery",
+    [
+        ["prompt", "error", "success"],
+        ["prompt", "success", "error"],
+        ["error", "prompt", "success"],
+        ["success", "prompt", "error"],
+        ["error", "success", "prompt"],
+        ["success", "error", "prompt"],
+        ["together"],
+    ],
+)
+def test_claude_success_replaces_error_fallback_in_any_delivery_order(
+    delivery: list[str],
+) -> None:
+    url, secret_key = _credentials()
+    token = secrets.token_urlsafe(24)
+    with _database_fixture() as (service_client, organization_id, installation_id):
+        service_client.table("installations").update({"tool": "claude_code"}).eq(
+            "id", installation_id
+        ).execute()
+        client = _api(secret_key, url, token)
+        groups = {
+            "prompt": resource_group(
+                installation_id,
+                tool="claude_code",
+                prompt_event="claude_code.user_prompt",
+                prompt_text="Retry with another model",
+            )
+        }
+        for name, event, model in [
+            ("error", "claude_code.api_error", "claude-opus-5"),
+            ("success", "claude_code.api_request", "claude-sonnet-5"),
+        ]:
+            group = resource_group(
+                installation_id, tool="claude_code", prompt_event=event, model=model
+            )
+            group["scopeLogs"][0]["logRecords"][0]["body"] = {"stringValue": event}
+            groups[name] = group
+
+        for name in delivery:
+            batch = list(groups.values()) if name == "together" else [groups[name]]
+            assert (
+                _post(client, "logs", {"resourceLogs": batch}, token).status_code == 200
+            )
+        # Replaying the error or the model-less prompt cannot undo the success.
+        replay_batches = (
+            [list(groups.values()), [groups["error"]]]
+            if delivery == ["together"]
+            else [[groups["error"]], [groups["prompt"]]]
+        )
+        for batch in replay_batches:
+            assert (
+                _post(client, "logs", {"resourceLogs": batch}, token).status_code == 200
+            )
+        stored = (
+            service_client.table("prompt_events")
+            .select("model,model_is_fallback")
+            .eq("organization_id", organization_id)
+            .single()
+            .execute()
+            .data
+        )
+        assert stored == {"model": "claude-sonnet-5", "model_is_fallback": False}
+        usage = (
+            service_client.table("response_usage_events")
+            .select("model")
+            .eq("organization_id", organization_id)
+            .execute()
+            .data
+        )
+        assert usage == [{"model": "claude-sonnet-5"}]
+
+
+@pytest.mark.parametrize("delivery", ["together", "separate"])
+def test_claude_first_error_model_survives_later_errors(delivery: str) -> None:
+    url, secret_key = _credentials()
+    token = secrets.token_urlsafe(24)
+    with _database_fixture() as (service_client, organization_id, installation_id):
+        service_client.table("installations").update({"tool": "claude_code"}).eq(
+            "id", installation_id
+        ).execute()
+        client = _api(secret_key, url, token)
+        prompt = resource_group(
+            installation_id,
+            tool="claude_code",
+            prompt_event="claude_code.user_prompt",
+            prompt_text="Multiple failed models",
+        )
+        errors = []
+        for model, timestamp in [
+            ("claude-sonnet-5", "2026-07-31T12:00:00Z"),
+            ("claude-opus-5", "2026-07-31T12:01:00Z"),
+        ]:
+            error = resource_group(
+                installation_id,
+                tool="claude_code",
+                prompt_event="claude_code.api_error",
+                model=model,
+            )
+            record = error["scopeLogs"][0]["logRecords"][0]
+            record["body"] = {"stringValue": "claude_code.api_error"}
+            for attribute in record["attributes"]:
+                if attribute["key"] == "event.timestamp":
+                    attribute["value"] = {"stringValue": timestamp}
+            errors.append(error)
+        # Reverse the payload order to check timestamp-based selection within a batch.
+        batches = (
+            [[prompt, errors[1], errors[0]]]
+            if delivery == "together"
+            else [[prompt], [errors[0]], [errors[1]]]
+        )
+        for batch in [*batches, [errors[1]]]:
+            assert (
+                _post(client, "logs", {"resourceLogs": batch}, token).status_code == 200
+            )
+        stored = (
+            service_client.table("prompt_events")
+            .select("model,model_is_fallback")
+            .eq("organization_id", organization_id)
+            .single()
+            .execute()
+            .data
+        )
+        assert stored == {"model": "claude-sonnet-5", "model_is_fallback": True}
+
+
+@pytest.mark.parametrize("model", [None, "", "   "])
+def test_claude_error_without_model_leaves_prompt_unknown(model: str | None) -> None:
+    url, secret_key = _credentials()
+    token = secrets.token_urlsafe(24)
+    with _database_fixture() as (service_client, organization_id, installation_id):
+        service_client.table("installations").update({"tool": "claude_code"}).eq(
+            "id", installation_id
+        ).execute()
+        client = _api(secret_key, url, token)
+        prompt = resource_group(
+            installation_id,
+            tool="claude_code",
+            prompt_event="claude_code.user_prompt",
+            prompt_text="No model available",
+        )
+        error = resource_group(
+            installation_id,
+            tool="claude_code",
+            prompt_event="claude_code.api_error",
+            model=model,
+        )
+        error["scopeLogs"][0]["logRecords"][0]["body"] = {
+            "stringValue": "claude_code.api_error"
+        }
+        assert (
+            _post(client, "logs", {"resourceLogs": [prompt, error]}, token).status_code
+            == 200
+        )
+        stored = (
+            service_client.table("prompt_events")
+            .select("model,model_is_fallback")
+            .eq("organization_id", organization_id)
+            .single()
+            .execute()
+            .data
+        )
+        assert stored == {"model": None, "model_is_fallback": False}
 
 
 def test_unknown_installation_is_retryable_and_stores_nothing() -> None:

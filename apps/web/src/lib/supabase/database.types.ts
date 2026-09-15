@@ -227,6 +227,7 @@ export type Database = {
           installation_id: string;
           is_redacted: boolean;
           model: string | null;
+          model_is_fallback: boolean;
           occurred_at: string;
           organization_id: string;
           originator: string | null;
@@ -247,6 +248,7 @@ export type Database = {
           installation_id: string;
           is_redacted?: boolean;
           model?: string | null;
+          model_is_fallback?: boolean;
           occurred_at: string;
           organization_id: string;
           originator?: string | null;
@@ -267,6 +269,7 @@ export type Database = {
           installation_id?: string;
           is_redacted?: boolean;
           model?: string | null;
+          model_is_fallback?: boolean;
           occurred_at?: string;
           organization_id?: string;
           originator?: string | null;
@@ -278,6 +281,13 @@ export type Database = {
           slug?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
+            columns: ["batch_id", "organization_id"];
+            isOneToOne: false;
+            referencedRelation: "claude_model_events";
+            referencedColumns: ["batch_id", "organization_id"];
+          },
           {
             foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
             columns: ["batch_id", "organization_id"];
@@ -355,6 +365,34 @@ export type Database = {
       };
     };
     Views: {
+      claude_model_events: {
+        Row: {
+          batch_id: string | null;
+          event_timestamp: string | null;
+          installation_id: string | null;
+          is_error: boolean | null;
+          model: string | null;
+          organization_id: string | null;
+          prompt_id: string | null;
+          session_id: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telemetry_batches_installation_id_organization_id_fkey";
+            columns: ["installation_id", "organization_id"];
+            isOneToOne: false;
+            referencedRelation: "installations";
+            referencedColumns: ["id", "organization_id"];
+          },
+          {
+            foreignKeyName: "telemetry_batches_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       human_prompt_events: {
         Row: {
           actor_account_id: string | null;
@@ -417,6 +455,13 @@ export type Database = {
           slug?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
+            columns: ["batch_id", "organization_id"];
+            isOneToOne: false;
+            referencedRelation: "claude_model_events";
+            referencedColumns: ["batch_id", "organization_id"];
+          },
           {
             foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
             columns: ["batch_id", "organization_id"];

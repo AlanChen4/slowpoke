@@ -177,17 +177,17 @@ class SupabaseRepository:
         *,
         prompt_ids: list[str] | None = None,
     ) -> None:
-        """Fill missing models for an ingested batch or its new prompts."""
+        """Resolve models for a batch, using errors only until a success arrives."""
         offset = 0
         seen: set[tuple[str, str]] = set()
         while True:
             query = (
-                self._client.table("response_usage_events")
-                .select("prompt_id,conversation_id,model")
+                self._client.table("claude_model_events")
+                .select("prompt_id,session_id,model,is_error")
                 .eq("organization_id", str(installation.organization_id))
                 .eq("installation_id", str(installation.id))
-                .eq("provider", "anthropic")
                 .neq("model", "")
+                .order("is_error")
                 .order("event_timestamp")
                 .order("prompt_id")
                 .order("model")
@@ -197,11 +197,11 @@ class SupabaseRepository:
             else:
                 query = query.in_("prompt_id", prompt_ids)
             rows = cast(
-                list[dict[str, str | None]],
+                list[dict[str, Any]],
                 query.range(offset, offset + 999).execute().data,
             )
             for row in rows:
-                prompt_id, session_id = row["prompt_id"], row["conversation_id"]
+                prompt_id, session_id = row["prompt_id"], row["session_id"]
                 model = (row["model"] or "").strip()
                 if not prompt_id or not session_id or not model:
                     continue
@@ -209,18 +209,22 @@ class SupabaseRepository:
                 if key in seen:
                     continue
                 seen.add(key)
-                (
+                is_error = row["is_error"]
+                update = (
                     self._client.table("prompt_events")
-                    .update({"model": model})
+                    .update({"model": model, "model_is_fallback": is_error})
                     .eq("organization_id", str(installation.organization_id))
                     .eq("installation_id", str(installation.id))
                     .eq("provider", "anthropic")
                     .eq("prompt_id", prompt_id)
                     .eq("session_id", session_id)
-                    .is_("model", "null")
-                    .select("id")
-                    .execute()
                 )
+                if is_error:
+                    update = update.is_("model", "null")
+                else:
+                    # A success can replace an attempted model, including on retry.
+                    update = update.or_("model.is.null,model_is_fallback.eq.true")
+                update.select("id").execute()
             if len(rows) < 1000:
                 return
             offset += len(rows)

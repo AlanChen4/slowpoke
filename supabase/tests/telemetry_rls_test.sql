@@ -1,6 +1,6 @@
 begin;
 
-select plan(37);
+select plan(41);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass),
@@ -34,6 +34,24 @@ select results_eq(
   $$select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'organization-logos'$$,
   $$values (true, 2097152::bigint, array['image/png', 'image/jpeg', 'image/webp', 'image/gif']::text[])$$,
   'the organization logo bucket is deployable with its upload restrictions'
+);
+
+select ok(
+  (select reloptions @> array['security_invoker=true'] from pg_class
+    where oid = 'public.claude_model_events'::regclass),
+  'Claude model events enforce underlying RLS'
+);
+select ok(
+  not has_table_privilege('anon', 'public.claude_model_events', 'SELECT'),
+  'anonymous clients cannot read Claude model events'
+);
+select ok(
+  not has_table_privilege('authenticated', 'public.claude_model_events', 'SELECT'),
+  'authenticated clients cannot read Claude model events'
+);
+select ok(
+  has_table_privilege('service_role', 'public.claude_model_events', 'SELECT'),
+  'the backend can read Claude model events'
 );
 
 insert into auth.users (id, email)

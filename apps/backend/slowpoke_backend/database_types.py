@@ -134,6 +134,7 @@ class PublicPromptEvents(BaseModel):
     installation_id: uuid.UUID = Field(alias="installation_id")
     is_redacted: bool = Field(alias="is_redacted")
     model: Optional[str] = Field(alias="model")
+    model_is_fallback: bool = Field(alias="model_is_fallback")
     occurred_at: datetime.datetime = Field(alias="occurred_at")
     organization_id: uuid.UUID = Field(alias="organization_id")
     originator: Optional[str] = Field(alias="originator")
@@ -154,6 +155,7 @@ class PublicPromptEventsInsert(TypedDict):
     installation_id: Annotated[uuid.UUID, Field(alias="installation_id")]
     is_redacted: NotRequired[Annotated[bool, Field(alias="is_redacted")]]
     model: NotRequired[Annotated[Optional[str], Field(alias="model")]]
+    model_is_fallback: NotRequired[Annotated[bool, Field(alias="model_is_fallback")]]
     occurred_at: Annotated[datetime.datetime, Field(alias="occurred_at")]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     originator: NotRequired[Annotated[Optional[str], Field(alias="originator")]]
@@ -174,6 +176,7 @@ class PublicPromptEventsUpdate(TypedDict):
     installation_id: NotRequired[Annotated[uuid.UUID, Field(alias="installation_id")]]
     is_redacted: NotRequired[Annotated[bool, Field(alias="is_redacted")]]
     model: NotRequired[Annotated[Optional[str], Field(alias="model")]]
+    model_is_fallback: NotRequired[Annotated[bool, Field(alias="model_is_fallback")]]
     occurred_at: NotRequired[Annotated[datetime.datetime, Field(alias="occurred_at")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     originator: NotRequired[Annotated[Optional[str], Field(alias="originator")]]
@@ -324,3 +327,13 @@ class PublicResponseUsageEvents(BaseModel):
     time_unix_nano: Optional[str] = Field(alias="time_unix_nano")
     tool_token_count: Optional[str] = Field(alias="tool_token_count")
     total_cost_usd: Optional[str] = Field(alias="total_cost_usd")
+
+class PublicClaudeModelEvents(BaseModel):
+    batch_id: Optional[uuid.UUID] = Field(alias="batch_id")
+    event_timestamp: Optional[str] = Field(alias="event_timestamp")
+    installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
+    is_error: Optional[bool] = Field(alias="is_error")
+    model: Optional[str] = Field(alias="model")
+    organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
+    prompt_id: Optional[str] = Field(alias="prompt_id")
+    session_id: Optional[str] = Field(alias="session_id")

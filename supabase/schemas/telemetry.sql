@@ -170,6 +170,7 @@ create table public.prompt_events (
   is_redacted boolean not null default false,
   created_at timestamptz not null default now(),
   model text,
+  model_is_fallback boolean not null default false,
   slug text,
   originator text,
   foreign key (installation_id, organization_id)
@@ -327,6 +328,67 @@ where coalesce(model, '') <> 'codex-auto-review'
     prompt_text,
     'Generate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this '
   ) = 0;
+
+create view public.claude_model_events
+with (security_invoker = true) as
+select
+  batch.organization_id,
+  batch.installation_id,
+  batch.id as batch_id,
+  coalesce(
+    metadata.attributes->>'conversation.id',
+    metadata.attributes->>'session.id'
+  ) as session_id,
+  metadata.attributes->>'prompt.id' as prompt_id,
+  metadata.attributes->>'model' as model,
+  metadata.attributes->>'event.timestamp' as event_timestamp,
+  record.value#>>'{body,stringValue}' = 'claude_code.api_error' as is_error
+from public.telemetry_batches as batch
+cross join lateral jsonb_array_elements(
+  case
+    when jsonb_typeof(batch.raw_payload->'resourceLogs') = 'array'
+      then batch.raw_payload->'resourceLogs'
+    else '[]'::jsonb
+  end
+) as resource_group(value)
+cross join lateral jsonb_array_elements(
+  case
+    when jsonb_typeof(resource_group.value->'scopeLogs') = 'array'
+      then resource_group.value->'scopeLogs'
+    else '[]'::jsonb
+  end
+) as scope_group(value)
+cross join lateral jsonb_array_elements(
+  case
+    when jsonb_typeof(scope_group.value->'logRecords') = 'array'
+      then scope_group.value->'logRecords'
+    else '[]'::jsonb
+  end
+) as record(value)
+cross join lateral (
+  select jsonb_object_agg(
+    attribute.value->>'key',
+    coalesce(
+      attribute.value->'value'->>'stringValue',
+      attribute.value->'value'->>'intValue',
+      attribute.value->'value'->>'doubleValue',
+      attribute.value->'value'->>'boolValue'
+    )
+  ) filter (
+    where jsonb_typeof(attribute.value->'key') = 'string'
+  ) as attributes
+  from jsonb_array_elements(
+    case
+      when jsonb_typeof(record.value->'attributes') = 'array'
+        then record.value->'attributes'
+      else '[]'::jsonb
+    end
+  ) as attribute(value)
+) as metadata
+where batch.signal = 'logs'
+  and record.value#>>'{body,stringValue}' in (
+    'claude_code.api_request', 'claude_code.api_error'
+  );
 
 create view public.response_usage_events
 with (security_invoker = true) as
@@ -1078,6 +1140,7 @@ revoke all on table public.installations from anon, authenticated, service_role;
 revoke all on table public.telemetry_batches from anon, authenticated, service_role;
 revoke all on table public.prompt_events from anon, authenticated, service_role;
 revoke all on table public.human_prompt_events from anon, authenticated, service_role;
+revoke all on table public.claude_model_events from anon, authenticated, service_role;
 revoke all on table public.response_usage_events from anon, authenticated, service_role;
 revoke all on function public.get_prompt_analytics_summary(uuid, integer, text, timestamptz)
   from public, anon, authenticated, service_role;
@@ -1117,4 +1180,5 @@ grant select, insert, update, delete on table public.installation_setup_sessions
 grant select, insert, update, delete on table public.installations to service_role;
 grant select, insert, update, delete on table public.telemetry_batches to service_role;
 grant select, insert, update, delete on table public.prompt_events to service_role;
+grant select on table public.claude_model_events to service_role;
 grant select on table public.response_usage_events to service_role;
