@@ -19,10 +19,26 @@ to Modal.
 
 Doppler changes do not update running services. After changing a value, run the
 `Deploy Modal` workflow manually to sync both apps and replace their containers.
-Deploy database migrations separately.
 
 The old `SLOWPOKE_OTLP_USERNAME`, `SLOWPOKE_OTLP_PASSWORD`, and
 `SLOWPOKE_OTLP_HTPASSWD` values are not used by production authentication.
+
+## Supabase
+
+The Supabase GitHub integration automatically applies new migrations from
+`supabase/migrations/` when changes merge into `main`. This runs independently of
+the Modal deployment workflow; committed schema migrations do not require a
+manual SQL Editor run.
+
+The integration settings live in Supabase Project Settings > Integrations:
+repository `AlanChen4/slowpoke`, working directory `.`, **Deploy to production**
+enabled, and production branch `main`. Preview branching is disabled, so a
+skipped Supabase preview check on a PR does not mean production deployment is
+disabled.
+
+Verify the Supabase migration and app deployment both succeeded before running
+any separate manual backfill SQL. Backfill scripts outside the committed
+migration directory are not applied by the integration.
 
 ## Installation authentication
 
