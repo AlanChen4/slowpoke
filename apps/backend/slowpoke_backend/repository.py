@@ -187,6 +187,7 @@ class SupabaseRepository:
                 .eq("organization_id", str(installation.organization_id))
                 .eq("installation_id", str(installation.id))
                 .eq("provider", "anthropic")
+                .in_("query_source", ["repl_main_thread", "sdk"])
                 .neq("model", "")
                 .order("is_error")
                 .order("event_timestamp")
@@ -213,7 +214,7 @@ class SupabaseRepository:
                 is_error = row["is_error"]
                 update = (
                     self._client.table("prompt_events")
-                    .update({"model": model, "model_is_fallback": is_error})
+                    .update({"model": model, "model_from_error": is_error})
                     .eq("organization_id", str(installation.organization_id))
                     .eq("installation_id", str(installation.id))
                     .eq("provider", "anthropic")
@@ -224,7 +225,7 @@ class SupabaseRepository:
                     update = update.is_("model", "null")
                 else:
                     # A success can replace an attempted model, including on retry.
-                    update = update.or_("model.is.null,model_is_fallback.eq.true")
+                    update = update.or_("model.is.null,model_from_error.eq.true")
                 update.select("id").execute()
             if len(rows) < 1000:
                 return

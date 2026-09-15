@@ -46,6 +46,7 @@ def resource_group(
     prompt_event: str | None = None,
     prompt_text: str | None = None,
     model: str | None = None,
+    query_source: str | None = None,
     slug: str | None = None,
     originator: str | None = None,
     service_name: str = "test",
@@ -72,6 +73,8 @@ def resource_group(
             record_attributes.append(attribute("prompt", prompt_text))
         if model is not None:
             record_attributes.append(attribute("model", model))
+        if query_source is not None:
+            record_attributes.append(attribute("query_source", query_source))
         if slug is not None:
             record_attributes.append(attribute("slug", slug))
         if originator is not None:

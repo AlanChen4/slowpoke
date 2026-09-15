@@ -251,10 +251,24 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
         assert after_replay["last_seen_at"] >= timestamps["last_seen_at"]
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        "sdk",
+        "repl_main_thread",
+        "generate_session_title",
+        "web_search_tool",
+        "web_fetch_apply",
+        "agent:builtin:general-purpose",
+        "prompt_suggestion",
+        None,
+        "unknown",
+    ],
+)
 @pytest.mark.parametrize("delivery", ["together", "prompt_first", "response_first"])
 @pytest.mark.parametrize("event", ["claude_code.api_request", "claude_code.api_error"])
 def test_claude_model_is_recovered_across_batches_and_replays(
-    delivery: str, event: str
+    delivery: str, event: str, source: str | None
 ) -> None:
     url, secret_key = _credentials()
     token = secrets.token_urlsafe(24)
@@ -274,6 +288,7 @@ def test_claude_model_is_recovered_across_batches_and_replays(
             tool="claude_code",
             prompt_event=event,
             model="claude-sonnet-5",
+            query_source=source,
         )
         # Claude identifies API events in the OTLP body.
         response["scopeLogs"][0]["logRecords"][0]["body"] = {"stringValue": event}
@@ -296,13 +311,14 @@ def test_claude_model_is_recovered_across_batches_and_replays(
                 .data
             )
 
-        assert models() == [{"model": "claude-sonnet-5"}]
+        expected = "claude-sonnet-5" if source in {"sdk", "repl_main_thread"} else None
+        assert models() == [{"model": expected}]
         # Replaying a prompt without a model must retain the recovered model.
         for group in groups:
             assert (
                 _post(client, "logs", {"resourceLogs": group}, token).status_code == 200
             )
-        assert models() == [{"model": "claude-sonnet-5"}]
+        assert models() == [{"model": expected}]
         usage = (
             service_client.table("response_usage_events")
             .select("model")
@@ -311,13 +327,16 @@ def test_claude_model_is_recovered_across_batches_and_replays(
             .execute()
             .data
         )
-        assert usage == ([] if event == "claude_code.api_error" else models())
-        if event == "claude_code.api_error":
+        assert usage == (
+            [] if event == "claude_code.api_error" else [{"model": "claude-sonnet-5"}]
+        )
+        if event == "claude_code.api_error" and expected is not None:
             success = resource_group(
                 installation_id,
                 tool="claude_code",
                 prompt_event="claude_code.api_request",
                 model="claude-opus-5",
+                query_source=source,
             )
             success["scopeLogs"][0]["logRecords"][0]["body"] = {
                 "stringValue": "claude_code.api_request"
@@ -369,6 +388,7 @@ def test_claude_model_does_not_cross_prompt_identity(mismatch: str, event: str) 
             tool="claude_code",
             prompt_event=event,
             model="claude-opus-5",
+            query_source="sdk",
         )
         response["scopeLogs"][0]["logRecords"][0]["body"] = {"stringValue": event}
         if mismatch == "installation_id":
@@ -429,12 +449,14 @@ def test_claude_model_preserves_reported_model_on_replay(event: str) -> None:
             prompt_event="claude_code.user_prompt",
             prompt_text="Prompt with a reported model",
             model="claude-opus-5",
+            query_source="sdk",
         )
         response = resource_group(
             installation_id,
             tool="claude_code",
             prompt_event=event,
             model="claude-sonnet-5",
+            query_source="sdk",
         )
         response["scopeLogs"][0]["logRecords"][0]["body"] = {"stringValue": event}
         payload = {"resourceLogs": [prompt, response]}

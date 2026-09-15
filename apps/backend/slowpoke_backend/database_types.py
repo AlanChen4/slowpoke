@@ -134,7 +134,7 @@ class PublicPromptEvents(BaseModel):
     installation_id: uuid.UUID = Field(alias="installation_id")
     is_redacted: bool = Field(alias="is_redacted")
     model: Optional[str] = Field(alias="model")
-    model_is_fallback: bool = Field(alias="model_is_fallback")
+    model_from_error: bool = Field(alias="model_from_error")
     occurred_at: datetime.datetime = Field(alias="occurred_at")
     organization_id: uuid.UUID = Field(alias="organization_id")
     originator: Optional[str] = Field(alias="originator")
@@ -155,7 +155,7 @@ class PublicPromptEventsInsert(TypedDict):
     installation_id: Annotated[uuid.UUID, Field(alias="installation_id")]
     is_redacted: NotRequired[Annotated[bool, Field(alias="is_redacted")]]
     model: NotRequired[Annotated[Optional[str], Field(alias="model")]]
-    model_is_fallback: NotRequired[Annotated[bool, Field(alias="model_is_fallback")]]
+    model_from_error: NotRequired[Annotated[bool, Field(alias="model_from_error")]]
     occurred_at: Annotated[datetime.datetime, Field(alias="occurred_at")]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     originator: NotRequired[Annotated[Optional[str], Field(alias="originator")]]
@@ -176,7 +176,7 @@ class PublicPromptEventsUpdate(TypedDict):
     installation_id: NotRequired[Annotated[uuid.UUID, Field(alias="installation_id")]]
     is_redacted: NotRequired[Annotated[bool, Field(alias="is_redacted")]]
     model: NotRequired[Annotated[Optional[str], Field(alias="model")]]
-    model_is_fallback: NotRequired[Annotated[bool, Field(alias="model_is_fallback")]]
+    model_from_error: NotRequired[Annotated[bool, Field(alias="model_from_error")]]
     occurred_at: NotRequired[Annotated[datetime.datetime, Field(alias="occurred_at")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     originator: NotRequired[Annotated[Optional[str], Field(alias="originator")]]
@@ -323,6 +323,7 @@ class PublicResponseUsageEvents(BaseModel):
     output_token_count: Optional[str] = Field(alias="output_token_count")
     prompt_id: Optional[str] = Field(alias="prompt_id")
     provider: Optional[str] = Field(alias="provider")
+    query_source: Optional[str] = Field(alias="query_source")
     reasoning_token_count: Optional[str] = Field(alias="reasoning_token_count")
     received_at: Optional[datetime.datetime] = Field(alias="received_at")
     time_unix_nano: Optional[str] = Field(alias="time_unix_nano")

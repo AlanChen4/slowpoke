@@ -170,7 +170,7 @@ create table public.prompt_events (
   is_redacted boolean not null default false,
   created_at timestamptz not null default now(),
   model text,
-  model_is_fallback boolean not null default false,
+  model_from_error boolean not null default false,
   slug text,
   originator text,
   foreign key (installation_id, organization_id)
@@ -372,7 +372,8 @@ select
   metadata.attributes->>'cost_usd' as cost_usd,
   metadata.attributes->>'estimated_cost_usd' as estimated_cost_usd,
   metadata.attributes->>'total_cost_usd' as total_cost_usd,
-  coalesce(record.value#>>'{body,stringValue}' = 'claude_code.api_error', false) as is_error
+  coalesce(record.value#>>'{body,stringValue}' = 'claude_code.api_error', false) as is_error,
+  metadata.attributes->>'query_source' as query_source
 from public.telemetry_batches as batch
 cross join lateral jsonb_array_elements(
   case

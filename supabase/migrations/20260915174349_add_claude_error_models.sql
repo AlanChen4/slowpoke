@@ -1,4 +1,4 @@
-alter table public.prompt_events add column model_is_fallback boolean not null default false;
+alter table public.prompt_events add column model_from_error boolean not null default false;
 
 create or replace view public.response_usage_events with (security_invoker = true) as
  SELECT batch.organization_id,
@@ -25,7 +25,8 @@ create or replace view public.response_usage_events with (security_invoker = tru
     metadata.attributes ->> 'cost_usd'::text AS cost_usd,
     metadata.attributes ->> 'estimated_cost_usd'::text AS estimated_cost_usd,
     metadata.attributes ->> 'total_cost_usd'::text AS total_cost_usd,
-    COALESCE((record.value #>> '{body,stringValue}'::text[]) = 'claude_code.api_error'::text, false) AS is_error
+    COALESCE((record.value #>> '{body,stringValue}'::text[]) = 'claude_code.api_error'::text, false) AS is_error,
+    metadata.attributes ->> 'query_source'::text AS query_source
    FROM public.telemetry_batches batch
      CROSS JOIN LATERAL jsonb_array_elements(
         CASE
