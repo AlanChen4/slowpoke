@@ -135,6 +135,8 @@ class SupabaseRepository:
                         "model": prompt.model,
                         "slug": prompt.slug,
                         "originator": prompt.originator,
+                        "command_name": prompt.command_name,
+                        "command_source": prompt.command_source,
                         "prompt_text": prompt.prompt_text,
                         "is_redacted": prompt.is_redacted,
                     }

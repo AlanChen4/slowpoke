@@ -221,6 +221,8 @@ export type Database = {
           actor_account_id: string | null;
           actor_email: string | null;
           batch_id: string;
+          command_name: string | null;
+          command_source: string | null;
           created_at: string;
           event_name: string;
           id: string;
@@ -242,6 +244,8 @@ export type Database = {
           actor_account_id?: string | null;
           actor_email?: string | null;
           batch_id: string;
+          command_name?: string | null;
+          command_source?: string | null;
           created_at?: string;
           event_name: string;
           id?: string;
@@ -263,6 +267,8 @@ export type Database = {
           actor_account_id?: string | null;
           actor_email?: string | null;
           batch_id?: string;
+          command_name?: string | null;
+          command_source?: string | null;
           created_at?: string;
           event_name?: string;
           id?: string;

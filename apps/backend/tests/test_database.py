@@ -251,6 +251,46 @@ def test_real_repository_stores_all_signals_and_deduplicates_replay() -> None:
         assert after_replay["last_seen_at"] >= timestamps["last_seen_at"]
 
 
+def test_real_repository_preserves_redacted_command_metadata_on_replay() -> None:
+    url, secret_key = _credentials()
+    token = secrets.token_urlsafe(24)
+    with _database_fixture() as (service_client, organization_id, installation_id):
+        service_client.table("installations").update({"tool": "claude_code"}).eq(
+            "id", installation_id
+        ).execute()
+        client = _api(secret_key, url, token)
+        payload = {
+            "resourceLogs": [
+                resource_group(
+                    installation_id,
+                    tool="claude_code",
+                    prompt_event="claude_code.user_prompt",
+                    command_name="auto-mode-setup",
+                    command_source="builtin",
+                )
+            ]
+        }
+
+        for _ in range(2):
+            assert _post(client, "logs", payload, token).status_code == 200
+
+        prompts = (
+            service_client.table("prompt_events")
+            .select("prompt_text,is_redacted,command_name,command_source")
+            .eq("organization_id", organization_id)
+            .execute()
+            .data
+        )
+        assert prompts == [
+            {
+                "prompt_text": "<REDACTED>",
+                "is_redacted": True,
+                "command_name": "auto-mode-setup",
+                "command_source": "builtin",
+            }
+        ]
+
+
 @pytest.mark.parametrize(
     "source",
     [

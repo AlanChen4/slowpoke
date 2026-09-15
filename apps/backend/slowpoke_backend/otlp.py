@@ -21,6 +21,8 @@ _PROMPT_PROVIDERS: dict[str, Provider] = {
 }
 _PROMPT_ATTRIBUTE_KEYS = frozenset(
     {
+        "command_name",
+        "command_source",
         "conversation.id",
         "event.name",
         "event.timestamp",
@@ -201,6 +203,8 @@ def _extract_prompt(
         model=attributes.get("model"),
         slug=attributes.get("slug"),
         originator=attributes.get("originator"),
+        command_name=attributes.get("command_name"),
+        command_source=attributes.get("command_source"),
         prompt_text=prompt_value if prompt_value is not None else "<REDACTED>",
         is_redacted=is_redacted,
     )

@@ -30,6 +30,8 @@ class Prompt:
     model: str | None
     slug: str | None
     originator: str | None
+    command_name: str | None
+    command_source: str | None
     prompt_text: str
     is_redacted: bool
 

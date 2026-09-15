@@ -49,6 +49,8 @@ def resource_group(
     query_source: str | None = None,
     slug: str | None = None,
     originator: str | None = None,
+    command_name: str | None = None,
+    command_source: str | None = None,
     service_name: str = "test",
     tool: str = "codex",
 ) -> dict[str, object]:
@@ -79,6 +81,10 @@ def resource_group(
             record_attributes.append(attribute("slug", slug))
         if originator is not None:
             record_attributes.append(attribute("originator", originator))
+        if command_name is not None:
+            record_attributes.append(attribute("command_name", command_name))
+        if command_source is not None:
+            record_attributes.append(attribute("command_source", command_source))
         group["scopeLogs"] = [
             {
                 "scope": {"name": service_name},

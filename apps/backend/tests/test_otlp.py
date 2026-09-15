@@ -2,9 +2,34 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import pytest
+
 from slowpoke_backend.otlp import partition_export
 
 from .helpers import resource_group
+
+
+@pytest.mark.parametrize("source", ["builtin", "custom", "mcp"])
+def test_preserves_command_metadata_even_when_prompt_is_redacted(source: str) -> None:
+    installation_id = UUID("00000000-0000-4000-8000-000000000002")
+    partition = partition_export(
+        {
+            "resourceLogs": [
+                resource_group(
+                    installation_id,
+                    prompt_event="claude_code.user_prompt",
+                    command_name="compact",
+                    command_source=source,
+                )
+            ]
+        },
+        "logs",
+    )[0]
+
+    prompt = partition.prompts[0]
+    assert prompt.command_name == "compact"
+    assert prompt.command_source == source
+    assert prompt.is_redacted is True
 
 
 def test_partitions_mixed_resources_and_extracts_documented_prompts() -> None:
