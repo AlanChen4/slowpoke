@@ -7,7 +7,6 @@ import datetime
 import uuid
 from typing import (
     Annotated,
-    Any,
     List,
     Literal,
     NotRequired,
@@ -16,7 +15,7 @@ from typing import (
     TypedDict,
 )
 
-from pydantic import BaseModel, Field, Json
+from pydantic import BaseModel, Field, JsonValue
 
 NetRequestStatus: TypeAlias = Literal["PENDING", "SUCCESS", "ERROR"]
 
@@ -134,6 +133,7 @@ class PublicPromptEvents(BaseModel):
     installation_id: uuid.UUID = Field(alias="installation_id")
     is_redacted: bool = Field(alias="is_redacted")
     model: Optional[str] = Field(alias="model")
+    model_from_error: bool = Field(alias="model_from_error")
     occurred_at: datetime.datetime = Field(alias="occurred_at")
     organization_id: uuid.UUID = Field(alias="organization_id")
     originator: Optional[str] = Field(alias="originator")
@@ -154,6 +154,7 @@ class PublicPromptEventsInsert(TypedDict):
     installation_id: Annotated[uuid.UUID, Field(alias="installation_id")]
     is_redacted: NotRequired[Annotated[bool, Field(alias="is_redacted")]]
     model: NotRequired[Annotated[Optional[str], Field(alias="model")]]
+    model_from_error: NotRequired[Annotated[bool, Field(alias="model_from_error")]]
     occurred_at: Annotated[datetime.datetime, Field(alias="occurred_at")]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
     originator: NotRequired[Annotated[Optional[str], Field(alias="originator")]]
@@ -174,6 +175,7 @@ class PublicPromptEventsUpdate(TypedDict):
     installation_id: NotRequired[Annotated[uuid.UUID, Field(alias="installation_id")]]
     is_redacted: NotRequired[Annotated[bool, Field(alias="is_redacted")]]
     model: NotRequired[Annotated[Optional[str], Field(alias="model")]]
+    model_from_error: NotRequired[Annotated[bool, Field(alias="model_from_error")]]
     occurred_at: NotRequired[Annotated[datetime.datetime, Field(alias="occurred_at")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
     originator: NotRequired[Annotated[Optional[str], Field(alias="originator")]]
@@ -189,7 +191,7 @@ class PublicTelemetryBatches(BaseModel):
     id: uuid.UUID = Field(alias="id")
     installation_id: uuid.UUID = Field(alias="installation_id")
     organization_id: uuid.UUID = Field(alias="organization_id")
-    raw_payload: Json[Any] = Field(alias="raw_payload")
+    raw_payload: JsonValue = Field(alias="raw_payload")
     received_at: datetime.datetime = Field(alias="received_at")
     signal: str = Field(alias="signal")
 
@@ -198,7 +200,7 @@ class PublicTelemetryBatchesInsert(TypedDict):
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
     installation_id: Annotated[uuid.UUID, Field(alias="installation_id")]
     organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
-    raw_payload: Annotated[Json[Any], Field(alias="raw_payload")]
+    raw_payload: Annotated[JsonValue, Field(alias="raw_payload")]
     received_at: NotRequired[Annotated[datetime.datetime, Field(alias="received_at")]]
     signal: Annotated[str, Field(alias="signal")]
 
@@ -207,7 +209,7 @@ class PublicTelemetryBatchesUpdate(TypedDict):
     id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
     installation_id: NotRequired[Annotated[uuid.UUID, Field(alias="installation_id")]]
     organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
-    raw_payload: NotRequired[Annotated[Json[Any], Field(alias="raw_payload")]]
+    raw_payload: NotRequired[Annotated[JsonValue, Field(alias="raw_payload")]]
     received_at: NotRequired[Annotated[datetime.datetime, Field(alias="received_at")]]
     signal: NotRequired[Annotated[str, Field(alias="signal")]]
 
@@ -313,12 +315,14 @@ class PublicResponseUsageEvents(BaseModel):
     event_timestamp: Optional[str] = Field(alias="event_timestamp")
     input_token_count: Optional[str] = Field(alias="input_token_count")
     installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
+    is_error: Optional[bool] = Field(alias="is_error")
     model: Optional[str] = Field(alias="model")
     observed_time_unix_nano: Optional[str] = Field(alias="observed_time_unix_nano")
     organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
     output_token_count: Optional[str] = Field(alias="output_token_count")
     prompt_id: Optional[str] = Field(alias="prompt_id")
     provider: Optional[str] = Field(alias="provider")
+    query_source: Optional[str] = Field(alias="query_source")
     reasoning_token_count: Optional[str] = Field(alias="reasoning_token_count")
     received_at: Optional[datetime.datetime] = Field(alias="received_at")
     time_unix_nano: Optional[str] = Field(alias="time_unix_nano")

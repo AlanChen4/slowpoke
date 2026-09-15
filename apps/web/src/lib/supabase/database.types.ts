@@ -227,6 +227,7 @@ export type Database = {
           installation_id: string;
           is_redacted: boolean;
           model: string | null;
+          model_from_error: boolean;
           occurred_at: string;
           organization_id: string;
           originator: string | null;
@@ -247,6 +248,7 @@ export type Database = {
           installation_id: string;
           is_redacted?: boolean;
           model?: string | null;
+          model_from_error?: boolean;
           occurred_at: string;
           organization_id: string;
           originator?: string | null;
@@ -267,6 +269,7 @@ export type Database = {
           installation_id?: string;
           is_redacted?: boolean;
           model?: string | null;
+          model_from_error?: boolean;
           occurred_at?: string;
           organization_id?: string;
           originator?: string | null;
@@ -458,12 +461,14 @@ export type Database = {
           event_timestamp: string | null;
           input_token_count: string | null;
           installation_id: string | null;
+          is_error: boolean | null;
           model: string | null;
           observed_time_unix_nano: string | null;
           organization_id: string | null;
           output_token_count: string | null;
           prompt_id: string | null;
           provider: string | null;
+          query_source: string | null;
           reasoning_token_count: string | null;
           received_at: string | null;
           time_unix_nano: string | null;

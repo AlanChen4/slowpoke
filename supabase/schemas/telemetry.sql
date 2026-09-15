@@ -170,6 +170,7 @@ create table public.prompt_events (
   is_redacted boolean not null default false,
   created_at timestamptz not null default now(),
   model text,
+  model_from_error boolean not null default false,
   slug text,
   originator text,
   foreign key (installation_id, organization_id)
@@ -338,7 +339,7 @@ select
   case
     when coalesce(metadata.attributes->>'event.name', record.value->>'eventName') = 'codex.sse_event'
       then 'openai'
-    when record.value#>>'{body,stringValue}' = 'claude_code.api_request'
+    when record.value#>>'{body,stringValue}' in ('claude_code.api_request', 'claude_code.api_error')
       then 'anthropic'
   end as provider,
   coalesce(
@@ -370,7 +371,9 @@ select
   metadata.attributes->>'tool_token_count' as tool_token_count,
   metadata.attributes->>'cost_usd' as cost_usd,
   metadata.attributes->>'estimated_cost_usd' as estimated_cost_usd,
-  metadata.attributes->>'total_cost_usd' as total_cost_usd
+  metadata.attributes->>'total_cost_usd' as total_cost_usd,
+  coalesce(record.value#>>'{body,stringValue}' = 'claude_code.api_error', false) as is_error,
+  metadata.attributes->>'query_source' as query_source
 from public.telemetry_batches as batch
 cross join lateral jsonb_array_elements(
   case
@@ -419,7 +422,7 @@ where batch.signal = 'logs'
       coalesce(metadata.attributes->>'event.name', record.value->>'eventName') = 'codex.sse_event'
       and metadata.attributes->>'event.kind' = 'response.completed'
     )
-    or record.value#>>'{body,stringValue}' = 'claude_code.api_request'
+    or record.value#>>'{body,stringValue}' in ('claude_code.api_request', 'claude_code.api_error')
   );
 
 create function public.get_prompt_analytics_summary(
