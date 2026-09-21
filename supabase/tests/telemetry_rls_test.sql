@@ -1,6 +1,6 @@
 begin;
 
-select plan(37);
+select plan(39);
 
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.organizations'::regclass),
@@ -29,6 +29,16 @@ select ok(
 select ok(
   (select relrowsecurity from pg_class where oid = 'public.prompt_events'::regclass),
   'prompt_events has RLS enabled'
+);
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.response_usage_events'::regclass),
+  'response_usage_events has RLS enabled'
+);
+select ok(
+  not has_function_privilege('anon', 'public.normalize_response_usage_events()', 'execute')
+    and not has_function_privilege('authenticated', 'public.normalize_response_usage_events()', 'execute')
+    and not has_function_privilege('service_role', 'public.normalize_response_usage_events()', 'execute'),
+  'response usage normalization is trigger-only'
 );
 select results_eq(
   $$select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'organization-logos'$$,
@@ -249,7 +259,7 @@ select throws_ok(
 select throws_ok(
   'select * from public.response_usage_events',
   '42501',
-  'permission denied for view response_usage_events',
+  'permission denied for table response_usage_events',
   'compact response usage remains backend-only'
 );
 select throws_ok(
