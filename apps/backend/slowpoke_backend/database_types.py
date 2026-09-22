@@ -291,6 +291,87 @@ class PublicInstallationSetupSessionsUpdate(TypedDict):
     redeemed_at: NotRequired[Annotated[Optional[datetime.datetime], Field(alias="redeemed_at")]]
     selected_tools: NotRequired[Annotated[List[str], Field(alias="selected_tools")]]
 
+class PublicResponseUsageEvents(BaseModel):
+    batch_id: uuid.UUID = Field(alias="batch_id")
+    cache_creation_token_count: Optional[str] = Field(alias="cache_creation_token_count")
+    cached_token_count: Optional[str] = Field(alias="cached_token_count")
+    conversation_id: Optional[str] = Field(alias="conversation_id")
+    cost_usd: Optional[str] = Field(alias="cost_usd")
+    estimated_cost_usd: Optional[str] = Field(alias="estimated_cost_usd")
+    event_timestamp: Optional[str] = Field(alias="event_timestamp")
+    input_token_count: Optional[str] = Field(alias="input_token_count")
+    installation_id: uuid.UUID = Field(alias="installation_id")
+    is_error: bool = Field(alias="is_error")
+    model: Optional[str] = Field(alias="model")
+    observed_time_unix_nano: Optional[str] = Field(alias="observed_time_unix_nano")
+    organization_id: uuid.UUID = Field(alias="organization_id")
+    output_token_count: Optional[str] = Field(alias="output_token_count")
+    prompt_id: Optional[str] = Field(alias="prompt_id")
+    provider: str = Field(alias="provider")
+    query_source: Optional[str] = Field(alias="query_source")
+    reasoning_token_count: Optional[str] = Field(alias="reasoning_token_count")
+    received_at: datetime.datetime = Field(alias="received_at")
+    record_index: int = Field(alias="record_index")
+    resource_index: int = Field(alias="resource_index")
+    scope_index: int = Field(alias="scope_index")
+    time_unix_nano: Optional[str] = Field(alias="time_unix_nano")
+    tool_token_count: Optional[str] = Field(alias="tool_token_count")
+    total_cost_usd: Optional[str] = Field(alias="total_cost_usd")
+
+class PublicResponseUsageEventsInsert(TypedDict):
+    batch_id: Annotated[uuid.UUID, Field(alias="batch_id")]
+    cache_creation_token_count: NotRequired[Annotated[Optional[str], Field(alias="cache_creation_token_count")]]
+    cached_token_count: NotRequired[Annotated[Optional[str], Field(alias="cached_token_count")]]
+    conversation_id: NotRequired[Annotated[Optional[str], Field(alias="conversation_id")]]
+    cost_usd: NotRequired[Annotated[Optional[str], Field(alias="cost_usd")]]
+    estimated_cost_usd: NotRequired[Annotated[Optional[str], Field(alias="estimated_cost_usd")]]
+    event_timestamp: NotRequired[Annotated[Optional[str], Field(alias="event_timestamp")]]
+    input_token_count: NotRequired[Annotated[Optional[str], Field(alias="input_token_count")]]
+    installation_id: Annotated[uuid.UUID, Field(alias="installation_id")]
+    is_error: NotRequired[Annotated[bool, Field(alias="is_error")]]
+    model: NotRequired[Annotated[Optional[str], Field(alias="model")]]
+    observed_time_unix_nano: NotRequired[Annotated[Optional[str], Field(alias="observed_time_unix_nano")]]
+    organization_id: Annotated[uuid.UUID, Field(alias="organization_id")]
+    output_token_count: NotRequired[Annotated[Optional[str], Field(alias="output_token_count")]]
+    prompt_id: NotRequired[Annotated[Optional[str], Field(alias="prompt_id")]]
+    provider: Annotated[str, Field(alias="provider")]
+    query_source: NotRequired[Annotated[Optional[str], Field(alias="query_source")]]
+    reasoning_token_count: NotRequired[Annotated[Optional[str], Field(alias="reasoning_token_count")]]
+    received_at: Annotated[datetime.datetime, Field(alias="received_at")]
+    record_index: Annotated[int, Field(alias="record_index")]
+    resource_index: Annotated[int, Field(alias="resource_index")]
+    scope_index: Annotated[int, Field(alias="scope_index")]
+    time_unix_nano: NotRequired[Annotated[Optional[str], Field(alias="time_unix_nano")]]
+    tool_token_count: NotRequired[Annotated[Optional[str], Field(alias="tool_token_count")]]
+    total_cost_usd: NotRequired[Annotated[Optional[str], Field(alias="total_cost_usd")]]
+
+class PublicResponseUsageEventsUpdate(TypedDict):
+    batch_id: NotRequired[Annotated[uuid.UUID, Field(alias="batch_id")]]
+    cache_creation_token_count: NotRequired[Annotated[Optional[str], Field(alias="cache_creation_token_count")]]
+    cached_token_count: NotRequired[Annotated[Optional[str], Field(alias="cached_token_count")]]
+    conversation_id: NotRequired[Annotated[Optional[str], Field(alias="conversation_id")]]
+    cost_usd: NotRequired[Annotated[Optional[str], Field(alias="cost_usd")]]
+    estimated_cost_usd: NotRequired[Annotated[Optional[str], Field(alias="estimated_cost_usd")]]
+    event_timestamp: NotRequired[Annotated[Optional[str], Field(alias="event_timestamp")]]
+    input_token_count: NotRequired[Annotated[Optional[str], Field(alias="input_token_count")]]
+    installation_id: NotRequired[Annotated[uuid.UUID, Field(alias="installation_id")]]
+    is_error: NotRequired[Annotated[bool, Field(alias="is_error")]]
+    model: NotRequired[Annotated[Optional[str], Field(alias="model")]]
+    observed_time_unix_nano: NotRequired[Annotated[Optional[str], Field(alias="observed_time_unix_nano")]]
+    organization_id: NotRequired[Annotated[uuid.UUID, Field(alias="organization_id")]]
+    output_token_count: NotRequired[Annotated[Optional[str], Field(alias="output_token_count")]]
+    prompt_id: NotRequired[Annotated[Optional[str], Field(alias="prompt_id")]]
+    provider: NotRequired[Annotated[str, Field(alias="provider")]]
+    query_source: NotRequired[Annotated[Optional[str], Field(alias="query_source")]]
+    reasoning_token_count: NotRequired[Annotated[Optional[str], Field(alias="reasoning_token_count")]]
+    received_at: NotRequired[Annotated[datetime.datetime, Field(alias="received_at")]]
+    record_index: NotRequired[Annotated[int, Field(alias="record_index")]]
+    resource_index: NotRequired[Annotated[int, Field(alias="resource_index")]]
+    scope_index: NotRequired[Annotated[int, Field(alias="scope_index")]]
+    time_unix_nano: NotRequired[Annotated[Optional[str], Field(alias="time_unix_nano")]]
+    tool_token_count: NotRequired[Annotated[Optional[str], Field(alias="tool_token_count")]]
+    total_cost_usd: NotRequired[Annotated[Optional[str], Field(alias="total_cost_usd")]]
+
 class PublicHumanPromptEvents(BaseModel):
     actor_account_id: Optional[str] = Field(alias="actor_account_id")
     actor_email: Optional[str] = Field(alias="actor_email")
@@ -310,27 +391,3 @@ class PublicHumanPromptEvents(BaseModel):
     record_index: Optional[int] = Field(alias="record_index")
     session_id: Optional[str] = Field(alias="session_id")
     slug: Optional[str] = Field(alias="slug")
-
-class PublicResponseUsageEvents(BaseModel):
-    batch_id: Optional[uuid.UUID] = Field(alias="batch_id")
-    cache_creation_token_count: Optional[str] = Field(alias="cache_creation_token_count")
-    cached_token_count: Optional[str] = Field(alias="cached_token_count")
-    conversation_id: Optional[str] = Field(alias="conversation_id")
-    cost_usd: Optional[str] = Field(alias="cost_usd")
-    estimated_cost_usd: Optional[str] = Field(alias="estimated_cost_usd")
-    event_timestamp: Optional[str] = Field(alias="event_timestamp")
-    input_token_count: Optional[str] = Field(alias="input_token_count")
-    installation_id: Optional[uuid.UUID] = Field(alias="installation_id")
-    is_error: Optional[bool] = Field(alias="is_error")
-    model: Optional[str] = Field(alias="model")
-    observed_time_unix_nano: Optional[str] = Field(alias="observed_time_unix_nano")
-    organization_id: Optional[uuid.UUID] = Field(alias="organization_id")
-    output_token_count: Optional[str] = Field(alias="output_token_count")
-    prompt_id: Optional[str] = Field(alias="prompt_id")
-    provider: Optional[str] = Field(alias="provider")
-    query_source: Optional[str] = Field(alias="query_source")
-    reasoning_token_count: Optional[str] = Field(alias="reasoning_token_count")
-    received_at: Optional[datetime.datetime] = Field(alias="received_at")
-    time_unix_nano: Optional[str] = Field(alias="time_unix_nano")
-    tool_token_count: Optional[str] = Field(alias="tool_token_count")
-    total_cost_usd: Optional[str] = Field(alias="total_cost_usd")

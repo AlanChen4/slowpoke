@@ -291,13 +291,6 @@ export type Database = {
             foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
             columns: ["batch_id", "organization_id"];
             isOneToOne: false;
-            referencedRelation: "response_usage_events";
-            referencedColumns: ["batch_id", "organization_id"];
-          },
-          {
-            foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
-            columns: ["batch_id", "organization_id"];
-            isOneToOne: false;
             referencedRelation: "telemetry_batches";
             referencedColumns: ["id", "organization_id"];
           },
@@ -313,6 +306,98 @@ export type Database = {
             columns: ["organization_id"];
             isOneToOne: false;
             referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      response_usage_events: {
+        Row: {
+          batch_id: string;
+          cache_creation_token_count: string | null;
+          cached_token_count: string | null;
+          conversation_id: string | null;
+          cost_usd: string | null;
+          estimated_cost_usd: string | null;
+          event_timestamp: string | null;
+          input_token_count: string | null;
+          installation_id: string;
+          is_error: boolean;
+          model: string | null;
+          observed_time_unix_nano: string | null;
+          organization_id: string;
+          output_token_count: string | null;
+          prompt_id: string | null;
+          provider: string;
+          query_source: string | null;
+          reasoning_token_count: string | null;
+          received_at: string;
+          record_index: number;
+          resource_index: number;
+          scope_index: number;
+          time_unix_nano: string | null;
+          tool_token_count: string | null;
+          total_cost_usd: string | null;
+        };
+        Insert: {
+          batch_id: string;
+          cache_creation_token_count?: string | null;
+          cached_token_count?: string | null;
+          conversation_id?: string | null;
+          cost_usd?: string | null;
+          estimated_cost_usd?: string | null;
+          event_timestamp?: string | null;
+          input_token_count?: string | null;
+          installation_id: string;
+          is_error?: boolean;
+          model?: string | null;
+          observed_time_unix_nano?: string | null;
+          organization_id: string;
+          output_token_count?: string | null;
+          prompt_id?: string | null;
+          provider: string;
+          query_source?: string | null;
+          reasoning_token_count?: string | null;
+          received_at: string;
+          record_index: number;
+          resource_index: number;
+          scope_index: number;
+          time_unix_nano?: string | null;
+          tool_token_count?: string | null;
+          total_cost_usd?: string | null;
+        };
+        Update: {
+          batch_id?: string;
+          cache_creation_token_count?: string | null;
+          cached_token_count?: string | null;
+          conversation_id?: string | null;
+          cost_usd?: string | null;
+          estimated_cost_usd?: string | null;
+          event_timestamp?: string | null;
+          input_token_count?: string | null;
+          installation_id?: string;
+          is_error?: boolean;
+          model?: string | null;
+          observed_time_unix_nano?: string | null;
+          organization_id?: string;
+          output_token_count?: string | null;
+          prompt_id?: string | null;
+          provider?: string;
+          query_source?: string | null;
+          reasoning_token_count?: string | null;
+          received_at?: string;
+          record_index?: number;
+          resource_index?: number;
+          scope_index?: number;
+          time_unix_nano?: string | null;
+          tool_token_count?: string | null;
+          total_cost_usd?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "response_usage_events_batch_id_fkey";
+            columns: ["batch_id"];
+            isOneToOne: false;
+            referencedRelation: "telemetry_batches";
             referencedColumns: ["id"];
           },
         ];
@@ -430,13 +515,6 @@ export type Database = {
             foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
             columns: ["batch_id", "organization_id"];
             isOneToOne: false;
-            referencedRelation: "response_usage_events";
-            referencedColumns: ["batch_id", "organization_id"];
-          },
-          {
-            foreignKeyName: "prompt_events_batch_id_organization_id_fkey";
-            columns: ["batch_id", "organization_id"];
-            isOneToOne: false;
             referencedRelation: "telemetry_batches";
             referencedColumns: ["id", "organization_id"];
           },
@@ -449,48 +527,6 @@ export type Database = {
           },
           {
             foreignKeyName: "prompt_events_organization_id_fkey";
-            columns: ["organization_id"];
-            isOneToOne: false;
-            referencedRelation: "organizations";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
-      response_usage_events: {
-        Row: {
-          batch_id: string | null;
-          cache_creation_token_count: string | null;
-          cached_token_count: string | null;
-          conversation_id: string | null;
-          cost_usd: string | null;
-          estimated_cost_usd: string | null;
-          event_timestamp: string | null;
-          input_token_count: string | null;
-          installation_id: string | null;
-          is_error: boolean | null;
-          model: string | null;
-          observed_time_unix_nano: string | null;
-          organization_id: string | null;
-          output_token_count: string | null;
-          prompt_id: string | null;
-          provider: string | null;
-          query_source: string | null;
-          reasoning_token_count: string | null;
-          received_at: string | null;
-          time_unix_nano: string | null;
-          tool_token_count: string | null;
-          total_cost_usd: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "telemetry_batches_installation_id_organization_id_fkey";
-            columns: ["installation_id", "organization_id"];
-            isOneToOne: false;
-            referencedRelation: "installations";
-            referencedColumns: ["id", "organization_id"];
-          },
-          {
-            foreignKeyName: "telemetry_batches_organization_id_fkey";
             columns: ["organization_id"];
             isOneToOne: false;
             referencedRelation: "organizations";

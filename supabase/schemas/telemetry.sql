@@ -346,101 +346,205 @@ where coalesce(model, '') <> 'codex-auto-review'
     )
   );
 
-create view public.response_usage_events
-with (security_invoker = true) as
-select
-  batch.organization_id,
-  batch.installation_id,
-  batch.id as batch_id,
-  batch.received_at,
-  case
-    when coalesce(metadata.attributes->>'event.name', record.value->>'eventName') = 'codex.sse_event'
-      then 'openai'
-    when record.value#>>'{body,stringValue}' in ('claude_code.api_request', 'claude_code.api_error')
-      then 'anthropic'
-  end as provider,
-  coalesce(
-    metadata.attributes->>'conversation.id',
-    metadata.attributes->>'session.id'
-  ) as conversation_id,
-  metadata.attributes->>'prompt.id' as prompt_id,
-  metadata.attributes->>'model' as model,
-  metadata.attributes->>'event.timestamp' as event_timestamp,
-  record.value->>'timeUnixNano' as time_unix_nano,
-  record.value->>'observedTimeUnixNano' as observed_time_unix_nano,
-  coalesce(
-    metadata.attributes->>'input_token_count',
-    metadata.attributes->>'input_tokens'
-  ) as input_token_count,
-  coalesce(
-    metadata.attributes->>'cached_token_count',
-    metadata.attributes->>'cache_read_tokens'
-  ) as cached_token_count,
-  coalesce(
-    metadata.attributes->>'cache_write_token_count',
-    metadata.attributes->>'cache_creation_tokens'
-  ) as cache_creation_token_count,
-  coalesce(
-    metadata.attributes->>'output_token_count',
-    metadata.attributes->>'output_tokens'
-  ) as output_token_count,
-  metadata.attributes->>'reasoning_token_count' as reasoning_token_count,
-  metadata.attributes->>'tool_token_count' as tool_token_count,
-  metadata.attributes->>'cost_usd' as cost_usd,
-  metadata.attributes->>'estimated_cost_usd' as estimated_cost_usd,
-  metadata.attributes->>'total_cost_usd' as total_cost_usd,
-  coalesce(record.value#>>'{body,stringValue}' = 'claude_code.api_error', false) as is_error,
-  metadata.attributes->>'query_source' as query_source
-from public.telemetry_batches as batch
-cross join lateral jsonb_array_elements(
-  case
-    when jsonb_typeof(batch.raw_payload->'resourceLogs') = 'array'
-      then batch.raw_payload->'resourceLogs'
-    else '[]'::jsonb
-  end
-) as resource_group(value)
-cross join lateral jsonb_array_elements(
-  case
-    when jsonb_typeof(resource_group.value->'scopeLogs') = 'array'
-      then resource_group.value->'scopeLogs'
-    else '[]'::jsonb
-  end
-) as scope_group(value)
-cross join lateral jsonb_array_elements(
-  case
-    when jsonb_typeof(scope_group.value->'logRecords') = 'array'
-      then scope_group.value->'logRecords'
-    else '[]'::jsonb
-  end
-) as record(value)
-cross join lateral (
-  select jsonb_object_agg(
-    attribute.value->>'key',
+create table public.response_usage_events (
+  organization_id uuid not null,
+  installation_id uuid not null,
+  batch_id uuid not null references public.telemetry_batches (id) on delete cascade,
+  resource_index integer not null check (resource_index >= 0),
+  scope_index integer not null check (scope_index >= 0),
+  record_index integer not null check (record_index >= 0),
+  received_at timestamptz not null,
+  provider text not null check (provider in ('anthropic', 'openai')),
+  conversation_id text,
+  prompt_id text,
+  model text,
+  event_timestamp text,
+  time_unix_nano text,
+  observed_time_unix_nano text,
+  input_token_count text,
+  cached_token_count text,
+  cache_creation_token_count text,
+  output_token_count text,
+  reasoning_token_count text,
+  tool_token_count text,
+  cost_usd text,
+  estimated_cost_usd text,
+  total_cost_usd text,
+  is_error boolean not null default false,
+  query_source text,
+  primary key (batch_id, resource_index, scope_index, record_index)
+);
+
+alter table public.response_usage_events enable row level security;
+
+create index response_usage_events_prompt_model_idx
+  on public.response_usage_events (
+    organization_id,
+    installation_id,
+    provider,
+    prompt_id,
+    query_source
+  )
+  include (conversation_id, model, is_error, event_timestamp)
+  where model is not null and model <> '';
+
+create index response_usage_events_conversation_idx
+  on public.response_usage_events (
+    organization_id,
+    installation_id,
+    conversation_id,
+    received_at
+  )
+  where not is_error;
+
+create index prompt_events_missing_model_idx
+  on public.prompt_events (
+    organization_id,
+    installation_id,
+    provider,
+    prompt_id,
+    session_id
+  )
+  where model is null or model_from_error;
+
+create function public.normalize_response_usage_events()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.response_usage_events (
+    organization_id,
+    installation_id,
+    batch_id,
+    resource_index,
+    scope_index,
+    record_index,
+    received_at,
+    provider,
+    conversation_id,
+    prompt_id,
+    model,
+    event_timestamp,
+    time_unix_nano,
+    observed_time_unix_nano,
+    input_token_count,
+    cached_token_count,
+    cache_creation_token_count,
+    output_token_count,
+    reasoning_token_count,
+    tool_token_count,
+    cost_usd,
+    estimated_cost_usd,
+    total_cost_usd,
+    is_error,
+    query_source
+  )
+  select
+    new.organization_id,
+    new.installation_id,
+    new.id,
+    resource_group.ordinality::integer - 1,
+    scope_group.ordinality::integer - 1,
+    record.ordinality::integer - 1,
+    new.received_at,
+    case
+      when coalesce(metadata.attributes->>'event.name', record.value->>'eventName') = 'codex.sse_event'
+        then 'openai'
+      when record.value#>>'{body,stringValue}' in ('claude_code.api_request', 'claude_code.api_error')
+        then 'anthropic'
+    end,
     coalesce(
-      attribute.value->'value'->>'stringValue',
-      attribute.value->'value'->>'intValue',
-      attribute.value->'value'->>'doubleValue',
-      attribute.value->'value'->>'boolValue'
-    )
-  ) filter (
-    where jsonb_typeof(attribute.value->'key') = 'string'
-  ) as attributes
+      metadata.attributes->>'conversation.id',
+      metadata.attributes->>'session.id'
+    ),
+    metadata.attributes->>'prompt.id',
+    metadata.attributes->>'model',
+    metadata.attributes->>'event.timestamp',
+    record.value->>'timeUnixNano',
+    record.value->>'observedTimeUnixNano',
+    coalesce(
+      metadata.attributes->>'input_token_count',
+      metadata.attributes->>'input_tokens'
+    ),
+    coalesce(
+      metadata.attributes->>'cached_token_count',
+      metadata.attributes->>'cache_read_tokens'
+    ),
+    coalesce(
+      metadata.attributes->>'cache_write_token_count',
+      metadata.attributes->>'cache_creation_tokens'
+    ),
+    coalesce(
+      metadata.attributes->>'output_token_count',
+      metadata.attributes->>'output_tokens'
+    ),
+    metadata.attributes->>'reasoning_token_count',
+    metadata.attributes->>'tool_token_count',
+    metadata.attributes->>'cost_usd',
+    metadata.attributes->>'estimated_cost_usd',
+    metadata.attributes->>'total_cost_usd',
+    coalesce(record.value#>>'{body,stringValue}' = 'claude_code.api_error', false),
+    metadata.attributes->>'query_source'
   from jsonb_array_elements(
     case
-      when jsonb_typeof(record.value->'attributes') = 'array'
-        then record.value->'attributes'
+      when jsonb_typeof(new.raw_payload->'resourceLogs') = 'array'
+        then new.raw_payload->'resourceLogs'
       else '[]'::jsonb
     end
-  ) as attribute(value)
-) as metadata
-where batch.signal = 'logs'
-  and (
-    (
-      coalesce(metadata.attributes->>'event.name', record.value->>'eventName') = 'codex.sse_event'
-      and metadata.attributes->>'event.kind' = 'response.completed'
+  ) with ordinality as resource_group(value, ordinality)
+  cross join lateral jsonb_array_elements(
+    case
+      when jsonb_typeof(resource_group.value->'scopeLogs') = 'array'
+        then resource_group.value->'scopeLogs'
+      else '[]'::jsonb
+    end
+  ) with ordinality as scope_group(value, ordinality)
+  cross join lateral jsonb_array_elements(
+    case
+      when jsonb_typeof(scope_group.value->'logRecords') = 'array'
+        then scope_group.value->'logRecords'
+      else '[]'::jsonb
+    end
+  ) with ordinality as record(value, ordinality)
+  cross join lateral (
+    select jsonb_object_agg(
+      attribute.value->>'key',
+      coalesce(
+        attribute.value->'value'->>'stringValue',
+        attribute.value->'value'->>'intValue',
+        attribute.value->'value'->>'doubleValue',
+        attribute.value->'value'->>'boolValue'
+      )
+    ) filter (
+      where jsonb_typeof(attribute.value->'key') = 'string'
+    ) as attributes
+    from jsonb_array_elements(
+      case
+        when jsonb_typeof(record.value->'attributes') = 'array'
+          then record.value->'attributes'
+        else '[]'::jsonb
+      end
+    ) as attribute(value)
+  ) as metadata
+  where new.signal = 'logs'
+    and (
+      (
+        coalesce(metadata.attributes->>'event.name', record.value->>'eventName') = 'codex.sse_event'
+        and metadata.attributes->>'event.kind' = 'response.completed'
+      )
+      or record.value#>>'{body,stringValue}' in ('claude_code.api_request', 'claude_code.api_error')
     )
-    or record.value#>>'{body,stringValue}' in ('claude_code.api_request', 'claude_code.api_error')
-  );
+  on conflict (batch_id, resource_index, scope_index, record_index) do nothing;
+
+  return new;
+end;
+$$;
+
+create trigger normalize_response_usage_events_after_insert
+after insert on public.telemetry_batches
+for each row execute function public.normalize_response_usage_events();
 
 create function public.get_prompt_analytics_summary(
   p_organization_id uuid,
@@ -1110,6 +1214,8 @@ revoke all on function public.get_prompt_analytics_users(uuid, integer, text, ti
 revoke all on function public.get_prompt_analytics_providers(uuid, integer, text, timestamptz)
   from public, anon, authenticated, service_role;
 revoke all on function public.get_prompt_analytics_models(uuid, integer, text, timestamptz)
+  from public, anon, authenticated, service_role;
+revoke all on function public.normalize_response_usage_events()
   from public, anon, authenticated, service_role;
 
 grant select on table public.organizations to authenticated;
